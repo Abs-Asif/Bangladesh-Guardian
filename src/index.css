@@ -6,94 +6,6 @@
 
 /* Fonts Configuration */
 @font-face {
-  font-family: 'Kalpurush';
-  src: url('/fonts/kalpurush.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Ekushey Lal Salu Normal';
-  src: url('/fonts/EkusheyLalsalu-Regular.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Ekushey Lal Salu Normal';
-  src: url('/fonts/EkusheyLalsalu-Bold.ttf') format('truetype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Adorsho Lipi';
-  src: url('/fonts/AdorshoLipi.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Bornomala';
-  src: url('/fonts/Bornomala-Regular.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Bornomala';
-  src: url('/fonts/Bornomala-Bold.ttf') format('truetype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'July';
-  src: url('/fonts/July-Regular.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'July';
-  src: url('/fonts/July-Italic.ttf') format('truetype');
-  font-weight: 400;
-  font-style: italic;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'July';
-  src: url('/fonts/July-Bold.ttf') format('truetype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'July';
-  src: url('/fonts/July-Bold-Italic.ttf') format('truetype');
-  font-weight: 700;
-  font-style: italic;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Purno';
-  src: url('/fonts/Purno.woff') format('woff');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
   font-family: 'Solaiman Lipi';
   src: url('/fonts/SolaimanLipi-Thin.ttf') format('truetype');
   font-weight: 100;
@@ -113,14 +25,6 @@
   font-family: 'Solaiman Lipi';
   src: url('/fonts/SolaimanLipi-Bold.ttf') format('truetype');
   font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Sagar';
-  src: url('/fonts/sagar.ttf') format('truetype');
-  font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
@@ -255,68 +159,6 @@
     font-family: 'Scheherazade New', serif;
   }
 
-  /* Apply Kalpurush to Bangla text */
-  .font-bangla {
-    font-family: 'Kalpurush', 'Inter', system-ui, sans-serif;
-  }
-
-  .font-ekushey-regular {
-    font-family: 'Ekushey Lal Salu Normal', sans-serif;
-    font-weight: 400;
-  }
-
-  .font-ekushey-bold {
-    font-family: 'Ekushey Lal Salu Normal', sans-serif;
-    font-weight: 700;
-  }
-
-  .font-kalpurush-regular {
-    font-family: 'Kalpurush', sans-serif;
-    font-weight: 400;
-  }
-
-  .font-adorsho-regular {
-    font-family: 'Adorsho Lipi', sans-serif;
-    font-weight: 400;
-  }
-
-  .font-bornomala-regular {
-    font-family: 'Bornomala', sans-serif;
-    font-weight: 400;
-  }
-
-  .font-bornomala-bold {
-    font-family: 'Bornomala', sans-serif;
-    font-weight: 700;
-  }
-
-  .font-july-regular {
-    font-family: 'July', sans-serif;
-    font-weight: 400;
-  }
-
-  .font-july-italic {
-    font-family: 'July', sans-serif;
-    font-weight: 400;
-    font-style: italic;
-  }
-
-  .font-july-bold {
-    font-family: 'July', sans-serif;
-    font-weight: 700;
-  }
-
-  .font-july-bold-italic {
-    font-family: 'July', sans-serif;
-    font-weight: 700;
-    font-style: italic;
-  }
-
-  .font-purno-regular {
-    font-family: 'Purno', sans-serif;
-    font-weight: 400;
-  }
-
   .font-solaiman-thin {
     font-family: 'Solaiman Lipi', sans-serif;
     font-weight: 100;
@@ -330,11 +172,6 @@
   .font-solaiman-bold {
     font-family: 'Solaiman Lipi', sans-serif;
     font-weight: 700;
-  }
-
-  .font-sagar-regular {
-    font-family: 'Sagar', sans-serif;
-    font-weight: 400;
   }
 }
 
@@ -374,15 +211,6 @@
 
   .code-block {
     @apply font-mono text-sm leading-relaxed p-6 bg-surface-1 rounded-lg border border-border;
-  }
-
-  /* Timeline styles */
-  .timeline-line {
-    @apply absolute left-4 top-0 bottom-0 w-px bg-border;
-  }
-
-  .timeline-dot {
-    @apply absolute left-4 w-2 h-2 rounded-full bg-primary -translate-x-1/2 mt-2 shadow-[0_0_8px_hsl(var(--primary))];
   }
 
   .scrollbar-hide::-webkit-scrollbar {
