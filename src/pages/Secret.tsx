@@ -33,44 +33,6 @@ interface LogEntry {
 const DB_NAME = 'SecretBGDB';
 const STORE_NAME = 'photocards';
 
-const EN_CATEGORIES = [
-  { id: "", name: "Latest" },
-  { id: 1, name: "National" },
-  { id: 2, name: "Country" },
-  { id: 3, name: "Politics" },
-  { id: 4, name: "Law & Court" },
-  { id: 5, name: "International" },
-  { id: 6, name: "Economy" },
-  { id: 7, name: "Sports" },
-  { id: 8, name: "Education" },
-  { id: 9, name: "Entertainment" },
-  { id: 10, name: "Health & Lifestyle" },
-  { id: 11, name: "Science & IT" },
-  { id: 12, name: "Religion" },
-  { id: 13, name: "Cyber Space" },
-  { id: 14, name: "Feature" },
-  { id: 15, name: "Special Report" },
-  { id: 17, name: "Coronavirus" },
-  { id: 18, name: "ICC World Cup" },
-];
-
-const BN_CATEGORIES = [
-  { id: "", name: "সর্বশেষ (Latest)" },
-  { id: 1, name: "জাতীয় (National)" },
-  { id: 2, name: "সারাদেশ (Country)" },
-  { id: 3, name: "রাজনীতি (Politics)" },
-  { id: 5, name: "আইন-আদালত (Law)" },
-  { id: 6, name: "রাজধানী (Capital)" },
-  { id: 7, name: "অর্থনীতি (Economy)" },
-  { id: 8, name: "আন্তর্জাতিক (International)" },
-  { id: 9, name: "খেলা (Sports)" },
-  { id: 10, name: "শিক্ষাঙ্গন (Education)" },
-  { id: 11, name: "স্বাস্থ্য ও চিকিৎসা (Health)" },
-  { id: 13, name: "বিনোদন (Entertainment)" },
-  { id: 14, name: "লাইফস্টাইল (Lifestyle)" },
-  { id: 15, name: "বিজ্ঞান (Science)" },
-];
-
 const ENC_PW = "MDE1MjIxMDUzNzM="; // btoa("01522105373")
 
 const initDB = (): Promise<IDBDatabase> => {
@@ -136,7 +98,6 @@ const Secret = () => {
   const [password, setPassword] = useState('');
 
   const [language, setLanguage] = useState<'en' | 'bn'>('en');
-  const [selectedCategory, setSelectedCategory] = useState<string | number>("");
 
   const [postUrl, setPostUrl] = useState('');
   const [isFetching, setIsFetching] = useState(false);
@@ -190,11 +151,6 @@ const Secret = () => {
       setLanguage(savedLanguage);
     }
 
-    const savedCategory = localStorage.getItem('bg_secret_category');
-    if (savedCategory !== null) {
-      setSelectedCategory(savedCategory);
-    }
-
     getAllRecordsDB().then(records => {
       const sorted = records.sort((a, b) => {
         return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
@@ -214,10 +170,6 @@ const Secret = () => {
   useEffect(() => {
     localStorage.setItem('bg_secret_language', language);
   }, [language]);
-
-  useEffect(() => {
-    localStorage.setItem('bg_secret_category', String(selectedCategory));
-  }, [selectedCategory]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -597,7 +549,7 @@ const Secret = () => {
         body: JSON.stringify({
           start_date: "",
           end_date: "",
-          category_name: selectedCategory,
+          category_name: "",
           limit: 12,
           offset: 0
         })
@@ -868,33 +820,16 @@ const Secret = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] uppercase font-bold text-muted-foreground">Language</Label>
-                  <select
-                    value={language}
-                    onChange={(e) => {
-                      setLanguage(e.target.value as 'en' | 'bn');
-                      setSelectedCategory(""); // Reset category when language changes
-                    }}
-                    className="w-full bg-surface-2 border rounded-md px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary h-8"
-                  >
-                    <option value="en">English</option>
-                    <option value="bn">Bangla</option>
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] uppercase font-bold text-muted-foreground">Category</Label>
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="w-full bg-surface-2 border rounded-md px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary h-8"
-                  >
-                    {(language === 'en' ? EN_CATEGORIES : BN_CATEGORIES).map(cat => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
-                  </select>
-                </div>
+              <div className="space-y-2">
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Source Language</Label>
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value as 'en' | 'bn')}
+                  className="w-full bg-surface-2 border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary h-11 transition-all"
+                >
+                  <option value="en">English (Bangladesh Guardian)</option>
+                  <option value="bn">Bangla (বাংলাদেশ গার্ডিয়ান)</option>
+                </select>
               </div>
 
               <div className="flex gap-2">
@@ -1028,6 +963,25 @@ const Secret = () => {
               </div>
 
               <Button onClick={() => setShowSettings(false)} className="w-full">Close Settings</Button>
+
+              <div className="pt-4 border-t flex flex-col gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => window.open('/TERMS_AND_CONDITIONS.txt', '_blank')}
+                  className="text-[10px] text-muted-foreground hover:text-primary transition-colors"
+                >
+                  TERMS & CONDITIONS
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => window.open('/PRIVACY_POLICY.txt', '_blank')}
+                  className="text-[10px] text-muted-foreground hover:text-primary transition-colors"
+                >
+                  PRIVACY POLICY
+                </Button>
+              </div>
             </div>
           </div>
         </div>
