@@ -33,6 +33,44 @@ interface LogEntry {
 const DB_NAME = 'SecretBGDB';
 const STORE_NAME = 'photocards';
 
+const EN_CATEGORIES = [
+  { id: "", name: "Latest" },
+  { id: 1, name: "National" },
+  { id: 2, name: "Country" },
+  { id: 3, name: "Politics" },
+  { id: 4, name: "Law & Court" },
+  { id: 5, name: "International" },
+  { id: 6, name: "Economy" },
+  { id: 7, name: "Sports" },
+  { id: 8, name: "Education" },
+  { id: 9, name: "Entertainment" },
+  { id: 10, name: "Health & Lifestyle" },
+  { id: 11, name: "Science & IT" },
+  { id: 12, name: "Religion" },
+  { id: 13, name: "Cyber Space" },
+  { id: 14, name: "Feature" },
+  { id: 15, name: "Special Report" },
+  { id: 17, name: "Coronavirus" },
+  { id: 18, name: "ICC World Cup" },
+];
+
+const BN_CATEGORIES = [
+  { id: "", name: "সর্বশেষ (Latest)" },
+  { id: 1, name: "জাতীয় (National)" },
+  { id: 2, name: "সারাদেশ (Country)" },
+  { id: 3, name: "রাজনীতি (Politics)" },
+  { id: 5, name: "আইন-আদালত (Law)" },
+  { id: 6, name: "রাজধানী (Capital)" },
+  { id: 7, name: "অর্থনীতি (Economy)" },
+  { id: 8, name: "আন্তর্জাতিক (International)" },
+  { id: 9, name: "খেলা (Sports)" },
+  { id: 10, name: "শিক্ষাঙ্গন (Education)" },
+  { id: 11, name: "স্বাস্থ্য ও চিকিৎসা (Health)" },
+  { id: 13, name: "বিনোদন (Entertainment)" },
+  { id: 14, name: "লাইফস্টাইল (Lifestyle)" },
+  { id: 15, name: "বিজ্ঞান (Science)" },
+];
+
 const ENC_PW = "MDE1MjIxMDUzNzM="; // btoa("01522105373")
 
 const initDB = (): Promise<IDBDatabase> => {
@@ -97,6 +135,9 @@ const Secret = () => {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [password, setPassword] = useState('');
 
+  const [language, setLanguage] = useState<'en' | 'bn'>('en');
+  const [selectedCategory, setSelectedCategory] = useState<string | number>("");
+
   const [postUrl, setPostUrl] = useState('');
   const [isFetching, setIsFetching] = useState(false);
   const [title, setTitle] = useState('');
@@ -144,6 +185,16 @@ const Secret = () => {
       setAutoModeActive(true);
     }
 
+    const savedLanguage = localStorage.getItem('bg_secret_language');
+    if (savedLanguage === 'en' || savedLanguage === 'bn') {
+      setLanguage(savedLanguage);
+    }
+
+    const savedCategory = localStorage.getItem('bg_secret_category');
+    if (savedCategory !== null) {
+      setSelectedCategory(savedCategory);
+    }
+
     getAllRecordsDB().then(records => {
       const sorted = records.sort((a, b) => {
         return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
@@ -159,6 +210,14 @@ const Secret = () => {
   useEffect(() => {
     localStorage.setItem('bg_secret_auto_active', String(autoModeActive));
   }, [autoModeActive]);
+
+  useEffect(() => {
+    localStorage.setItem('bg_secret_language', language);
+  }, [language]);
+
+  useEffect(() => {
+    localStorage.setItem('bg_secret_category', String(selectedCategory));
+  }, [selectedCategory]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -394,9 +453,11 @@ const Secret = () => {
       });
       ctx.drawImage(template, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+      const fontFamily = language === 'bn' ? '"Solaiman Lipi"' : '"Cambria"';
+
       await Promise.all([
-        document.fonts.load(`bold ${fontSize}px "Cambria"`),
-        document.fonts.load(`${dateFontSize}px "Cambria"`)
+        document.fonts.load(`bold ${fontSize}px ${fontFamily}`),
+        document.fonts.load(`${dateFontSize}px ${fontFamily}`)
       ]);
 
       userImgBlobUrl = await fetchImageWithProxy(targetImageUrl);
@@ -441,7 +502,7 @@ const Secret = () => {
       ctx.stroke();
       ctx.restore();
 
-      ctx.font = `${dateFontSize}px "Cambria"`;
+      ctx.font = `${dateFontSize}px ${fontFamily}`;
       ctx.fillStyle = 'white';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
@@ -457,7 +518,7 @@ const Secret = () => {
       let lines: string[] = [];
       let attempts = 0;
       while (attempts < 10) {
-        ctx.font = `bold ${currentFontSize}px "Cambria"`;
+        ctx.font = `bold ${currentFontSize}px ${fontFamily}`;
         lines = wrapText(ctx, targetTitle, maxW);
         let maxLineW = 0;
         lines.forEach(l => { maxLineW = Math.max(maxLineW, ctx.measureText(l).width); });
@@ -526,19 +587,34 @@ const Secret = () => {
 
   const scrapeLatestLinks = async () => {
     try {
-      const response = await fetch("https://backoffice.bangladeshguardian.com/api-en/archive", {
+      const apiUrl = language === 'en'
+        ? "https://backoffice.bangladeshguardian.com/api-en/archive"
+        : "https://backoffice.bangladeshguardian.com/api/archive";
+
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ start_date: "", end_date: "", category_name: "", limit: 12, offset: 0 })
+        body: JSON.stringify({
+          start_date: "",
+          end_date: "",
+          category_name: selectedCategory,
+          limit: 12,
+          offset: 0
+        })
       });
+
       if (!response.ok) throw new Error("API request failed");
       const data = await response.json();
+
       return (data.archive_data || []).map((item: BGArchiveItem) => ({
-        url: `https://www.bangladeshguardian.com/${item.Slug}/${item.ContentID}`,
+        url: language === 'en'
+          ? `https://www.bangladeshguardian.com/${item.Slug}/${item.ContentID}`
+          : `https://www.bangladeshguardian.com/bangla/${item.Slug}/${item.ContentID}`,
         title: item.ContentHeading,
         image: `https://backoffice.bangladeshguardian.com/media/imgAll/${item.ImageBgPath}`
       }));
     } catch (e) {
+      console.error("Scrape failed:", e);
       return [];
     }
   };
@@ -791,6 +867,36 @@ const Secret = () => {
                   <span className="text-[10px] uppercase font-bold">{autoModeActive ? 'Active' : 'Idle'}</span>
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase font-bold text-muted-foreground">Language</Label>
+                  <select
+                    value={language}
+                    onChange={(e) => {
+                      setLanguage(e.target.value as 'en' | 'bn');
+                      setSelectedCategory(""); // Reset category when language changes
+                    }}
+                    className="w-full bg-surface-2 border rounded-md px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary h-8"
+                  >
+                    <option value="en">English</option>
+                    <option value="bn">Bangla</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] uppercase font-bold text-muted-foreground">Category</Label>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="w-full bg-surface-2 border rounded-md px-2 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary h-8"
+                  >
+                    {(language === 'en' ? EN_CATEGORIES : BN_CATEGORIES).map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div className="flex gap-2">
                 <Button variant={autoModeActive ? "secondary" : "default"} size="sm" className="flex-1 text-[10px]" onClick={() => setAutoModeActive(true)} disabled={autoModeActive}>
                   <Play className="h-3 w-3 mr-1" /> START
