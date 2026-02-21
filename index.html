@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Md. Abdullah Bari | Portfolio</title>
+    <meta name="description" content="Personal portfolio of Md. Abdullah Bari - Aspiring software developer and medical student passionate about technology and healthcare." />
+    <meta name="author" content="Md. Abdullah Bari" />
+
+    <meta property="og:title" content="Md. Abdullah Bari | Portfolio" />
+    <meta property="og:description" content="Aspiring software developer and medical student passionate about technology and healthcare." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://abdullah.ami.bd/" />
+    <meta property="og:image" content="https://abdullah.ami.bd/profile-photo.png" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Md. Abdullah Bari | Portfolio" />
+    <meta name="twitter:description" content="Aspiring software developer and medical student passionate about technology and healthcare." />
+    <meta name="twitter:image" content="https://abdullah.ami.bd/profile-photo.png" />
+
+    <!-- Preload fonts -->
+    <link rel="preload" href="/fonts/EkusheyLalsalu-Regular.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="preload" href="/fonts/EkusheyLalsalu-Bold.ttf" as="font" type="font/ttf" crossorigin>
+
+    <script data-goatcounter="https://abdullahbari.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+    <script>
+      // Zoom Lock
+      document.addEventListener('wheel', function(e) {
+        if (e.ctrlKey) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+
+      document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && (e.key === '=' || e.key === '-' || e.key === '0' || e.key === '+')) {
+          e.preventDefault();
+        }
+      });
+
+      // Copy Lock
+      document.addEventListener('copy', (e) => {
+        e.clipboardData.setData('text/plain', 'You can’t copy Bro!');
+        e.preventDefault();
+      });
+    </script>
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
