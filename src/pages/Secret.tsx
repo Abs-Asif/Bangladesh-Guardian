@@ -230,7 +230,7 @@ const Secret = () => {
   };
 
   const fetchPostData = async () => {
-    const trimmedUrl = postUrl.trim();
+    const trimmedUrl = postUrl.trim().replace(/\/$/, '');
     if (!trimmedUrl) {
       toast.error("Please enter a Post URL");
       return;
@@ -241,55 +241,54 @@ const Secret = () => {
     }
 
     setIsFetching(true);
-    let html = '';
-    const proxies = [
-      { url: (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`, type: 'text' },
-      { url: (u: string) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`, type: 'text' },
-      { url: (u: string) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`, type: 'json' },
-      { url: (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`, type: 'text' }
-    ];
-
     try {
-      for (const proxy of proxies) {
-        try {
-          const response = await fetch(proxy.url(trimmedUrl));
-          if (response.ok) {
-            if (proxy.type === 'json') {
-              const data = await response.json();
-              html = data.contents;
-            } else {
-              html = await response.text();
-            }
-            if (html && (html.includes('<title>') || html.includes('og:title'))) break;
-          }
-        } catch (e) {
-          console.warn("Proxy failed for HTML fetch:", e);
-        }
+      const urlParts = trimmedUrl.split('/');
+      const contentId = urlParts[urlParts.length - 1];
+
+      const response = await fetch("https://backoffice.bangladeshguardian.com/api-en/archive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ start_date: "", end_date: "", category_name: "", limit: 50, offset: 0 })
+      });
+
+      if (!response.ok) throw new Error("API request failed");
+      const data = await response.json();
+      const articles = data.archive_data || [];
+      const article = articles.find((item: BGArchiveItem) => String(item.ContentID) === contentId);
+
+      if (!article) {
+        toast.error("Post not found in latest archive.");
+        return;
       }
 
-      if (!html) throw new Error("Failed to fetch page content from all proxies");
+      const extractedTitle = article.ContentHeading;
+      const extractedImage = `https://backoffice.bangladeshguardian.com/media/imgAll/${article.ImageBgPath}`;
 
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-      const ogTitle = doc.querySelector('meta[property="og:title"]')?.getAttribute('content') ||
-                      doc.querySelector('meta[name="og:title"]')?.getAttribute('content');
-      const metaTitle = doc.querySelector('title')?.textContent;
-      const h1Title = doc.querySelector('h1')?.textContent;
-      const extractedTitle = ogTitle || metaTitle || h1Title || '';
+      const censoredTitle = censorText(extractedTitle);
+      const dataUrl = await generatePhotoCardInternal(censoredTitle, extractedImage);
+      setPreviewUrl(dataUrl);
+      setGeneratedTitle(censoredTitle);
 
-      const ogImage = doc.querySelector('meta[property="og:image"]')?.getAttribute('content') ||
-                      doc.querySelector('meta[name="og:image"]')?.getAttribute('content');
-      const twitterImage = doc.querySelector('meta[name="twitter:image"]')?.getAttribute('content');
-      const extractedImage = ogImage || twitterImage || '';
+      const newRecord: AutoRecord = {
+        id: Math.random().toString(36).substr(2, 9),
+        url: trimmedUrl,
+        title: censoredTitle,
+        imageUrl: extractedImage,
+        previewUrl: dataUrl,
+        timestamp: new Date().toISOString()
+      };
 
-      if (extractedTitle) setTitle(censorText(extractedTitle));
-      if (extractedImage) setImageUrl(extractedImage);
+      await saveRecordDB(newRecord);
+      setAutoRecords(prev => [newRecord, ...prev]);
 
-      if (extractedTitle || extractedImage) {
-        toast.success("Data fetched successfully!");
-      } else {
-        toast.warn("Could not find title or image on this page.");
-      }
+      setProcessedUrls(prev => {
+        const next = new Set(prev);
+        next.add(trimmedUrl);
+        return next;
+      });
+
+      toast.success("Photocard generated successfully!");
+      playNotification();
     } catch (error) {
       console.error("Fetch error:", error);
       toast.error("Failed to fetch post data.");
@@ -703,7 +702,7 @@ const Secret = () => {
                       <ClipboardPaste className="h-4 w-4" />
                     </Button>
                     <Button variant="secondary" size="icon" onClick={fetchPostData} disabled={isFetching || !postUrl}>
-                      {isFetching ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                      {isFetching ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />}
                     </Button>
                   </div>
                 </div>
