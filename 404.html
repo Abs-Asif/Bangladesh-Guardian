@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>404 - Not Found</title>
+    <meta name="description" content="Page Not Found" />
+
+    <script>
+      // Zoom Lock
+      document.addEventListener('wheel', function(e) {
+        if (e.ctrlKey) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+
+      document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && (e.key === '=' || e.key === '-' || e.key === '0' || e.key === '+')) {
+          e.preventDefault();
+        }
+      });
+
+      // Copy Lock
+      document.addEventListener('copy', (e) => {
+        e.clipboardData.setData('text/plain', 'You can’t copy Bro!');
+        e.preventDefault();
+      });
+    </script>
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/not-found-main.tsx"></script>
+  </body>
+</html>

@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { censorText } from "@/lib/censor";
-import { Download, RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings2, X, ClipboardPaste, History, Clock, AlertCircle, List, Zap, Play, Square, Trash2, Lock, Volume2 } from "lucide-react";
+import { Download, RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings2, X, ClipboardPaste, History, Clock, AlertCircle, List, Zap, Play, Square, Trash2, Lock, Volume2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
 interface AutoRecord {
@@ -94,8 +94,9 @@ const getAllRecordsDB = async (): Promise<AutoRecord[]> => {
 };
 
 const Secret = () => {
-  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(localStorage.getItem('bg_authorized') === 'true');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const [postUrl, setPostUrl] = useState('');
   const [isFetching, setIsFetching] = useState(false);
@@ -150,6 +151,15 @@ const Secret = () => {
       });
       setAutoRecords(sorted);
     });
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
   useEffect(() => {
@@ -628,6 +638,7 @@ const Secret = () => {
     e.preventDefault();
     if (password === atob(ENC_PW)) {
       setIsAuthorized(true);
+      localStorage.setItem('bg_authorized', 'true');
     } else {
       toast.error("Incorrect Password");
     }
@@ -647,15 +658,26 @@ const Secret = () => {
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="password">Security Key</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="bg-zinc-800 border-zinc-700 text-white"
-                autoFocus
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="bg-zinc-800 border-zinc-700 text-white pr-10"
+                  autoFocus
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-zinc-400 hover:text-white"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
             <Button type="submit" className="w-full">Initialize Access</Button>
           </form>
@@ -860,6 +882,10 @@ const Secret = () => {
           </div>
         )}
       </div>
+
+      <footer className="mt-20 pb-8 text-center text-[10px] text-muted-foreground font-solaiman-regular">
+        <p>© {new Date().getFullYear()} <a href="https://www.facebook.com/share/1Ai3WQCcqc/" target="_blank" rel="noopener noreferrer" className="hover:underline text-primary font-bold">Abdullah Bari Asif</a></p>
+      </footer>
 
       {showSettings && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">

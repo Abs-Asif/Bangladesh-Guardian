@@ -1,27 +1,24 @@
-import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 
 const NotFound = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
-    console.error("404 Error: User attempted to access non-existent route:", location.pathname);
+    console.error("404 Error: User attempted to access non-existent route:", window.location.pathname);
 
     const timer = setInterval(() => {
       setCountdown((prev) => prev - 1);
     }, 1000);
 
     const timeout = setTimeout(() => {
-      navigate("/");
+      window.location.href = "/";
     }, 5000);
 
     return () => {
       clearInterval(timer);
       clearTimeout(timeout);
     };
-  }, [location.pathname, navigate]);
+  }, []);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-black text-white p-4 text-center">
