@@ -1,0 +1,17 @@
+PRIVACY POLICY
+
+1. DATA COLLECTION
+This application does not collect, store, or transmit any personal data of its users to external servers. It is a browser-based tool that operates within the user's local environment.
+
+2. LOCAL STORAGE
+- IndexedDB: The application uses IndexedDB (SecretBGDB) to store a history of generated photocards locally on your device for your convenience.
+- LocalStorage: Settings such as language preference, auto-active state, and notification audio selection are saved in your browser's LocalStorage.
+
+3. EXTERNAL DATA FETCHING
+To provide latest news updates, the app connects to the Bangladesh Guardian API. It also uses public CORS proxies to fetch images and metadata from the news site to circumvent cross-origin restrictions. No user identification data is sent during these requests.
+
+4. SECURITY
+Access to the application is protected by a security key. This key is processed locally and is not sent to any server.
+
+5. UPDATES
+As this is a proprietary tool, updates are managed internally by the newspaper's technical team.

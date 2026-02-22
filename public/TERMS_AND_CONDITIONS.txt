@@ -1,0 +1,27 @@
+TERMS AND CONDITIONS
+
+1. PROPRIETARY NATURE
+This application is proprietary software developed for the Bangladesh Guardian. It is NOT open source and is intended for internal use only by authorized personnel.
+
+2. PURPOSE
+The software is designed to automate the generation of news photocards for social media platforms (primarily Facebook). It eliminates the need for manual design by instantly fetching news data and rendering it onto predefined templates, enabling rapid response for the newspaper's social media management team.
+
+3. DATA SOURCE
+This application utilizes data fetched from the Bangladesh Guardian's backoffice API (https://backoffice.bangladeshguardian.com/api-en/archive and its Bangla counterpart). The software extracts headlines, slugs, and image paths to facilitate the automation process.
+
+4. USER RESPONSIBILITIES
+Users are responsible for the verification of content before posting online. The automation tool is a facilitator, and final editorial judgment remains with the user/newspaper staff.
+
+5. OPEN SOURCE ATTRIBUTION
+While this application itself is proprietary, it stands on the shoulders of incredible open-source projects. We express our gratitude and give tribute to:
+- React (Meta Platforms, Inc.)
+- Vite (Evan You & Contributors)
+- Tailwind CSS (Adam Wathan & Contributors)
+- Lucide React (Lucide Contributors)
+- Radix UI (WorkOS)
+- TanStack Query (Sindre Sorhus, Dominik Dorfmeister, et al.)
+- Shadcn/UI (shadcn)
+- Sonner (Emil Kowalski)
+
+6. LIMITATION OF LIABILITY
+The developers are not liable for any technical failures of the API or the external proxies used for image fetching.

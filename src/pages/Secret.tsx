@@ -98,6 +98,8 @@ const Secret = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
+  const [language, setLanguage] = useState<'en' | 'bn'>('en');
+
   const [postUrl, setPostUrl] = useState('');
   const [isFetching, setIsFetching] = useState(false);
   const [title, setTitle] = useState('');
@@ -145,6 +147,11 @@ const Secret = () => {
       setAutoModeActive(true);
     }
 
+    const savedLanguage = localStorage.getItem('bg_secret_language');
+    if (savedLanguage === 'en' || savedLanguage === 'bn') {
+      setLanguage(savedLanguage);
+    }
+
     getAllRecordsDB().then(records => {
       const sorted = records.sort((a, b) => {
         return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
@@ -169,6 +176,10 @@ const Secret = () => {
   useEffect(() => {
     localStorage.setItem('bg_secret_auto_active', String(autoModeActive));
   }, [autoModeActive]);
+
+  useEffect(() => {
+    localStorage.setItem('bg_secret_language', language);
+  }, [language]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -403,9 +414,11 @@ const Secret = () => {
       });
       ctx.drawImage(template, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+      const fontFamily = language === 'bn' ? '"Solaiman Lipi"' : '"Cambria"';
+
       await Promise.all([
-        document.fonts.load(`bold ${fontSize}px "Cambria"`),
-        document.fonts.load(`${dateFontSize}px "Cambria"`)
+        document.fonts.load(`bold ${fontSize}px ${fontFamily}`),
+        document.fonts.load(`${dateFontSize}px ${fontFamily}`)
       ]);
 
       userImgBlobUrl = await fetchImageWithProxy(targetImageUrl);
@@ -450,7 +463,7 @@ const Secret = () => {
       ctx.stroke();
       ctx.restore();
 
-      ctx.font = `${dateFontSize}px "Cambria"`;
+      ctx.font = `${dateFontSize}px ${fontFamily}`;
       ctx.fillStyle = 'white';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
@@ -466,7 +479,7 @@ const Secret = () => {
       let lines: string[] = [];
       let attempts = 0;
       while (attempts < 10) {
-        ctx.font = `bold ${currentFontSize}px "Cambria"`;
+        ctx.font = `bold ${currentFontSize}px ${fontFamily}`;
         lines = wrapText(ctx, targetTitle, maxW);
         let maxLineW = 0;
         lines.forEach(l => { maxLineW = Math.max(maxLineW, ctx.measureText(l).width); });
@@ -535,19 +548,34 @@ const Secret = () => {
 
   const scrapeLatestLinks = async () => {
     try {
-      const response = await fetch("https://backoffice.bangladeshguardian.com/api-en/archive", {
+      const apiUrl = language === 'en'
+        ? "https://backoffice.bangladeshguardian.com/api-en/archive"
+        : "https://backoffice.bangladeshguardian.com/api/archive";
+
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ start_date: "", end_date: "", category_name: "", limit: 12, offset: 0 })
+        body: JSON.stringify({
+          start_date: "",
+          end_date: "",
+          category_name: "",
+          limit: 12,
+          offset: 0
+        })
       });
+
       if (!response.ok) throw new Error("API request failed");
       const data = await response.json();
+
       return (data.archive_data || []).map((item: BGArchiveItem) => ({
-        url: `https://www.bangladeshguardian.com/${item.Slug}/${item.ContentID}`,
+        url: language === 'en'
+          ? `https://www.bangladeshguardian.com/${item.Slug}/${item.ContentID}`
+          : `https://www.bangladeshguardian.com/bangla/${item.Slug}/${item.ContentID}`,
         title: item.ContentHeading,
         image: `https://backoffice.bangladeshguardian.com/media/imgAll/${item.ImageBgPath}`
       }));
     } catch (e) {
+      console.error("Scrape failed:", e);
       return [];
     }
   };
@@ -812,6 +840,19 @@ const Secret = () => {
                   <span className="text-[10px] uppercase font-bold">{autoModeActive ? 'Active' : 'Idle'}</span>
                 </div>
               </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Source Language</Label>
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value as 'en' | 'bn')}
+                  className="w-full bg-surface-2 border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary h-11 transition-all"
+                >
+                  <option value="en">English (Bangladesh Guardian)</option>
+                  <option value="bn">Bangla (বাংলাদেশ গার্ডিয়ান)</option>
+                </select>
+              </div>
+
               <div className="flex gap-2">
                 <Button variant={autoModeActive ? "secondary" : "default"} size="sm" className="flex-1 text-[10px]" onClick={() => setAutoModeActive(true)} disabled={autoModeActive}>
                   <Play className="h-3 w-3 mr-1" /> START
@@ -947,6 +988,25 @@ const Secret = () => {
               </div>
 
               <Button onClick={() => setShowSettings(false)} className="w-full">Close Settings</Button>
+
+              <div className="pt-4 border-t flex flex-col gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => window.open('/TERMS_AND_CONDITIONS.txt', '_blank')}
+                  className="text-[10px] text-muted-foreground hover:text-primary transition-colors"
+                >
+                  TERMS & CONDITIONS
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => window.open('/PRIVACY_POLICY.txt', '_blank')}
+                  className="text-[10px] text-muted-foreground hover:text-primary transition-colors"
+                >
+                  PRIVACY POLICY
+                </Button>
+              </div>
             </div>
           </div>
         </div>
