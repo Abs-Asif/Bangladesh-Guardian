@@ -660,6 +660,9 @@ const Secret = () => {
             <Button type="submit" className="w-full">Initialize Access</Button>
           </form>
         </div>
+        <footer className="mt-20 pb-8 text-center text-[10px] text-muted-foreground font-solaiman-regular">
+          <p>© {new Date().getFullYear()} <a href="https://www.facebook.com/share/1Ai3WQCcqc/" target="_blank" rel="noopener noreferrer" className="hover:underline text-primary font-bold">Abdullah Bari Asif</a></p>
+        </footer>
       </div>
     );
   }
@@ -860,6 +863,10 @@ const Secret = () => {
           </div>
         )}
       </div>
+
+      <footer className="mt-20 pb-8 text-center text-[10px] text-muted-foreground font-solaiman-regular">
+        <p>© {new Date().getFullYear()} <a href="https://www.facebook.com/share/1Ai3WQCcqc/" target="_blank" rel="noopener noreferrer" className="hover:underline text-primary font-bold">Abdullah Bari Asif</a></p>
+      </footer>
 
       {showSettings && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">

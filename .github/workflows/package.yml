@@ -7,6 +7,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -24,23 +26,32 @@ jobs:
 
       - name: Create deployment config files
         run: |
-          # Apache .htaccess
-          echo '<IfModule mod_rewrite.c>
-            RewriteEngine On
-            RewriteBase /
-            RewriteRule ^index\.html$ - [L]
-            RewriteCond %{REQUEST_FILENAME} !-f
-            RewriteCond %{REQUEST_FILENAME} !-d
-            RewriteRule . /index.html [L]
-          </IfModule>' > dist/.htaccess
+          # Apache .htaccess for MPA 404
+          echo 'ErrorDocument 404 /404.html' > dist/.htaccess
 
-          # Netlify _redirects
-          echo '/* /index.html 200' > dist/_redirects
+          # Netlify _redirects for MPA 404
+          echo '/* /404.html 404' > dist/_redirects
 
       - name: Create package
         run: |
           cd dist
           zip -r ../dist.zip .
+
+      - name: Get current date
+        id: date
+        run: echo "VERSION=$(date +'%Y.%m.%d')" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        with:
+          tag_name: ${{ steps.date.outputs.VERSION }}
+          name: Release ${{ steps.date.outputs.VERSION }}
+          files: dist.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
