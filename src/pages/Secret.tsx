@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { censorText } from "@/lib/censor";
-import { Download, RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings2, X, ClipboardPaste, History, Clock, AlertCircle, List, Zap, Play, Square, Trash2, Lock, Volume2, Eye, EyeOff } from "lucide-react";
+import { Download, RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings2, X, ClipboardPaste, History, Clock, AlertCircle, List, Zap, Play, Square, Trash2, Volume2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
 interface AutoRecord {
@@ -118,6 +118,7 @@ const Secret = () => {
 
   // Automation State
   const [autoModeActive, setAutoModeActive] = useState(false);
+  const [isLeader, setIsLeader] = useState(false);
   const [isAutoChecking, setIsAutoChecking] = useState(false);
   const isAutoCheckingRef = useRef(false);
   const [autoRecords, setAutoRecords] = useState<AutoRecord[]>([]);
@@ -155,12 +156,13 @@ const Secret = () => {
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!autoModeActive) return;
       e.preventDefault();
       e.returnValue = '';
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
+  }, [autoModeActive]);
 
   useEffect(() => {
     localStorage.setItem('bg_secret_processed_urls', JSON.stringify(Array.from(processedUrls)));
@@ -601,26 +603,79 @@ const Secret = () => {
 
   useEffect(() => {
     if (!autoModeActive) return;
-    const workerCode = `
-      let interval;
-      self.onmessage = (e) => {
-        if (e.data === 'start') {
-          self.postMessage('tick');
-          interval = setInterval(() => self.postMessage('tick'), 60000);
-        } else if (e.data === 'stop') {
-          clearInterval(interval);
+
+    let wakeLock: any = null;
+    let isMounted = true;
+    const controller = new AbortController();
+
+    const startAutomation = () => {
+      const workerCode = `
+        let interval;
+        self.onmessage = (e) => {
+          if (e.data === 'start') {
+            self.postMessage('tick');
+            interval = setInterval(() => self.postMessage('tick'), 60000);
+          } else if (e.data === 'stop') {
+            clearInterval(interval);
+          }
+        };
+      `;
+      const blob = new Blob([workerCode], { type: 'application/javascript' });
+      const url = URL.createObjectURL(blob);
+      const worker = new Worker(url);
+      worker.onmessage = (e) => { if (e.data === 'tick') checkAndGenerate(); };
+      worker.postMessage('start');
+      return { worker, url };
+    };
+
+    let workerInstance: { worker: Worker, url: string } | null = null;
+
+    const init = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await (navigator as any).wakeLock.request('screen');
         }
-      };
-    `;
-    const blob = new Blob([workerCode], { type: 'application/javascript' });
-    const url = URL.createObjectURL(blob);
-    const worker = new Worker(url);
-    worker.onmessage = (e) => { if (e.data === 'tick') checkAndGenerate(); };
-    worker.postMessage('start');
+      } catch (err) {}
+
+      try {
+        if ('locks' in navigator) {
+          navigator.locks.request('bg_photocard_automation', { signal: controller.signal }, async (lock) => {
+            if (!isMounted) return;
+            setIsLeader(true);
+            addLog("Took leadership of automation.", "success");
+            workerInstance = startAutomation();
+
+            await new Promise(resolve => {
+              controller.signal.addEventListener('abort', resolve);
+            });
+            setIsLeader(false);
+          }).catch(err => {
+            if (err.name !== 'AbortError') {
+              setIsLeader(false);
+              addLog("Automation standby (Active in another tab)", "info");
+            }
+          });
+        } else {
+          setIsLeader(true);
+          workerInstance = startAutomation();
+        }
+      } catch (err) {
+        setIsLeader(true);
+        workerInstance = startAutomation();
+      }
+    };
+
+    init();
+
     return () => {
-      worker.postMessage('stop');
-      worker.terminate();
-      URL.revokeObjectURL(url);
+      isMounted = false;
+      controller.abort();
+      if (wakeLock) wakeLock.release().catch(() => {});
+      if (workerInstance) {
+        workerInstance.worker.postMessage('stop');
+        workerInstance.worker.terminate();
+        URL.revokeObjectURL(workerInstance.url);
+      }
     };
   }, [autoModeActive]);
 
@@ -647,15 +702,20 @@ const Secret = () => {
   if (!isAuthorized) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-4 font-solaiman-regular">
-        <div className="w-full max-w-md space-y-8 bg-zinc-900 p-8 rounded-2xl border border-zinc-800 shadow-2xl">
-          <div className="flex flex-col items-center space-y-4">
-            <div className="p-4 bg-primary/10 rounded-full">
-              <Lock className="w-12 h-12 text-primary" />
+        <div className="w-full max-w-md space-y-8 bg-zinc-900/50 backdrop-blur-xl p-8 rounded-3xl border border-zinc-800 shadow-2xl">
+          <div className="flex flex-col items-center space-y-6">
+            <div className="p-1 bg-gradient-to-tr from-primary/20 to-transparent rounded-full">
+              <div className="p-4 bg-zinc-900 rounded-full">
+                <img src="/Logoicon.svg" alt="BG Logo" className="w-16 h-16 object-contain" />
+              </div>
             </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Access Restricted</h1>
-            <p className="text-zinc-500 text-sm text-center">You need Permission to view this page.</p>
+            <div className="text-center space-y-2">
+              <h1 className="text-2xl font-bold text-white tracking-tight">Bangladesh Guardian's Photocard Generator</h1>
+              <p className="text-zinc-400 text-sm">Please enter your security key to access the generator.</p>
+            </div>
           </div>
-          <form onSubmit={handleLogin} className="space-y-4">
+
+          <form onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="password">Security Key</Label>
               <div className="relative">
@@ -665,7 +725,7 @@ const Secret = () => {
                   placeholder="••••••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="bg-zinc-800 border-zinc-700 text-white pr-10"
+                  className="bg-zinc-800/50 border-zinc-700 text-white pr-10 h-12 rounded-xl focus:ring-primary/20"
                   autoFocus
                 />
                 <Button
@@ -679,8 +739,13 @@ const Secret = () => {
                 </Button>
               </div>
             </div>
-            <Button type="submit" className="w-full">Initialize Access</Button>
+            <Button type="submit" className="w-full h-12 rounded-xl font-bold transition-all hover:scale-[1.02]">Initialize Access</Button>
           </form>
+
+          <div className="pt-6 border-t border-zinc-800 text-center">
+            <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Need Access?</p>
+            <a href="mailto:contact@abdullah.ami.bd" className="text-xs text-primary hover:underline">contact@abdullah.ami.bd</a>
+          </div>
         </div>
       </div>
     );
@@ -808,8 +873,13 @@ const Secret = () => {
                   AUTOMATION
                 </h3>
                 <div className="flex items-center gap-2">
-                  <div className={cn("w-2 h-2 rounded-full", autoModeActive ? 'bg-green-500 animate-pulse' : 'bg-zinc-400')} />
-                  <span className="text-[10px] uppercase font-bold">{autoModeActive ? 'Active' : 'Idle'}</span>
+                  <div className={cn("w-2 h-2 rounded-full",
+                    !autoModeActive ? 'bg-zinc-400' :
+                    isLeader ? 'bg-green-500 animate-pulse' : 'bg-amber-500'
+                  )} />
+                  <span className="text-[10px] uppercase font-bold">
+                    {!autoModeActive ? 'Idle' : isLeader ? 'Active' : 'Standby'}
+                  </span>
                 </div>
               </div>
               <div className="flex gap-2">
