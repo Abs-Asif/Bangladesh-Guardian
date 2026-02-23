@@ -538,7 +538,7 @@ const Secret = () => {
       const response = await fetch("https://backoffice.bangladeshguardian.com/api-en/archive", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ start_date: "", end_date: "", category_name: "", limit: 12, offset: 0 })
+        body: JSON.stringify({ start_date: "", end_date: "", category_name: "", limit: 6, offset: 0 })
       });
       if (!response.ok) throw new Error("API request failed");
       const data = await response.json();
