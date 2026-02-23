@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { censorText } from "@/lib/censor";
-import { Download, RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings2, X, ClipboardPaste, History, Clock, AlertCircle, List, Zap, Play, Square, Trash2, Lock, Volume2, Eye, EyeOff } from "lucide-react";
+import { Download, RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings2, X, ClipboardPaste, History, Clock, AlertCircle, List, Zap, Play, Square, Trash2, Volume2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
 interface AutoRecord {
@@ -647,15 +647,20 @@ const Secret = () => {
   if (!isAuthorized) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-4 font-solaiman-regular">
-        <div className="w-full max-w-md space-y-8 bg-zinc-900 p-8 rounded-2xl border border-zinc-800 shadow-2xl">
-          <div className="flex flex-col items-center space-y-4">
-            <div className="p-4 bg-primary/10 rounded-full">
-              <Lock className="w-12 h-12 text-primary" />
+        <div className="w-full max-w-md space-y-8 bg-zinc-900/50 backdrop-blur-xl p-8 rounded-3xl border border-zinc-800 shadow-2xl">
+          <div className="flex flex-col items-center space-y-6">
+            <div className="p-1 bg-gradient-to-tr from-primary/20 to-transparent rounded-full">
+              <div className="p-4 bg-zinc-900 rounded-full">
+                <img src="/Logoicon.svg" alt="BG Logo" className="w-16 h-16 object-contain" />
+              </div>
             </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Access Restricted</h1>
-            <p className="text-zinc-500 text-sm text-center">You need Permission to view this page.</p>
+            <div className="text-center space-y-2">
+              <h1 className="text-2xl font-bold text-white tracking-tight">Bangladesh Guardian's Photocard Generator</h1>
+              <p className="text-zinc-400 text-sm">Please enter your security key to access the generator.</p>
+            </div>
           </div>
-          <form onSubmit={handleLogin} className="space-y-4">
+
+          <form onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="password">Security Key</Label>
               <div className="relative">
@@ -665,7 +670,7 @@ const Secret = () => {
                   placeholder="••••••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="bg-zinc-800 border-zinc-700 text-white pr-10"
+                  className="bg-zinc-800/50 border-zinc-700 text-white pr-10 h-12 rounded-xl focus:ring-primary/20"
                   autoFocus
                 />
                 <Button
@@ -679,8 +684,13 @@ const Secret = () => {
                 </Button>
               </div>
             </div>
-            <Button type="submit" className="w-full">Initialize Access</Button>
+            <Button type="submit" className="w-full h-12 rounded-xl font-bold transition-all hover:scale-[1.02]">Initialize Access</Button>
           </form>
+
+          <div className="pt-6 border-t border-zinc-800 text-center">
+            <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Need Access?</p>
+            <a href="mailto:contact@abdullah.ami.bd" className="text-xs text-primary hover:underline">contact@abdullah.ami.bd</a>
+          </div>
         </div>
       </div>
     );
