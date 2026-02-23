@@ -118,6 +118,7 @@ const Secret = () => {
 
   // Automation State
   const [autoModeActive, setAutoModeActive] = useState(false);
+  const [isLeader, setIsLeader] = useState(false);
   const [isAutoChecking, setIsAutoChecking] = useState(false);
   const isAutoCheckingRef = useRef(false);
   const [autoRecords, setAutoRecords] = useState<AutoRecord[]>([]);
@@ -155,12 +156,13 @@ const Secret = () => {
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!autoModeActive) return;
       e.preventDefault();
       e.returnValue = '';
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
+  }, [autoModeActive]);
 
   useEffect(() => {
     localStorage.setItem('bg_secret_processed_urls', JSON.stringify(Array.from(processedUrls)));
@@ -601,26 +603,79 @@ const Secret = () => {
 
   useEffect(() => {
     if (!autoModeActive) return;
-    const workerCode = `
-      let interval;
-      self.onmessage = (e) => {
-        if (e.data === 'start') {
-          self.postMessage('tick');
-          interval = setInterval(() => self.postMessage('tick'), 60000);
-        } else if (e.data === 'stop') {
-          clearInterval(interval);
+
+    let wakeLock: any = null;
+    let isMounted = true;
+    const controller = new AbortController();
+
+    const startAutomation = () => {
+      const workerCode = `
+        let interval;
+        self.onmessage = (e) => {
+          if (e.data === 'start') {
+            self.postMessage('tick');
+            interval = setInterval(() => self.postMessage('tick'), 60000);
+          } else if (e.data === 'stop') {
+            clearInterval(interval);
+          }
+        };
+      `;
+      const blob = new Blob([workerCode], { type: 'application/javascript' });
+      const url = URL.createObjectURL(blob);
+      const worker = new Worker(url);
+      worker.onmessage = (e) => { if (e.data === 'tick') checkAndGenerate(); };
+      worker.postMessage('start');
+      return { worker, url };
+    };
+
+    let workerInstance: { worker: Worker, url: string } | null = null;
+
+    const init = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await (navigator as any).wakeLock.request('screen');
         }
-      };
-    `;
-    const blob = new Blob([workerCode], { type: 'application/javascript' });
-    const url = URL.createObjectURL(blob);
-    const worker = new Worker(url);
-    worker.onmessage = (e) => { if (e.data === 'tick') checkAndGenerate(); };
-    worker.postMessage('start');
+      } catch (err) {}
+
+      try {
+        if ('locks' in navigator) {
+          navigator.locks.request('bg_photocard_automation', { signal: controller.signal }, async (lock) => {
+            if (!isMounted) return;
+            setIsLeader(true);
+            addLog("Took leadership of automation.", "success");
+            workerInstance = startAutomation();
+
+            await new Promise(resolve => {
+              controller.signal.addEventListener('abort', resolve);
+            });
+            setIsLeader(false);
+          }).catch(err => {
+            if (err.name !== 'AbortError') {
+              setIsLeader(false);
+              addLog("Automation standby (Active in another tab)", "info");
+            }
+          });
+        } else {
+          setIsLeader(true);
+          workerInstance = startAutomation();
+        }
+      } catch (err) {
+        setIsLeader(true);
+        workerInstance = startAutomation();
+      }
+    };
+
+    init();
+
     return () => {
-      worker.postMessage('stop');
-      worker.terminate();
-      URL.revokeObjectURL(url);
+      isMounted = false;
+      controller.abort();
+      if (wakeLock) wakeLock.release().catch(() => {});
+      if (workerInstance) {
+        workerInstance.worker.postMessage('stop');
+        workerInstance.worker.terminate();
+        URL.revokeObjectURL(workerInstance.url);
+      }
     };
   }, [autoModeActive]);
 
@@ -818,8 +873,13 @@ const Secret = () => {
                   AUTOMATION
                 </h3>
                 <div className="flex items-center gap-2">
-                  <div className={cn("w-2 h-2 rounded-full", autoModeActive ? 'bg-green-500 animate-pulse' : 'bg-zinc-400')} />
-                  <span className="text-[10px] uppercase font-bold">{autoModeActive ? 'Active' : 'Idle'}</span>
+                  <div className={cn("w-2 h-2 rounded-full",
+                    !autoModeActive ? 'bg-zinc-400' :
+                    isLeader ? 'bg-green-500 animate-pulse' : 'bg-amber-500'
+                  )} />
+                  <span className="text-[10px] uppercase font-bold">
+                    {!autoModeActive ? 'Idle' : isLeader ? 'Active' : 'Standby'}
+                  </span>
                 </div>
               </div>
               <div className="flex gap-2">
