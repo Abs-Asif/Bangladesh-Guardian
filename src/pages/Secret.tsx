@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { censorText } from "@/lib/censor";
-import { Download, RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings2, X, ClipboardPaste, History, Clock, AlertCircle, List, Zap, Play, Square, Trash2, Volume2, Eye, EyeOff } from "lucide-react";
+import { Download, RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings2, X, ClipboardPaste, History, Clock, AlertCircle, List, Zap, Play, Square, Trash2, Volume2, Eye, EyeOff, Copy } from "lucide-react";
 import { toast } from "sonner";
 
 interface AutoRecord {
@@ -73,6 +73,26 @@ const clearRecordsDB = async () => {
 
 const saveRecordDB = async (record: AutoRecord) => {
   const db = await initDB();
+
+  const allRecords = await new Promise<AutoRecord[]>((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+
+  if (allRecords.length >= 50) {
+    const sorted = allRecords.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    const toDeleteCount = (allRecords.length - 50) + 1;
+    const deleteTx = db.transaction(STORE_NAME, 'readwrite');
+    const deleteStore = deleteTx.objectStore(STORE_NAME);
+    for (let i = 0; i < toDeleteCount; i++) {
+      deleteStore.delete(sorted[i].id);
+    }
+    await new Promise((resolve) => { deleteTx.oncomplete = resolve; });
+  }
+
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
@@ -316,7 +336,7 @@ const Secret = () => {
       };
 
       await saveRecordDB(newRecord);
-      setAutoRecords(prev => [newRecord, ...prev]);
+      setAutoRecords(prev => [newRecord, ...prev].slice(0, 50));
 
       setProcessedUrls(prev => {
         const next = new Set(prev);
@@ -548,7 +568,7 @@ const Secret = () => {
         };
 
         await saveRecordDB(newRecord);
-        setAutoRecords(prev => [newRecord, ...prev]);
+        setAutoRecords(prev => [newRecord, ...prev].slice(0, 50));
 
         if (postUrl && postUrl.includes('bangladeshguardian.com')) {
           setProcessedUrls(prev => {
@@ -624,7 +644,7 @@ const Secret = () => {
               timestamp: new Date().toISOString()
             };
             await saveRecordDB(newRecord);
-            setAutoRecords(prev => [newRecord, ...prev]);
+            setAutoRecords(prev => [newRecord, ...prev].slice(0, 50));
             setProcessedUrls(prev => {
               const next = new Set(prev);
               next.add(article.url);
@@ -742,6 +762,15 @@ const Secret = () => {
     }
   };
 
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("URL copied to clipboard");
+    } catch (err) {
+      toast.error("Failed to copy URL");
+    }
+  };
+
   if (!isAuthorized) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-4 font-solaiman-regular">
@@ -842,21 +871,6 @@ const Secret = () => {
                 <div className="flex-grow border-t"></div>
                 <span className="flex-shrink mx-4 text-xs text-muted-foreground uppercase tracking-widest">OR MANUAL</span>
                 <div className="flex-grow border-t"></div>
-              </div>
-
-              <div className="flex items-center justify-between bg-surface-2 p-3 rounded-xl border border-dashed border-primary/20">
-                <div className="flex items-center gap-2">
-                  <Zap className={cn("h-4 w-4", livePreview ? "text-primary animate-pulse" : "text-muted-foreground")} />
-                  <span className="text-xs font-bold uppercase tracking-wider">Live Preview</span>
-                </div>
-                <Button
-                  variant={livePreview ? "default" : "outline"}
-                  size="sm"
-                  className="h-7 text-[10px] px-4 rounded-full transition-all"
-                  onClick={() => setLivePreview(!livePreview)}
-                >
-                  {livePreview ? "ON" : "OFF"}
-                </Button>
               </div>
 
               <div className="space-y-2">
@@ -975,7 +989,16 @@ const Secret = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {autoRecords.map((record) => (
                 <div key={record.id} className="flex flex-col animate-fade-in-up group">
-                  <div className="mb-2 px-1">
+                  <div className="mb-2 px-1 flex items-start gap-2">
+                    {record.url && record.url !== 'manual' && (
+                      <button
+                        onClick={() => copyToClipboard(record.url)}
+                        className="mt-0.5 p-1 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
+                        title="Copy post URL"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </button>
+                    )}
                     <h3 className="text-[11px] font-bold text-primary line-clamp-2 leading-tight min-h-[2.4em]">
                       {record.url && record.url !== 'manual' ? (
                         <a href={record.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
@@ -1061,17 +1084,22 @@ const Secret = () => {
               </div>
 
               <div className="border-t pt-6 space-y-4">
-                <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Canvas Layout</Label>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-[10px]">Title Size</Label>
-                    <Input type="number" value={fontSize} onChange={(e) => setFontSize(parseInt(e.target.value) || 70)} className="h-8 text-xs" />
+                <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Automation Settings</Label>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-surface-2 border border-transparent hover:border-primary/20 transition-all">
+                  <div className="flex items-center gap-3">
+                    <Zap className={cn("h-4 w-4", livePreview ? "text-primary animate-pulse" : "text-muted-foreground")} />
+                    <span className="text-sm font-medium">Live Preview Mode</span>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-[10px]">Spacing</Label>
-                    <Input type="number" step="0.1" value={titleLetterSpacing} onChange={(e) => setTitleLetterSpacing(parseFloat(e.target.value) || 0)} className="h-8 text-xs" />
-                  </div>
+                  <Button
+                    variant={livePreview ? "default" : "outline"}
+                    size="sm"
+                    className="h-8 text-[10px] px-4 rounded-full transition-all"
+                    onClick={() => setLivePreview(!livePreview)}
+                  >
+                    {livePreview ? "ENABLED" : "DISABLED"}
+                  </Button>
                 </div>
+                <p className="text-[10px] text-muted-foreground italic px-1">When enabled, photocard generates automatically as you type.</p>
               </div>
 
               <Button onClick={() => setShowSettings(false)} className="w-full">Close Settings</Button>
