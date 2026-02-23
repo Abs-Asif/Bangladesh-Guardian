@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { censorText } from "@/lib/censor";
-import { Download, RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings2, X, ClipboardPaste, History, Clock, AlertCircle, List, Zap, Play, Square, Trash2, Volume2, Eye, EyeOff } from "lucide-react";
+import { Download, RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings2, X, ClipboardPaste, History, Clock, AlertCircle, List, Zap, Play, Square, Trash2, Volume2, Eye, EyeOff, Copy } from "lucide-react";
 import { toast } from "sonner";
 
 interface AutoRecord {
@@ -73,6 +73,26 @@ const clearRecordsDB = async () => {
 
 const saveRecordDB = async (record: AutoRecord) => {
   const db = await initDB();
+
+  const allRecords = await new Promise<AutoRecord[]>((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+
+  if (allRecords.length >= 50) {
+    const sorted = allRecords.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    const toDeleteCount = (allRecords.length - 50) + 1;
+    const deleteTx = db.transaction(STORE_NAME, 'readwrite');
+    const deleteStore = deleteTx.objectStore(STORE_NAME);
+    for (let i = 0; i < toDeleteCount; i++) {
+      deleteStore.delete(sorted[i].id);
+    }
+    await new Promise((resolve) => { deleteTx.oncomplete = resolve; });
+  }
+
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
@@ -107,9 +127,11 @@ const Secret = () => {
   const [dateYOffset, setDateYOffset] = useState(-30);
   const [dateFontSize, setDateFontSize] = useState(20);
   const [titleLetterSpacing, setTitleLetterSpacing] = useState(-2.4);
+  const [livePreview, setLivePreview] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const templateRef = useRef<HTMLImageElement | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [generatedTitle, setGeneratedTitle] = useState('');
 
@@ -131,6 +153,29 @@ const Secret = () => {
   }, [processedUrls]);
 
   useEffect(() => {
+    // Preload fonts
+    const preloadFonts = async () => {
+      try {
+        await Promise.all([
+          document.fonts.load('bold 70px "Cambria"'),
+          document.fonts.load('20px "Cambria"'),
+          document.fonts.load('400 16px "Solaiman Lipi"'),
+          document.fonts.load('700 16px "Solaiman Lipi"')
+        ]);
+      } catch (e) {
+        console.warn("Font preloading failed", e);
+      }
+    };
+    preloadFonts();
+
+    // Preload template
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = "/PhotocardTemplate.png";
+    img.onload = () => {
+      templateRef.current = img;
+    };
+
     const savedUrls = localStorage.getItem('bg_secret_processed_urls');
     if (savedUrls) {
       try {
@@ -291,7 +336,7 @@ const Secret = () => {
       };
 
       await saveRecordDB(newRecord);
-      setAutoRecords(prev => [newRecord, ...prev]);
+      setAutoRecords(prev => [newRecord, ...prev].slice(0, 50));
 
       setProcessedUrls(prev => {
         const next = new Set(prev);
@@ -396,15 +441,21 @@ const Secret = () => {
 
     let userImgBlobUrl = '';
     try {
-      const template = new Image();
-      template.crossOrigin = "anonymous";
-      template.src = "/PhotocardTemplate.png";
-      await new Promise((resolve, reject) => {
-        template.onload = resolve;
-        template.onerror = reject;
-      });
+      let template = templateRef.current;
+      if (!template) {
+        template = new Image();
+        template.crossOrigin = "anonymous";
+        template.src = "/PhotocardTemplate.png";
+        await new Promise((resolve, reject) => {
+          template.onload = resolve;
+          template.onerror = reject;
+        });
+        templateRef.current = template;
+      }
       ctx.drawImage(template, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+      // Even if preloaded, this ensures they are ready for the current font size/style
+      // If already loaded, this resolves instantly
       await Promise.all([
         document.fonts.load(`bold ${fontSize}px "Cambria"`),
         document.fonts.load(`${dateFontSize}px "Cambria"`)
@@ -494,46 +545,58 @@ const Secret = () => {
     }
   };
 
-  const generatePhotoCard = async () => {
+  const generatePhotoCard = async (isLive = false) => {
     if (!title || !imageUrl) {
-      toast.error("Please provide both title and image URL");
+      if (!isLive) toast.error("Please provide both title and image URL");
       return;
     }
-    setIsGenerating(true);
+    if (!isLive) setIsGenerating(true);
     try {
       const censoredTitle = censorText(title);
       const dataUrl = await generatePhotoCardInternal(censoredTitle, imageUrl);
       setPreviewUrl(dataUrl);
       setGeneratedTitle(censoredTitle);
 
-      const newRecord: AutoRecord = {
-        id: Math.random().toString(36).substr(2, 9),
-        url: postUrl || 'manual',
-        title: censoredTitle,
-        imageUrl: imageUrl,
-        previewUrl: dataUrl,
-        timestamp: new Date().toISOString()
-      };
+      if (!isLive) {
+        const newRecord: AutoRecord = {
+          id: Math.random().toString(36).substr(2, 9),
+          url: postUrl || 'manual',
+          title: censoredTitle,
+          imageUrl: imageUrl,
+          previewUrl: dataUrl,
+          timestamp: new Date().toISOString()
+        };
 
-      await saveRecordDB(newRecord);
-      setAutoRecords(prev => [newRecord, ...prev]);
+        await saveRecordDB(newRecord);
+        setAutoRecords(prev => [newRecord, ...prev].slice(0, 50));
 
-      if (postUrl && postUrl.includes('bangladeshguardian.com')) {
-        setProcessedUrls(prev => {
-          const next = new Set(prev);
-          next.add(postUrl.trim());
-          return next;
-        });
+        if (postUrl && postUrl.includes('bangladeshguardian.com')) {
+          setProcessedUrls(prev => {
+            const next = new Set(prev);
+            next.add(postUrl.trim());
+            return next;
+          });
+        }
+
+        toast.success("Photocard generated!");
+        playNotification();
       }
-
-      toast.success("Photocard generated!");
-      playNotification();
     } catch (error) {
-      toast.error("Failed to generate photocard.");
+      if (!isLive) toast.error("Failed to generate photocard.");
     } finally {
-      setIsGenerating(false);
+      if (!isLive) setIsGenerating(false);
     }
   };
+
+  useEffect(() => {
+    if (!livePreview || !title || !imageUrl) return;
+
+    const timeoutId = setTimeout(() => {
+      generatePhotoCard(true);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [title, imageUrl, livePreview, fontSize, titleLetterSpacing]);
 
   const scrapeLatestLinks = async () => {
     try {
@@ -581,7 +644,7 @@ const Secret = () => {
               timestamp: new Date().toISOString()
             };
             await saveRecordDB(newRecord);
-            setAutoRecords(prev => [newRecord, ...prev]);
+            setAutoRecords(prev => [newRecord, ...prev].slice(0, 50));
             setProcessedUrls(prev => {
               const next = new Set(prev);
               next.add(article.url);
@@ -696,6 +759,15 @@ const Secret = () => {
       localStorage.setItem('bg_authorized', 'true');
     } else {
       toast.error("Incorrect Password");
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("URL copied to clipboard");
+    } catch (err) {
+      toast.error("Failed to copy URL");
     }
   };
 
@@ -835,7 +907,7 @@ const Secret = () => {
               </div>
             </div>
 
-            <Button className="w-full" onClick={generatePhotoCard} disabled={isGenerating}>
+            <Button className="w-full" onClick={() => generatePhotoCard()} disabled={isGenerating}>
               {isGenerating ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
               Generate Preview
             </Button>
@@ -917,7 +989,16 @@ const Secret = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {autoRecords.map((record) => (
                 <div key={record.id} className="flex flex-col animate-fade-in-up group">
-                  <div className="mb-2 px-1">
+                  <div className="mb-2 px-1 flex items-start gap-2">
+                    {record.url && record.url !== 'manual' && (
+                      <button
+                        onClick={() => copyToClipboard(record.url)}
+                        className="mt-0.5 p-1 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
+                        title="Copy post URL"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </button>
+                    )}
                     <h3 className="text-[11px] font-bold text-primary line-clamp-2 leading-tight min-h-[2.4em]">
                       {record.url && record.url !== 'manual' ? (
                         <a href={record.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
@@ -1003,17 +1084,22 @@ const Secret = () => {
               </div>
 
               <div className="border-t pt-6 space-y-4">
-                <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Canvas Layout</Label>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-[10px]">Title Size</Label>
-                    <Input type="number" value={fontSize} onChange={(e) => setFontSize(parseInt(e.target.value) || 70)} className="h-8 text-xs" />
+                <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Automation Settings</Label>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-surface-2 border border-transparent hover:border-primary/20 transition-all">
+                  <div className="flex items-center gap-3">
+                    <Zap className={cn("h-4 w-4", livePreview ? "text-primary animate-pulse" : "text-muted-foreground")} />
+                    <span className="text-sm font-medium">Live Preview Mode</span>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-[10px]">Spacing</Label>
-                    <Input type="number" step="0.1" value={titleLetterSpacing} onChange={(e) => setTitleLetterSpacing(parseFloat(e.target.value) || 0)} className="h-8 text-xs" />
-                  </div>
+                  <Button
+                    variant={livePreview ? "default" : "outline"}
+                    size="sm"
+                    className="h-8 text-[10px] px-4 rounded-full transition-all"
+                    onClick={() => setLivePreview(!livePreview)}
+                  >
+                    {livePreview ? "ENABLED" : "DISABLED"}
+                  </Button>
                 </div>
+                <p className="text-[10px] text-muted-foreground italic px-1">When enabled, photocard generates automatically as you type.</p>
               </div>
 
               <Button onClick={() => setShowSettings(false)} className="w-full">Close Settings</Button>
