@@ -127,8 +127,10 @@ const Secret = () => {
   const [dateYOffset, setDateYOffset] = useState(-30);
   const [dateFontSize, setDateFontSize] = useState(20);
   const [titleLetterSpacing, setTitleLetterSpacing] = useState(-2.4);
+  const [lineHeightFactor, setLineHeightFactor] = useState(0.9);
   const [livePreview, setLivePreview] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const templateRef = useRef<HTMLImageElement | null>(null);
@@ -529,7 +531,7 @@ const Secret = () => {
         attempts++;
       }
 
-      const lineHeight = currentFontSize * 0.9;
+      const lineHeight = currentFontSize * lineHeightFactor;
       const totalHeight = (lines.length - 1) * lineHeight;
       const startY = TITLE_Y - (totalHeight / 2);
       lines.forEach((line, index) => {
@@ -596,7 +598,7 @@ const Secret = () => {
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [title, imageUrl, livePreview, fontSize, titleLetterSpacing]);
+  }, [title, imageUrl, livePreview, fontSize, titleLetterSpacing, lineHeightFactor, dateFontSize, dateXOffset, dateYOffset]);
 
   const scrapeLatestLinks = async () => {
     try {
@@ -1013,7 +1015,7 @@ const Secret = () => {
                     <img src={record.previewUrl} alt={record.title} className="w-full h-full object-contain" />
                   </div>
                   <div className="mt-3 flex gap-2">
-                    <Button variant="secondary" size="sm" className="flex-1 text-[10px] h-9" onClick={() => {
+                    <Button variant="secondary" size="sm" className="flex-grow text-[10px] h-9" onClick={() => {
                       const link = document.createElement('a');
                       link.download = `${record.title}.png`;
                       link.href = record.previewUrl;
@@ -1021,10 +1023,10 @@ const Secret = () => {
                     }}>
                       <Download className="h-3.5 w-3.5 mr-1.5" /> DOWNLOAD
                     </Button>
-                    <Button variant="destructive" size="sm" className="flex-1 text-[10px] h-9" onClick={() => {
+                    <Button variant="destructive" size="icon" className="h-9 w-9 flex-shrink-0" onClick={() => {
                       if (window.confirm("Delete?")) handleDelete(record.id);
                     }}>
-                      <Trash2 className="h-3.5 w-3.5 mr-1.5" /> DELETE
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -1102,7 +1104,137 @@ const Secret = () => {
                 <p className="text-[10px] text-muted-foreground italic px-1">When enabled, photocard generates automatically as you type.</p>
               </div>
 
+              <div className="border-t pt-6 space-y-4">
+                <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Appearance Settings</Label>
+                <Button
+                  variant="outline"
+                  className="w-full h-11 rounded-xl flex items-center justify-between px-4 hover:bg-surface-2 group transition-all"
+                  onClick={() => {
+                    setShowSettings(false);
+                    setShowAdvancedSettings(true);
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <Settings2 className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <span className="text-sm font-medium">Advanced Typography</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </Button>
+                <p className="text-[10px] text-muted-foreground italic px-1">Fine-tune text sizes, spacing, and positions.</p>
+              </div>
+
               <Button onClick={() => setShowSettings(false)} className="w-full">Close Settings</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAdvancedSettings && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-card border rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-in-up">
+            <div className="p-4 border-b flex items-center justify-between bg-surface-1">
+              <h3 className="font-bold flex items-center gap-2">
+                <Settings2 className="h-4 w-4" />
+                ADVANCED TYPOGRAPHY
+              </h3>
+              <Button variant="ghost" size="icon" onClick={() => setShowAdvancedSettings(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto scrollbar-hide">
+              <div className="space-y-4">
+                <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Title Typography</Label>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <Label className="text-[11px]">Text Size</Label>
+                      <span className="text-[11px] font-mono">{fontSize}px</span>
+                    </div>
+                    <input
+                      type="range" min="40" max="120" step="1"
+                      value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))}
+                      className="w-full accent-primary h-1.5 bg-surface-2 rounded-lg appearance-none cursor-pointer"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <Label className="text-[11px]">Letter Spacing</Label>
+                      <span className="text-[11px] font-mono">{titleLetterSpacing}px</span>
+                    </div>
+                    <input
+                      type="range" min="-10" max="10" step="0.1"
+                      value={titleLetterSpacing} onChange={(e) => setTitleLetterSpacing(Number(e.target.value))}
+                      className="w-full accent-primary h-1.5 bg-surface-2 rounded-lg appearance-none cursor-pointer"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <Label className="text-[11px]">Line Spacing</Label>
+                      <span className="text-[11px] font-mono">{lineHeightFactor.toFixed(2)}</span>
+                    </div>
+                    <input
+                      type="range" min="0.5" max="2" step="0.05"
+                      value={lineHeightFactor} onChange={(e) => setLineHeightFactor(Number(e.target.value))}
+                      className="w-full accent-primary h-1.5 bg-surface-2 rounded-lg appearance-none cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-6 space-y-4">
+                <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Date Typography</Label>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <Label className="text-[11px]">Date Text Size</Label>
+                      <span className="text-[11px] font-mono">{dateFontSize}px</span>
+                    </div>
+                    <input
+                      type="range" min="10" max="40" step="1"
+                      value={dateFontSize} onChange={(e) => setDateFontSize(Number(e.target.value))}
+                      className="w-full accent-primary h-1.5 bg-surface-2 rounded-lg appearance-none cursor-pointer"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-[11px]">X Offset</Label>
+                      <Input
+                        type="number" value={dateXOffset}
+                        onChange={(e) => setDateXOffset(Number(e.target.value))}
+                        className="h-8 text-[11px] bg-surface-2"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[11px]">Y Offset</Label>
+                      <Input
+                        type="number" value={dateYOffset}
+                        onChange={(e) => setDateYOffset(Number(e.target.value))}
+                        className="h-8 text-[11px] bg-surface-2"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <Button
+                  onClick={() => {
+                    setFontSize(70);
+                    setTitleLetterSpacing(-2.4);
+                    setLineHeightFactor(0.9);
+                    setDateFontSize(20);
+                    setDateXOffset(-40);
+                    setDateYOffset(-30);
+                    toast.success("Settings reset to default");
+                  }}
+                  variant="ghost"
+                  className="w-full text-[10px] text-muted-foreground hover:text-destructive"
+                >
+                  Reset to Defaults
+                </Button>
+              </div>
+
+              <Button onClick={() => setShowAdvancedSettings(false)} className="w-full">Save & Close</Button>
             </div>
           </div>
         </div>
