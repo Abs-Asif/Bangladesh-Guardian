@@ -107,9 +107,11 @@ const Secret = () => {
   const [dateYOffset, setDateYOffset] = useState(-30);
   const [dateFontSize, setDateFontSize] = useState(20);
   const [titleLetterSpacing, setTitleLetterSpacing] = useState(-2.4);
+  const [livePreview, setLivePreview] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const templateRef = useRef<HTMLImageElement | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [generatedTitle, setGeneratedTitle] = useState('');
 
@@ -131,6 +133,29 @@ const Secret = () => {
   }, [processedUrls]);
 
   useEffect(() => {
+    // Preload fonts
+    const preloadFonts = async () => {
+      try {
+        await Promise.all([
+          document.fonts.load('bold 70px "Cambria"'),
+          document.fonts.load('20px "Cambria"'),
+          document.fonts.load('400 16px "Solaiman Lipi"'),
+          document.fonts.load('700 16px "Solaiman Lipi"')
+        ]);
+      } catch (e) {
+        console.warn("Font preloading failed", e);
+      }
+    };
+    preloadFonts();
+
+    // Preload template
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = "/PhotocardTemplate.png";
+    img.onload = () => {
+      templateRef.current = img;
+    };
+
     const savedUrls = localStorage.getItem('bg_secret_processed_urls');
     if (savedUrls) {
       try {
@@ -396,15 +421,21 @@ const Secret = () => {
 
     let userImgBlobUrl = '';
     try {
-      const template = new Image();
-      template.crossOrigin = "anonymous";
-      template.src = "/PhotocardTemplate.png";
-      await new Promise((resolve, reject) => {
-        template.onload = resolve;
-        template.onerror = reject;
-      });
+      let template = templateRef.current;
+      if (!template) {
+        template = new Image();
+        template.crossOrigin = "anonymous";
+        template.src = "/PhotocardTemplate.png";
+        await new Promise((resolve, reject) => {
+          template.onload = resolve;
+          template.onerror = reject;
+        });
+        templateRef.current = template;
+      }
       ctx.drawImage(template, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+      // Even if preloaded, this ensures they are ready for the current font size/style
+      // If already loaded, this resolves instantly
       await Promise.all([
         document.fonts.load(`bold ${fontSize}px "Cambria"`),
         document.fonts.load(`${dateFontSize}px "Cambria"`)
@@ -494,46 +525,58 @@ const Secret = () => {
     }
   };
 
-  const generatePhotoCard = async () => {
+  const generatePhotoCard = async (isLive = false) => {
     if (!title || !imageUrl) {
-      toast.error("Please provide both title and image URL");
+      if (!isLive) toast.error("Please provide both title and image URL");
       return;
     }
-    setIsGenerating(true);
+    if (!isLive) setIsGenerating(true);
     try {
       const censoredTitle = censorText(title);
       const dataUrl = await generatePhotoCardInternal(censoredTitle, imageUrl);
       setPreviewUrl(dataUrl);
       setGeneratedTitle(censoredTitle);
 
-      const newRecord: AutoRecord = {
-        id: Math.random().toString(36).substr(2, 9),
-        url: postUrl || 'manual',
-        title: censoredTitle,
-        imageUrl: imageUrl,
-        previewUrl: dataUrl,
-        timestamp: new Date().toISOString()
-      };
+      if (!isLive) {
+        const newRecord: AutoRecord = {
+          id: Math.random().toString(36).substr(2, 9),
+          url: postUrl || 'manual',
+          title: censoredTitle,
+          imageUrl: imageUrl,
+          previewUrl: dataUrl,
+          timestamp: new Date().toISOString()
+        };
 
-      await saveRecordDB(newRecord);
-      setAutoRecords(prev => [newRecord, ...prev]);
+        await saveRecordDB(newRecord);
+        setAutoRecords(prev => [newRecord, ...prev]);
 
-      if (postUrl && postUrl.includes('bangladeshguardian.com')) {
-        setProcessedUrls(prev => {
-          const next = new Set(prev);
-          next.add(postUrl.trim());
-          return next;
-        });
+        if (postUrl && postUrl.includes('bangladeshguardian.com')) {
+          setProcessedUrls(prev => {
+            const next = new Set(prev);
+            next.add(postUrl.trim());
+            return next;
+          });
+        }
+
+        toast.success("Photocard generated!");
+        playNotification();
       }
-
-      toast.success("Photocard generated!");
-      playNotification();
     } catch (error) {
-      toast.error("Failed to generate photocard.");
+      if (!isLive) toast.error("Failed to generate photocard.");
     } finally {
-      setIsGenerating(false);
+      if (!isLive) setIsGenerating(false);
     }
   };
+
+  useEffect(() => {
+    if (!livePreview || !title || !imageUrl) return;
+
+    const timeoutId = setTimeout(() => {
+      generatePhotoCard(true);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [title, imageUrl, livePreview, fontSize, titleLetterSpacing]);
 
   const scrapeLatestLinks = async () => {
     try {
@@ -801,6 +844,21 @@ const Secret = () => {
                 <div className="flex-grow border-t"></div>
               </div>
 
+              <div className="flex items-center justify-between bg-surface-2 p-3 rounded-xl border border-dashed border-primary/20">
+                <div className="flex items-center gap-2">
+                  <Zap className={cn("h-4 w-4", livePreview ? "text-primary animate-pulse" : "text-muted-foreground")} />
+                  <span className="text-xs font-bold uppercase tracking-wider">Live Preview</span>
+                </div>
+                <Button
+                  variant={livePreview ? "default" : "outline"}
+                  size="sm"
+                  className="h-7 text-[10px] px-4 rounded-full transition-all"
+                  onClick={() => setLivePreview(!livePreview)}
+                >
+                  {livePreview ? "ON" : "OFF"}
+                </Button>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="title">Title Text</Label>
                 <div className="flex gap-2">
@@ -835,7 +893,7 @@ const Secret = () => {
               </div>
             </div>
 
-            <Button className="w-full" onClick={generatePhotoCard} disabled={isGenerating}>
+            <Button className="w-full" onClick={() => generatePhotoCard()} disabled={isGenerating}>
               {isGenerating ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
               Generate Preview
             </Button>
