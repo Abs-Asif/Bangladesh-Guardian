@@ -1,26 +1,24 @@
-export const censorText = (text: string) => {
+export const defaultMappings: Record<string, string> = {
+  'Kill': 'k*ill',
+  'Killing': 'ki*lling',
+  'Killer': 'ki*ller',
+  'Killed': 'ki*lled',
+  'Suicide': 'Su*icide',
+  'Gaza': 'Ga*za',
+  'Murder': 'Mu*rder',
+  'Murdered': 'Mu*rdered',
+  'Murderer': 'Mu*rderer',
+  'Israel': 'Isr*ael',
+  'Israeli': 'Isr*aeli',
+  'Rape': 'ra*pe',
+  'Rapist': 'Ra*pist',
+  'Raped': 'Ra*ped',
+};
+
+export const censorText = (text: string, customMappings?: Record<string, string>) => {
   if (!text) return text;
   let censored = text;
-  const mappings: Record<string, string> = {
-    'Fuck': 'F*uck',
-    'Fucks': 'f*ucks',
-    'Fucling': 'F*ucking',
-    'Fucked': 'F*ucked',
-    'Kill': 'k*ill',
-    'Killing': 'ki*lling',
-    'Killer': 'ki*ller',
-    'Killed': 'ki*lled',
-    'Suicide': 'Su*icide',
-    'Gaza': 'Ga*za',
-    'Murder': 'Mu*rder',
-    'Murdered': 'Mu*rdered',
-    'Murderer': 'Mu*rderer',
-    'Israel': 'Isr*ael',
-    'Israeli': 'Isr*aeli',
-    'Rape': 'ra*pe',
-    'Rapist': 'Ra*pist',
-    'Raped': 'Ra*ped',
-  };
+  const mappings = customMappings || defaultMappings;
 
   // Sort by length descending to match longer words first
   const sortedUnsafe = Object.keys(mappings).sort((a, b) => b.length - a.length);

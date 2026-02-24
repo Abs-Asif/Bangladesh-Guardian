@@ -4,8 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { censorText } from "@/lib/censor";
-import { Download, RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings2, X, ClipboardPaste, History, Clock, AlertCircle, List, Zap, Play, Square, Trash2, Volume2, Eye, EyeOff, Copy } from "lucide-react";
+import { censorText, defaultMappings } from "@/lib/censor";
+import { Download, RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings2, X, ClipboardPaste, History, Clock, AlertCircle, List, Zap, Play, Square, Trash2, Volume2, Eye, EyeOff, Copy, Plus, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
 interface AutoRecord {
@@ -131,6 +131,9 @@ const Secret = () => {
   const [livePreview, setLivePreview] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [showRestrictionsSettings, setShowRestrictionsSettings] = useState(false);
+  const [newWord, setNewWord] = useState('');
+  const [newReplacement, setNewReplacement] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const templateRef = useRef<HTMLImageElement | null>(null);
@@ -140,6 +143,23 @@ const Secret = () => {
   // Audio State
   const [selectedAudio, setSelectedAudio] = useState(localStorage.getItem('bg_secret_audio') || '/Alert.mp3');
 
+  // Word Restrictions State
+  const [wordRestrictions, setWordRestrictions] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem('bg_secret_word_restrictions');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return defaultMappings;
+      }
+    }
+    return defaultMappings;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('bg_secret_word_restrictions', JSON.stringify(wordRestrictions));
+  }, [wordRestrictions]);
+
   // Automation State
   const [autoModeActive, setAutoModeActive] = useState(false);
   const [isLeader, setIsLeader] = useState(false);
@@ -147,8 +167,8 @@ const Secret = () => {
   const isAutoCheckingRef = useRef(false);
   const [autoRecords, setAutoRecords] = useState<AutoRecord[]>([]);
   const [autoLogs, setAutoLogs] = useState<LogEntry[]>([]);
-  const [processedUrls, setProcessedUrls] = useState<Set<string>>(new Set());
-  const processedUrlsRef = useRef<Set<string>>(new Set());
+  const [processedUrls, setProcessedUrls] = useState<Map<string, number>>(new Map());
+  const processedUrlsRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     processedUrlsRef.current = processedUrls;
@@ -181,8 +201,18 @@ const Secret = () => {
     const savedUrls = localStorage.getItem('bg_secret_processed_urls');
     if (savedUrls) {
       try {
-        const urls = JSON.parse(savedUrls);
-        setProcessedUrls(new Set(urls));
+        const parsed = JSON.parse(savedUrls);
+        if (Array.isArray(parsed)) {
+          const map = new Map<string, number>();
+          parsed.forEach((item: any) => {
+            if (typeof item === 'string') {
+              map.set(item, Date.now());
+            } else if (item && typeof item === 'object' && item.url) {
+              map.set(item.url, item.timestamp || Date.now());
+            }
+          });
+          setProcessedUrls(map);
+        }
       } catch (e) {
         console.error("Failed to load processed URLs", e);
       }
@@ -212,7 +242,8 @@ const Secret = () => {
   }, [autoModeActive]);
 
   useEffect(() => {
-    localStorage.setItem('bg_secret_processed_urls', JSON.stringify(Array.from(processedUrls)));
+    const data = Array.from(processedUrls.entries()).map(([url, timestamp]) => ({ url, timestamp }));
+    localStorage.setItem('bg_secret_processed_urls', JSON.stringify(data));
   }, [processedUrls]);
 
   useEffect(() => {
@@ -230,6 +261,22 @@ const Secret = () => {
   const addLog = (message: string, type: LogEntry['type'] = 'info') => {
     const newLog: LogEntry = { message, timestamp: Date.now(), type };
     setAutoLogs(prev => [newLog, ...prev]);
+  };
+
+  const cleanOldCache = () => {
+    const twoDaysAgo = Date.now() - (2 * 24 * 60 * 60 * 1000);
+    let changed = false;
+    const nextMap = new Map(processedUrls);
+    for (const [url, timestamp] of nextMap.entries()) {
+      if (timestamp < twoDaysAgo) {
+        nextMap.delete(url);
+        changed = true;
+      }
+    }
+    if (changed) {
+      setProcessedUrls(nextMap);
+      addLog("Cleaned up old cached URLs.");
+    }
   };
 
   const playNotification = (file?: string) => {
@@ -323,7 +370,7 @@ const Secret = () => {
       const extractedTitle = article.ContentHeading;
       const extractedImage = `https://backoffice.bangladeshguardian.com/media/imgAll/${article.ImageBgPath}`;
 
-      const censoredTitle = censorText(extractedTitle);
+      const censoredTitle = censorText(extractedTitle, wordRestrictions);
       const dataUrl = await generatePhotoCardInternal(censoredTitle, extractedImage);
       setPreviewUrl(dataUrl);
       setGeneratedTitle(censoredTitle);
@@ -341,8 +388,8 @@ const Secret = () => {
       setAutoRecords(prev => [newRecord, ...prev].slice(0, 50));
 
       setProcessedUrls(prev => {
-        const next = new Set(prev);
-        next.add(trimmedUrl);
+        const next = new Map(prev);
+        next.set(trimmedUrl, Date.now());
         return next;
       });
 
@@ -554,7 +601,7 @@ const Secret = () => {
     }
     if (!isLive) setIsGenerating(true);
     try {
-      const censoredTitle = censorText(title);
+      const censoredTitle = censorText(title, wordRestrictions);
       const dataUrl = await generatePhotoCardInternal(censoredTitle, imageUrl);
       setPreviewUrl(dataUrl);
       setGeneratedTitle(censoredTitle);
@@ -574,8 +621,8 @@ const Secret = () => {
 
         if (postUrl && postUrl.includes('bangladeshguardian.com')) {
           setProcessedUrls(prev => {
-            const next = new Set(prev);
-            next.add(postUrl.trim());
+            const next = new Map(prev);
+            next.set(postUrl.trim(), Date.now());
             return next;
           });
         }
@@ -635,7 +682,7 @@ const Secret = () => {
         addLog(`Found ${newArticles.length} new post(s).`);
         for (const article of newArticles) {
           if (article.title && article.image) {
-            const censoredTitle = censorText(article.title);
+            const censoredTitle = censorText(article.title, wordRestrictions);
             const dataUrl = await generatePhotoCardInternal(censoredTitle, article.image);
             const newRecord: AutoRecord = {
               id: Math.random().toString(36).substr(2, 9),
@@ -648,8 +695,8 @@ const Secret = () => {
             await saveRecordDB(newRecord);
             setAutoRecords(prev => [newRecord, ...prev].slice(0, 50));
             setProcessedUrls(prev => {
-              const next = new Set(prev);
-              next.add(article.url);
+              const next = new Map(prev);
+              next.set(article.url, Date.now());
               return next;
             });
             toast.success(`Auto-generated: ${censoredTitle}`);
@@ -837,6 +884,7 @@ const Secret = () => {
                 size="icon"
                 onClick={() => setShowSettings(true)}
                 className="text-white hover:bg-white/10"
+                aria-label="Settings"
               >
                 <Settings2 className="h-5 w-5" />
               </Button>
@@ -957,7 +1005,16 @@ const Secret = () => {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant={autoModeActive ? "secondary" : "default"} size="sm" className="flex-1 text-[10px]" onClick={() => setAutoModeActive(true)} disabled={autoModeActive}>
+                <Button
+                  variant={autoModeActive ? "secondary" : "default"}
+                  size="sm"
+                  className="flex-1 text-[10px]"
+                  onClick={() => {
+                    cleanOldCache();
+                    setAutoModeActive(true);
+                  }}
+                  disabled={autoModeActive}
+                >
                   <Play className="h-3 w-3 mr-1" /> START
                 </Button>
                 <Button variant={!autoModeActive ? "secondary" : "destructive"} size="sm" className="flex-1 text-[10px]" onClick={() => setAutoModeActive(false)} disabled={!autoModeActive}>
@@ -1105,6 +1162,25 @@ const Secret = () => {
               </div>
 
               <div className="border-t pt-6 space-y-4">
+                <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Security & Moderation</Label>
+                <Button
+                  variant="outline"
+                  className="w-full h-11 rounded-xl flex items-center justify-between px-4 hover:bg-surface-2 group transition-all"
+                  onClick={() => {
+                    setShowSettings(false);
+                    setShowRestrictionsSettings(true);
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <ShieldAlert className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <span className="text-sm font-medium">Word Restrictions</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </Button>
+                <p className="text-[10px] text-muted-foreground italic px-1">Manage restricted words and their usable forms.</p>
+              </div>
+
+              <div className="border-t pt-6 space-y-4">
                 <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Appearance Settings</Label>
                 <Button
                   variant="outline"
@@ -1124,6 +1200,117 @@ const Secret = () => {
               </div>
 
               <Button onClick={() => setShowSettings(false)} className="w-full">Close Settings</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRestrictionsSettings && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-card border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in-up">
+            <div className="p-4 border-b flex items-center justify-between bg-surface-1">
+              <h3 className="font-bold flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4" />
+                WORD RESTRICTIONS
+              </h3>
+              <Button variant="ghost" size="icon" onClick={() => setShowRestrictionsSettings(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+              <div className="space-y-4">
+                <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Add New Restriction</Label>
+                <div className="flex gap-2">
+                  <div className="flex-1 space-y-1">
+                    <Input
+                      placeholder="Restricted Word"
+                      value={newWord}
+                      onChange={(e) => setNewWord(e.target.value)}
+                      className="h-9 text-xs bg-surface-2"
+                    />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <Input
+                      placeholder="Usable Form"
+                      value={newReplacement}
+                      onChange={(e) => setNewReplacement(e.target.value)}
+                      className="h-9 text-xs bg-surface-2"
+                    />
+                  </div>
+                  <Button
+                    size="icon"
+                    className="h-9 w-9 flex-shrink-0"
+                    onClick={() => {
+                      if (!newWord.trim() || !newReplacement.trim()) {
+                        toast.error("Both fields are required");
+                        return;
+                      }
+                      setWordRestrictions(prev => ({ ...prev, [newWord.trim()]: newReplacement.trim() }));
+                      setNewWord('');
+                      setNewReplacement('');
+                      toast.success("Restriction added");
+                    }}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="border-t pt-6 space-y-4">
+                <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Current Restrictions</Label>
+                <div className="space-y-2">
+                  {Object.entries(wordRestrictions).length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic text-center py-4">No restrictions added.</p>
+                  ) : (
+                    Object.entries(wordRestrictions).map(([word, replacement]) => (
+                      <div key={word} className="flex items-center gap-2 p-2 rounded-lg bg-surface-2 border border-transparent group">
+                        <Input
+                          value={word}
+                          readOnly
+                          className="h-8 text-xs bg-transparent border-none focus-visible:ring-0 w-1/2 font-medium"
+                        />
+                        <div className="flex-1">
+                          <Input
+                            value={replacement}
+                            onChange={(e) => setWordRestrictions(prev => ({ ...prev, [word]: e.target.value }))}
+                            className="h-8 text-xs bg-surface-1 border-none focus-visible:ring-1"
+                          />
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => {
+                            const next = { ...wordRestrictions };
+                            delete next[word];
+                            setWordRestrictions(next);
+                            toast.success("Restriction removed");
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <Button
+                  onClick={() => {
+                    if (window.confirm("Reset to defaults?")) {
+                      setWordRestrictions(defaultMappings);
+                      toast.success("Restrictions reset to default");
+                    }
+                  }}
+                  variant="ghost"
+                  className="w-full text-[10px] text-muted-foreground hover:text-destructive"
+                >
+                  Reset to Defaults
+                </Button>
+              </div>
+
+              <Button onClick={() => setShowRestrictionsSettings(false)} className="w-full">Save & Close</Button>
             </div>
           </div>
         </div>
