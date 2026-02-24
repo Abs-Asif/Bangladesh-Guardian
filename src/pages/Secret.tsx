@@ -831,8 +831,8 @@ const Secret = () => {
               </div>
             </div>
             <div className="text-center space-y-2">
-              <h1 className="text-2xl font-bold text-white tracking-tight">Bangladesh Guardian's Photocard Generator</h1>
-              <p className="text-zinc-400 text-sm">Please enter your security key to access the generator.</p>
+              <h1 className="text-2xl font-bold text-white tracking-tight">Bangladesh Guardian's Photocard Automation</h1>
+              <p className="text-zinc-400 text-sm">Please enter your security key to access the automation tool.</p>
             </div>
           </div>
 
@@ -957,10 +957,30 @@ const Secret = () => {
               </div>
             </div>
 
-            <Button className="w-full" onClick={() => generatePhotoCard()} disabled={isGenerating}>
-              {isGenerating ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
-              Generate Preview
-            </Button>
+            <div className="flex gap-2">
+              <Button className="flex-grow" onClick={() => generatePhotoCard()} disabled={isGenerating}>
+                {isGenerating ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
+                Generate Preview
+              </Button>
+              {(previewUrl || title || imageUrl || postUrl) && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  onClick={() => {
+                    setTitle('');
+                    setImageUrl('');
+                    setPreviewUrl(null);
+                    setGeneratedTitle('');
+                    setPostUrl('');
+                    toast.info("Form cleared");
+                  }}
+                  title="Clear all inputs and preview"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
 
             {previewUrl && (
               <Button variant="secondary" className="w-full" onClick={() => {
@@ -1099,8 +1119,8 @@ const Secret = () => {
 
       {showSettings && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-card border rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-in-up">
-            <div className="p-4 border-b flex items-center justify-between bg-surface-1">
+          <div className="bg-card border rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-lg md:max-w-2xl lg:max-w-3xl overflow-hidden animate-fade-in-up flex flex-col max-h-[90vh]">
+            <div className="p-4 border-b flex-shrink-0 flex items-center justify-between bg-surface-1">
               <h3 className="font-bold flex items-center gap-2">
                 <Settings2 className="h-4 w-4" />
                 SETTINGS
@@ -1109,7 +1129,7 @@ const Secret = () => {
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-6 overflow-y-auto">
               <div className="space-y-4">
                 <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Notification Audio</Label>
                 <div className="space-y-3">
@@ -1207,8 +1227,8 @@ const Secret = () => {
 
       {showRestrictionsSettings && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-card border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in-up">
-            <div className="p-4 border-b flex items-center justify-between bg-surface-1">
+          <div className="bg-card border rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-lg md:max-w-2xl lg:max-w-3xl overflow-hidden animate-fade-in-up flex flex-col max-h-[90vh]">
+            <div className="p-4 border-b flex-shrink-0 flex items-center justify-between bg-surface-1">
               <h3 className="font-bold flex items-center gap-2">
                 <ShieldAlert className="h-4 w-4" />
                 WORD RESTRICTIONS
@@ -1217,7 +1237,7 @@ const Secret = () => {
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+            <div className="p-6 space-y-6 overflow-y-auto">
               <div className="space-y-4">
                 <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Add New Restriction</Label>
                 <div className="flex gap-2">
@@ -1318,8 +1338,8 @@ const Secret = () => {
 
       {showAdvancedSettings && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-card border rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-in-up">
-            <div className="p-4 border-b flex items-center justify-between bg-surface-1">
+          <div className="bg-card border rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-lg md:max-w-2xl lg:max-w-3xl overflow-hidden animate-fade-in-up flex flex-col max-h-[90vh]">
+            <div className="p-4 border-b flex-shrink-0 flex items-center justify-between bg-surface-1">
               <h3 className="font-bold flex items-center gap-2">
                 <Settings2 className="h-4 w-4" />
                 ADVANCED TYPOGRAPHY
@@ -1328,7 +1348,7 @@ const Secret = () => {
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto scrollbar-hide">
+            <div className="p-6 space-y-6 overflow-y-auto">
               <div className="space-y-4">
                 <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Title Typography</Label>
                 <div className="space-y-4">
