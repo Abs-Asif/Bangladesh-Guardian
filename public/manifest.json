@@ -1,6 +1,6 @@
 {
-  "name": "Bangladesh Guardian PhotoCard Generator",
-  "short_name": "BG Photocard",
+  "name": "Bangladesh Guardian PhotoCard Automation",
+  "short_name": "BG Automation",
   "description": "A web based Application that uses Bangladesh Guardian's internal API to fetch Latest news posts and generate Photocards automatically.",
   "start_url": "/",
   "display": "standalone",
