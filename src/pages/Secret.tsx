@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { censorText, defaultMappings } from "@/lib/censor";
-import { Download, RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings2, X, ClipboardPaste, History, Clock, AlertCircle, List, Zap, Play, Square, Trash2, Volume2, Eye, EyeOff, Copy, Plus, ShieldAlert } from "lucide-react";
+import { Download, RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings2, X, ClipboardPaste, History, Clock, AlertCircle, List, Zap, Play, Square, Trash2, Volume2, Eye, EyeOff, Copy, Plus, ShieldAlert, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
 interface AutoRecord {
@@ -1240,7 +1240,7 @@ const Secret = () => {
             <div className="p-6 space-y-6 overflow-y-auto">
               <div className="space-y-4">
                 <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Add New Restriction</Label>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
                   <div className="flex-1 space-y-1">
                     <Input
                       placeholder="Restricted Word"
@@ -1249,6 +1249,7 @@ const Secret = () => {
                       className="h-9 text-xs bg-surface-2"
                     />
                   </div>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
                   <div className="flex-1 space-y-1">
                     <Input
                       placeholder="Usable Form"
@@ -1289,6 +1290,7 @@ const Secret = () => {
                           readOnly
                           className="h-8 text-xs bg-transparent border-none focus-visible:ring-0 w-1/2 font-medium"
                         />
+                        <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         <div className="flex-1">
                           <Input
                             value={replacement}
