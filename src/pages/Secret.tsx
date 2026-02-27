@@ -15,6 +15,7 @@ interface AutoRecord {
   imageUrl: string;
   previewUrl: string;
   timestamp: string;
+  postTime?: string;
 }
 
 interface BGArchiveItem {
@@ -22,6 +23,7 @@ interface BGArchiveItem {
   Slug: string;
   ContentHeading: string;
   ImageBgPath: string;
+  create_date?: string;
 }
 
 interface LogEntry {
@@ -169,6 +171,7 @@ const Secret = () => {
   const [autoLogs, setAutoLogs] = useState<LogEntry[]>([]);
   const [processedUrls, setProcessedUrls] = useState<Map<string, number>>(new Map());
   const processedUrlsRef = useRef<Map<string, number>>(new Map());
+  const nextFetchLimitRef = useRef<number | null>(null);
 
   useEffect(() => {
     processedUrlsRef.current = processedUrls;
@@ -369,6 +372,7 @@ const Secret = () => {
 
       const extractedTitle = article.ContentHeading;
       const extractedImage = `https://backoffice.bangladeshguardian.com/media/imgAll/${article.ImageBgPath}`;
+      const postTime = article.create_date ? formatPostTime(article.create_date) : '';
 
       const censoredTitle = censorText(extractedTitle, wordRestrictions);
       const dataUrl = await generatePhotoCardInternal(censoredTitle, extractedImage);
@@ -381,7 +385,8 @@ const Secret = () => {
         title: censoredTitle,
         imageUrl: extractedImage,
         previewUrl: dataUrl,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        postTime
       };
 
       await saveRecordDB(newRecord);
@@ -429,6 +434,22 @@ const Secret = () => {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     return `${days[date.getDay()]} | ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  };
+
+  const formatPostTime = (apiDateStr: string) => {
+    try {
+      // Expected input: "Friday, 27 February 2026, 22:21"
+      const parts = apiDateStr.split(',');
+      if (parts.length < 3) return '';
+      const timePart = parts[parts.length - 1].trim(); // "22:21"
+      const [hours, minutes] = timePart.split(':');
+      const h = parseInt(hours);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      return `${h12}:${minutes} ${ampm}`;
+    } catch (e) {
+      return '';
+    }
   };
 
   const fetchImageWithProxy = async (url: string): Promise<string> => {
@@ -647,19 +668,20 @@ const Secret = () => {
     return () => clearTimeout(timeoutId);
   }, [title, imageUrl, livePreview, fontSize, titleLetterSpacing, lineHeightFactor, dateFontSize, dateXOffset, dateYOffset]);
 
-  const scrapeLatestLinks = async () => {
+  const scrapeLatestLinks = async (fetchLimit: number = 6) => {
     try {
       const response = await fetch("https://backoffice.bangladeshguardian.com/api-en/archive", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ start_date: "", end_date: "", category_name: "", limit: 6, offset: 0 })
+        body: JSON.stringify({ start_date: "", end_date: "", category_name: "", limit: fetchLimit, offset: 0 })
       });
       if (!response.ok) throw new Error("API request failed");
       const data = await response.json();
       return (data.archive_data || []).map((item: BGArchiveItem) => ({
         url: `https://www.bangladeshguardian.com/${item.Slug}/${item.ContentID}`,
         title: item.ContentHeading,
-        image: `https://backoffice.bangladeshguardian.com/media/imgAll/${item.ImageBgPath}`
+        image: `https://backoffice.bangladeshguardian.com/media/imgAll/${item.ImageBgPath}`,
+        postTime: item.create_date ? formatPostTime(item.create_date) : ''
       }));
     } catch (e) {
       return [];
@@ -670,17 +692,27 @@ const Secret = () => {
     if (isAutoCheckingRef.current) return;
     isAutoCheckingRef.current = true;
     setIsAutoChecking(true);
-    addLog("Checking for new posts...", "process");
+
+    const limitToUse = nextFetchLimitRef.current || 6;
+    nextFetchLimitRef.current = null;
+
+    addLog(`Checking for ${limitToUse} new posts...`, "process");
 
     try {
-      const articles = await scrapeLatestLinks();
+      const articles = await scrapeLatestLinks(limitToUse);
+      // Filter out already processed URLs
       const newArticles = articles.filter(art => !processedUrlsRef.current.has(art.url));
 
       if (newArticles.length === 0) {
         addLog("No new posts found.");
       } else {
         addLog(`Found ${newArticles.length} new post(s).`);
-        for (const article of newArticles) {
+
+        // Process articles in reverse order (oldest to newest among the new ones)
+        // so that when we prepend to state, the newest ends up at the very top.
+        const articlesToProcess = [...newArticles].reverse();
+
+        for (const article of articlesToProcess) {
           if (article.title && article.image) {
             const censoredTitle = censorText(article.title, wordRestrictions);
             const dataUrl = await generatePhotoCardInternal(censoredTitle, article.image);
@@ -690,7 +722,8 @@ const Secret = () => {
               title: censoredTitle,
               imageUrl: article.image,
               previewUrl: dataUrl,
-              timestamp: new Date().toISOString()
+              timestamp: new Date().toISOString(),
+              postTime: article.postTime
             };
             await saveRecordDB(newRecord);
             setAutoRecords(prev => [newRecord, ...prev].slice(0, 50));
@@ -1026,19 +1059,40 @@ const Secret = () => {
               </div>
               <div className="flex gap-2">
                 <Button
-                  variant={autoModeActive ? "secondary" : "default"}
+                  variant={autoModeActive ? "destructive" : "default"}
                   size="sm"
                   className="flex-1 text-[10px]"
                   onClick={() => {
-                    cleanOldCache();
-                    setAutoModeActive(true);
+                    if (!autoModeActive) {
+                      cleanOldCache();
+                      setAutoModeActive(true);
+                    } else {
+                      setAutoModeActive(false);
+                    }
                   }}
-                  disabled={autoModeActive}
                 >
-                  <Play className="h-3 w-3 mr-1" /> START
+                  {autoModeActive ? (
+                    <><Square className="h-3 w-3 mr-1" /> STOP</>
+                  ) : (
+                    <><Play className="h-3 w-3 mr-1" /> START</>
+                  )}
                 </Button>
-                <Button variant={!autoModeActive ? "secondary" : "destructive"} size="sm" className="flex-1 text-[10px]" onClick={() => setAutoModeActive(false)} disabled={!autoModeActive}>
-                  <Square className="h-3 w-3 mr-1" /> STOP
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="px-3 text-[10px] font-bold"
+                  onClick={() => {
+                    nextFetchLimitRef.current = 36;
+                    if (!autoModeActive) {
+                      cleanOldCache();
+                      setAutoModeActive(true);
+                    } else {
+                      checkAndGenerate();
+                    }
+                  }}
+                  title="Fetch latest 36 posts once"
+                >
+                  +30
                 </Button>
               </div>
               <div className="bg-surface-2 rounded-lg p-3 h-32 overflow-y-auto scrollbar-hide text-[10px] space-y-1">
@@ -1085,6 +1139,11 @@ const Secret = () => {
                         </a>
                       ) : (
                         record.title
+                      )}
+                      {record.postTime && (
+                        <span className="font-normal text-muted-foreground ml-1.5">
+                          ({record.postTime})
+                        </span>
                       )}
                     </h3>
                   </div>
