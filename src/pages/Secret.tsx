@@ -16,6 +16,7 @@ interface AutoRecord {
   previewUrl: string;
   timestamp: string;
   postTime?: string;
+  contentId?: number;
 }
 
 interface BGArchiveItem {
@@ -85,7 +86,11 @@ const saveRecordDB = async (record: AutoRecord) => {
   });
 
   if (allRecords.length >= 50) {
-    const sorted = allRecords.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    const sorted = allRecords.sort((a, b) => {
+      const aVal = a.contentId || new Date(a.timestamp).getTime();
+      const bVal = b.contentId || new Date(b.timestamp).getTime();
+      return aVal - bVal;
+    });
     const toDeleteCount = (allRecords.length - 50) + 1;
     const deleteTx = db.transaction(STORE_NAME, 'readwrite');
     const deleteStore = deleteTx.objectStore(STORE_NAME);
@@ -228,7 +233,9 @@ const Secret = () => {
 
     getAllRecordsDB().then(records => {
       const sorted = records.sort((a, b) => {
-        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+        const aVal = a.contentId || new Date(a.timestamp).getTime();
+        const bVal = b.contentId || new Date(b.timestamp).getTime();
+        return bVal - aVal;
       });
       setAutoRecords(sorted);
     });
@@ -386,11 +393,19 @@ const Secret = () => {
         imageUrl: extractedImage,
         previewUrl: dataUrl,
         timestamp: new Date().toISOString(),
-        postTime
+        postTime,
+        contentId: article.ContentID
       };
 
       await saveRecordDB(newRecord);
-      setAutoRecords(prev => [newRecord, ...prev].slice(0, 50));
+      setAutoRecords(prev => {
+        const next = [newRecord, ...prev];
+        return next.sort((a, b) => {
+          const aVal = a.contentId || new Date(a.timestamp).getTime();
+          const bVal = b.contentId || new Date(b.timestamp).getTime();
+          return bVal - aVal;
+        }).slice(0, 50);
+      });
 
       setProcessedUrls(prev => {
         const next = new Map(prev);
@@ -638,7 +653,14 @@ const Secret = () => {
         };
 
         await saveRecordDB(newRecord);
-        setAutoRecords(prev => [newRecord, ...prev].slice(0, 50));
+        setAutoRecords(prev => {
+          const next = [newRecord, ...prev];
+          return next.sort((a, b) => {
+            const aVal = a.contentId || new Date(a.timestamp).getTime();
+            const bVal = b.contentId || new Date(b.timestamp).getTime();
+            return bVal - aVal;
+          }).slice(0, 50);
+        });
 
         if (postUrl && postUrl.includes('bangladeshguardian.com')) {
           setProcessedUrls(prev => {
@@ -681,7 +703,8 @@ const Secret = () => {
         url: `https://www.bangladeshguardian.com/${item.Slug}/${item.ContentID}`,
         title: item.ContentHeading,
         image: `https://backoffice.bangladeshguardian.com/media/imgAll/${item.ImageBgPath}`,
-        postTime: item.create_date ? formatPostTime(item.create_date) : ''
+        postTime: item.create_date ? formatPostTime(item.create_date) : '',
+        contentId: item.ContentID
       }));
     } catch (e) {
       return [];
@@ -723,10 +746,18 @@ const Secret = () => {
               imageUrl: article.image,
               previewUrl: dataUrl,
               timestamp: new Date().toISOString(),
-              postTime: article.postTime
+              postTime: article.postTime,
+              contentId: article.contentId
             };
             await saveRecordDB(newRecord);
-            setAutoRecords(prev => [newRecord, ...prev].slice(0, 50));
+            setAutoRecords(prev => {
+              const next = [newRecord, ...prev];
+              return next.sort((a, b) => {
+                const aVal = a.contentId || new Date(a.timestamp).getTime();
+                const bVal = b.contentId || new Date(b.timestamp).getTime();
+                return bVal - aVal;
+              }).slice(0, 50);
+            });
             setProcessedUrls(prev => {
               const next = new Map(prev);
               next.set(article.url, Date.now());
