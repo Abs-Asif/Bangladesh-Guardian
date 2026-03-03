@@ -480,17 +480,38 @@ const Secret = () => {
     return `${days[date.getDay()]} | ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
   };
 
+  const getRelativeDateStr = (date: Date) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diffTime = today.getTime() - target.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return '(Today)';
+    if (diffDays === 1) return '(1 day ago)';
+    if (diffDays < 7) return `(${diffDays} days ago)`;
+    if (diffDays === 7) return '(A week ago)';
+    const weeks = Math.floor(diffDays / 7);
+    return `(${weeks} week${weeks > 1 ? 's' : ''} ago)`;
+  };
+
   const formatPostTime = (apiDateStr: string) => {
     try {
       // Expected input: "Friday, 27 February 2026, 22:21"
       const parts = apiDateStr.split(',');
       if (parts.length < 3) return '';
+
+      const datePart = parts.slice(1, 3).join(',').trim(); // " 27 February 2026"
       const timePart = parts[parts.length - 1].trim(); // "22:21"
       const [hours, minutes] = timePart.split(':');
       const h = parseInt(hours);
       const ampm = h >= 12 ? 'PM' : 'AM';
       const h12 = h % 12 || 12;
-      return `${h12}:${minutes} ${ampm}`;
+
+      const dateObj = new Date(`${datePart} ${timePart}`);
+      const relative = getRelativeDateStr(dateObj);
+
+      return `${h12}:${minutes} ${ampm} ${relative}`;
     } catch (e) {
       return '';
     }
@@ -750,7 +771,8 @@ const Secret = () => {
       const minutes = date.getMinutes().toString().padStart(2, '0');
       const ampm = h >= 12 ? 'PM' : 'AM';
       const h12 = h % 12 || 12;
-      return `${h12}:${minutes} ${ampm}`;
+      const relative = getRelativeDateStr(date);
+      return `${h12}:${minutes} ${ampm} ${relative}`;
     } catch (e) {
       return '';
     }
