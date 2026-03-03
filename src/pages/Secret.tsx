@@ -764,48 +764,81 @@ const Secret = () => {
     const sitemapUrl = `https://www.bangladeshguardian.com/english-sitemap/sitemap-daily-${year}-${month}-${day}.xml`;
 
     let xmlText = '';
-    const proxies = [
-      (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-      (u: string) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
-      (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`
+    const tryUrls = [
+      sitemapUrl,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(sitemapUrl)}`,
+      `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(sitemapUrl)}`,
+      `https://corsproxy.io/?${encodeURIComponent(sitemapUrl)}`
     ];
 
-    for (const proxy of proxies) {
+    for (const url of tryUrls) {
       try {
-        const response = await fetch(proxy(sitemapUrl));
+        const response = await fetch(url);
         if (response.ok) {
           xmlText = await response.text();
-          if (xmlText && xmlText.includes('<urlset')) break;
+          if (xmlText && xmlText.includes('<url')) break;
         }
       } catch (e) {}
     }
 
-    if (!xmlText) return [];
+    if (!xmlText) {
+      addLog("Failed to fetch sitemap XML.", "error");
+      return [];
+    }
 
     try {
       const parser = new DOMParser();
       const xmlDoc = parser.parseFromString(xmlText, "text/xml");
       const urls = Array.from(xmlDoc.getElementsByTagName("url"));
 
+      if (urls.length === 0) {
+        // Fallback for namespaced tags if getElementsByTagName fails
+        const urlset = xmlDoc.documentElement;
+        if (urlset) {
+          const children = Array.from(urlset.children);
+          urls.push(...children.filter(c => c.nodeName === 'url' || c.nodeName.endsWith(':url')));
+        }
+      }
+
       const results = urls.map(urlNode => {
-        const loc = urlNode.getElementsByTagName("loc")[0]?.textContent || '';
-        const imageLoc = urlNode.getElementsByTagName("image:loc")[0]?.textContent || '';
-        const lastmod = urlNode.getElementsByTagName("lastmod")[0]?.textContent || '';
-        const contentId = parseInt(loc.split('/').pop() || '0');
+        let loc = '';
+        let imageLoc = '';
+        let lastmod = '';
+
+        // Try getting children manually to handle namespaces
+        Array.from(urlNode.children).forEach(child => {
+          const name = child.nodeName.split(':').pop();
+          if (name === 'loc') loc = child.textContent || '';
+          else if (name === 'lastmod') lastmod = child.textContent || '';
+          else if (name === 'image' || name === 'image:image') {
+            Array.from(child.children).forEach(imgChild => {
+              if (imgChild.nodeName.split(':').pop() === 'loc') {
+                imageLoc = imgChild.textContent || '';
+              }
+            });
+          }
+        });
+
+        // Backup for standard methods
+        if (!loc) loc = urlNode.getElementsByTagName("loc")[0]?.textContent || '';
+        if (!imageLoc) imageLoc = urlNode.getElementsByTagName("image:loc")[0]?.textContent || '';
+        if (!lastmod) lastmod = urlNode.getElementsByTagName("lastmod")[0]?.textContent || '';
+
+        const contentId = parseInt(loc.replace(/\/$/, '').split('/').pop() || '0');
 
         return {
-          url: loc,
-          title: '', // Need to fetch via getMetadata
-          image: imageLoc,
+          url: loc.trim(),
+          title: '',
+          image: imageLoc.trim(),
           postTime: lastmod ? formatSitemapTime(lastmod) : '',
           contentId: contentId || Date.now()
         };
       }).filter(item => item.url && item.image);
 
-      // Newest first in the XML is usually at the bottom, so we reverse it if needed.
-      // But looking at the sitemap provided, the higher IDs are at the bottom.
+      addLog(`Parsed ${results.length} posts from sitemap.`);
       return results.reverse();
     } catch (e) {
+      addLog("Failed to parse sitemap XML.", "error");
       return [];
     }
   };
@@ -814,6 +847,8 @@ const Secret = () => {
     if (isAutoCheckingRef.current) return;
     isAutoCheckingRef.current = true;
     setIsAutoChecking(true);
+
+    const normalizeUrl = (url: string) => url.trim().replace(/\/$/, '');
 
     const limitToUse = nextFetchLimitRef.current || 6;
     nextFetchLimitRef.current = null;
@@ -838,7 +873,7 @@ const Secret = () => {
         addLog("No new posts found.");
       } else {
         // Filter out already processed URLs
-        const newArticles = (articles || []).filter(art => !processedUrlsRef.current.has(art.url));
+        const newArticles = (articles || []).filter(art => !processedUrlsRef.current.has(normalizeUrl(art.url)));
 
         if (newArticles.length === 0) {
           addLog("No new posts found.");
@@ -885,7 +920,7 @@ const Secret = () => {
               });
               setProcessedUrls(prev => {
                 const next = new Map(prev);
-                next.set(article.url, Date.now());
+              next.set(normalizeUrl(article.url), Date.now());
                 return next;
               });
               toast.success(`Auto-generated: ${censoredTitle}`);
