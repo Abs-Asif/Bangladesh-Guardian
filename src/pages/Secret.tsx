@@ -168,6 +168,17 @@ const Secret = () => {
   }, [wordRestrictions]);
 
   // Automation State
+  const [automationMode, setAutomationMode] = useState<'main' | 'backup'>(() => {
+    const saved = localStorage.getItem('bg_secret_automation_mode') as 'main' | 'backup';
+    const lastSwitch = localStorage.getItem('bg_secret_automation_switch_time');
+    if (saved === 'backup' && lastSwitch) {
+      const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000);
+      if (parseInt(lastSwitch) < twoHoursAgo) {
+        return 'main';
+      }
+    }
+    return saved || 'main';
+  });
   const [autoModeActive, setAutoModeActive] = useState(false);
   const [isLeader, setIsLeader] = useState(false);
   const [isAutoChecking, setIsAutoChecking] = useState(false);
@@ -176,11 +187,21 @@ const Secret = () => {
   const [autoLogs, setAutoLogs] = useState<LogEntry[]>([]);
   const [processedUrls, setProcessedUrls] = useState<Map<string, number>>(new Map());
   const processedUrlsRef = useRef<Map<string, number>>(new Map());
+  const automationModeRef = useRef<'main' | 'backup'>(automationMode);
+  const wordRestrictionsRef = useRef<Record<string, string>>(wordRestrictions);
   const nextFetchLimitRef = useRef<number | null>(null);
 
   useEffect(() => {
     processedUrlsRef.current = processedUrls;
   }, [processedUrls]);
+
+  useEffect(() => {
+    automationModeRef.current = automationMode;
+  }, [automationMode]);
+
+  useEffect(() => {
+    wordRestrictionsRef.current = wordRestrictions;
+  }, [wordRestrictions]);
 
   useEffect(() => {
     // Preload fonts
@@ -261,9 +282,25 @@ const Secret = () => {
   }, [autoModeActive]);
 
   useEffect(() => {
+    localStorage.setItem('bg_secret_automation_mode', automationMode);
+    localStorage.setItem('bg_secret_automation_switch_time', Date.now().toString());
+  }, [automationMode]);
+
+  useEffect(() => {
     const interval = setInterval(() => {
       const oneHourAgo = Date.now() - 3600000;
       setAutoLogs(prev => prev.filter(log => log.timestamp > oneHourAgo));
+
+      // Auto-revert Backup mode every 2 hours
+      const savedMode = localStorage.getItem('bg_secret_automation_mode');
+      const lastSwitch = localStorage.getItem('bg_secret_automation_switch_time');
+      if (savedMode === 'backup' && lastSwitch) {
+        const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000);
+        if (parseInt(lastSwitch) < twoHoursAgo) {
+          setAutomationMode('main');
+          addLog("Backup mode expired. Reverting to REGULAR mode.");
+        }
+      }
     }, 60000);
     return () => clearInterval(interval);
   }, []);
@@ -339,9 +376,13 @@ const Secret = () => {
                     doc.querySelector('meta[name="og:image"]')?.getAttribute('content');
     const twitterImage = doc.querySelector('meta[name="twitter:image"]')?.getAttribute('content');
 
+    const pubDate = doc.querySelector('meta[property="article:published_time"]')?.getAttribute('content') ||
+                    doc.querySelector('meta[name="publish-date"]')?.getAttribute('content');
+
     return {
       title: ogTitle || metaTitle || h1Title || '',
-      image: ogImage || twitterImage || ''
+      image: ogImage || twitterImage || '',
+      publishDate: pubDate || ''
     };
   };
 
@@ -372,14 +413,29 @@ const Secret = () => {
       const articles = data.archive_data || [];
       const article = articles.find((item: BGArchiveItem) => String(item.ContentID) === contentId);
 
-      if (!article) {
-        toast.error("Post not found in latest archive.");
-        return;
-      }
+      let extractedTitle = '';
+      let extractedImage = '';
+      let postTime = '';
+      let finalContentId = parseInt(contentId);
 
-      const extractedTitle = article.ContentHeading;
-      const extractedImage = `https://backoffice.bangladeshguardian.com/media/imgAll/${article.ImageBgPath}`;
-      const postTime = article.create_date ? formatPostTime(article.create_date) : '';
+      if (article) {
+        extractedTitle = article.ContentHeading;
+        extractedImage = `https://backoffice.bangladeshguardian.com/media/imgAll/${article.ImageBgPath}`;
+        postTime = article.create_date ? formatPostTime(article.create_date) : '';
+      } else {
+        addLog(`Post ${contentId} not in archive. Scraping metadata...`, "info");
+        const meta = await getMetadata(trimmedUrl);
+        if (meta && meta.title && meta.image) {
+          extractedTitle = meta.title;
+          extractedImage = meta.image;
+          if (meta.publishDate) {
+            postTime = formatSitemapTime(meta.publishDate);
+          }
+        } else {
+          toast.error("Post not found and scraping failed.");
+          return;
+        }
+      }
 
       const censoredTitle = censorText(extractedTitle, wordRestrictions);
       const dataUrl = await generatePhotoCardInternal(censoredTitle, extractedImage);
@@ -394,7 +450,7 @@ const Secret = () => {
         previewUrl: dataUrl,
         timestamp: new Date().toISOString(),
         postTime,
-        contentId: article.ContentID
+        contentId: finalContentId
       };
 
       await saveRecordDB(newRecord);
@@ -451,17 +507,39 @@ const Secret = () => {
     return `${days[date.getDay()]} | ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
   };
 
+  const getRelativeDateStr = (date: Date) => {
+    if (!date || isNaN(date.getTime())) return '';
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diffTime = today.getTime() - target.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 0) return 'Today';
+    if (diffDays === 1) return '1 day ago';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays === 7) return 'A week ago';
+    const weeks = Math.floor(diffDays / 7);
+    return `${weeks} week${weeks > 1 ? 's' : ''} ago`;
+  };
+
   const formatPostTime = (apiDateStr: string) => {
     try {
       // Expected input: "Friday, 27 February 2026, 22:21"
       const parts = apiDateStr.split(',');
       if (parts.length < 3) return '';
-      const timePart = parts[parts.length - 1].trim(); // "22:21"
+
+      const datePart = parts.slice(1, -1).join(',').trim();
+      const timePart = parts[parts.length - 1].trim();
       const [hours, minutes] = timePart.split(':');
       const h = parseInt(hours);
       const ampm = h >= 12 ? 'PM' : 'AM';
       const h12 = h % 12 || 12;
-      return `${h12}:${minutes} ${ampm}`;
+
+      const dateObj = new Date(`${datePart} ${timePart}`);
+      const relative = getRelativeDateStr(dateObj);
+
+      return `[${h12}:${minutes} ${ampm}] [${relative}]`;
     } catch (e) {
       return '';
     }
@@ -643,13 +721,22 @@ const Secret = () => {
       setGeneratedTitle(censoredTitle);
 
       if (!isLive) {
+        const now = new Date();
+        const h = now.getHours();
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const h12 = h % 12 || 12;
+        const relative = getRelativeDateStr(now);
+        const manualPostTime = `[Manually Generated at ${h12}:${minutes} ${ampm}] [${relative}]`;
+
         const newRecord: AutoRecord = {
           id: Math.random().toString(36).substr(2, 9),
           url: postUrl || 'manual',
           title: censoredTitle,
           imageUrl: imageUrl,
           previewUrl: dataUrl,
-          timestamp: new Date().toISOString()
+          timestamp: now.toISOString(),
+          postTime: manualPostTime
         };
 
         await saveRecordDB(newRecord);
@@ -699,7 +786,10 @@ const Secret = () => {
       });
       if (!response.ok) throw new Error("API request failed");
       const data = await response.json();
-      return (data.archive_data || []).map((item: BGArchiveItem) => ({
+      const articles = data.archive_data || [];
+      if (articles.length === 0) return null;
+
+      return articles.map((item: BGArchiveItem) => ({
         url: `https://www.bangladeshguardian.com/${item.Slug}/${item.ContentID}`,
         title: item.ContentHeading,
         image: `https://backoffice.bangladeshguardian.com/media/imgAll/${item.ImageBgPath}`,
@@ -707,6 +797,107 @@ const Secret = () => {
         contentId: item.ContentID
       }));
     } catch (e) {
+      return null;
+    }
+  };
+
+  const formatSitemapTime = (isoStr: string) => {
+    try {
+      const date = new Date(isoStr);
+      const h = date.getHours();
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      const relative = getRelativeDateStr(date);
+      return `[${h12}:${minutes} ${ampm}] [${relative}]`;
+    } catch (e) {
+      return '';
+    }
+  };
+
+  const scrapeSitemapLinks = async () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const sitemapUrl = `https://www.bangladeshguardian.com/english-sitemap/sitemap-daily-${year}-${month}-${day}.xml`;
+
+    let xmlText = '';
+    const tryUrls = [
+      sitemapUrl,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(sitemapUrl)}`,
+      `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(sitemapUrl)}`,
+      `https://corsproxy.io/?${encodeURIComponent(sitemapUrl)}`
+    ];
+
+    for (const url of tryUrls) {
+      try {
+        const response = await fetch(url);
+        if (response.ok) {
+          xmlText = await response.text();
+          if (xmlText && xmlText.includes('<url')) break;
+        }
+      } catch (e) {}
+    }
+
+    if (!xmlText) {
+      addLog("Failed to fetch sitemap XML.", "error");
+      return [];
+    }
+
+    try {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+      const urls = Array.from(xmlDoc.getElementsByTagName("url"));
+
+      if (urls.length === 0) {
+        // Fallback for namespaced tags if getElementsByTagName fails
+        const urlset = xmlDoc.documentElement;
+        if (urlset) {
+          const children = Array.from(urlset.children);
+          urls.push(...children.filter(c => c.nodeName === 'url' || c.nodeName.endsWith(':url')));
+        }
+      }
+
+      const results = urls.map(urlNode => {
+        let loc = '';
+        let imageLoc = '';
+        let lastmod = '';
+
+        // Try getting children manually to handle namespaces
+        Array.from(urlNode.children).forEach(child => {
+          const name = child.nodeName.split(':').pop();
+          if (name === 'loc') loc = child.textContent || '';
+          else if (name === 'lastmod') lastmod = child.textContent || '';
+          else if (name === 'image' || name === 'image:image') {
+            Array.from(child.children).forEach(imgChild => {
+              if (imgChild.nodeName.split(':').pop() === 'loc') {
+                imageLoc = imgChild.textContent || '';
+              }
+            });
+          }
+        });
+
+        // Backup for standard methods
+        if (!loc) loc = urlNode.getElementsByTagName("loc")[0]?.textContent || '';
+        if (!imageLoc) imageLoc = urlNode.getElementsByTagName("image:loc")[0]?.textContent || '';
+        if (!lastmod) lastmod = urlNode.getElementsByTagName("lastmod")[0]?.textContent || '';
+
+        const contentId = parseInt(loc.replace(/\/$/, '').split('/').pop() || '0');
+
+        return {
+          url: loc.trim(),
+          title: '',
+          image: imageLoc.trim(),
+          postTime: lastmod ? formatSitemapTime(lastmod) : '',
+          contentId: contentId || Date.now()
+        };
+      }).filter(item => item.url && item.image);
+
+      addLog(`Parsed ${results.length} posts from sitemap.`);
+      return results.reverse();
+    } catch (e) {
+      addLog("Failed to parse sitemap XML.", "error");
       return [];
     }
   };
@@ -716,57 +907,89 @@ const Secret = () => {
     isAutoCheckingRef.current = true;
     setIsAutoChecking(true);
 
+    const normalizeUrl = (url: string) => url.trim().replace(/\/$/, '');
+
     const limitToUse = nextFetchLimitRef.current || 6;
     nextFetchLimitRef.current = null;
 
-    addLog(`Checking for ${limitToUse} new posts...`, "process");
+    addLog(`Checking for new posts (${automationModeRef.current.toUpperCase()} MODE)...`, "process");
 
     try {
-      const articles = await scrapeLatestLinks(limitToUse);
-      // Filter out already processed URLs
-      const newArticles = articles.filter(art => !processedUrlsRef.current.has(art.url));
+      let articles = null;
 
-      if (newArticles.length === 0) {
+      if (automationModeRef.current === 'main') {
+        articles = await scrapeLatestLinks(limitToUse);
+        if (!articles) {
+          addLog("Main automation failed. Switching to BACKUP MODE.", "error");
+          setAutomationMode('backup');
+          articles = await scrapeSitemapLinks();
+        }
+      } else {
+        articles = await scrapeSitemapLinks();
+      }
+
+      if (!articles || articles.length === 0) {
         addLog("No new posts found.");
       } else {
-        addLog(`Found ${newArticles.length} new post(s).`);
+        // Filter out already processed URLs
+        const newArticles = (articles || []).filter(art => !processedUrlsRef.current.has(normalizeUrl(art.url)));
 
-        // Process articles in reverse order (oldest to newest among the new ones)
-        // so that when we prepend to state, the newest ends up at the very top.
-        const articlesToProcess = [...newArticles].reverse();
+        if (newArticles.length === 0) {
+          addLog("No new posts found.");
+        } else {
+          addLog(`Found ${newArticles.length} new post(s).`);
 
-        for (const article of articlesToProcess) {
-          if (article.title && article.image) {
-            const censoredTitle = censorText(article.title, wordRestrictions);
-            const dataUrl = await generatePhotoCardInternal(censoredTitle, article.image);
-            const newRecord: AutoRecord = {
-              id: Math.random().toString(36).substr(2, 9),
-              url: article.url,
-              title: censoredTitle,
-              imageUrl: article.image,
-              previewUrl: dataUrl,
-              timestamp: new Date().toISOString(),
-              postTime: article.postTime,
-              contentId: article.contentId
-            };
-            await saveRecordDB(newRecord);
-            setAutoRecords(prev => {
-              const next = [newRecord, ...prev];
-              return next.sort((a, b) => {
-                const aVal = a.contentId || new Date(a.timestamp).getTime();
-                const bVal = b.contentId || new Date(b.timestamp).getTime();
-                return bVal - aVal;
-              }).slice(0, 50);
-            });
-            setProcessedUrls(prev => {
-              const next = new Map(prev);
-              next.set(article.url, Date.now());
-              return next;
-            });
-            toast.success(`Auto-generated: ${censoredTitle}`);
-            playNotification();
+          // If we have a limit, apply it
+          const articlesToProcess = newArticles.slice(0, limitToUse).reverse();
+
+          for (const article of articlesToProcess) {
+            let articleTitle = article.title;
+            let articleImage = article.image;
+
+            if (!articleTitle || !articleImage) {
+              addLog(`Scraping metadata for ${article.url}...`, "info");
+              const meta = await getMetadata(article.url);
+              if (meta) {
+                articleTitle = articleTitle || meta.title;
+                articleImage = articleImage || meta.image;
+                if (!article.postTime && meta.publishDate) {
+                  article.postTime = formatSitemapTime(meta.publishDate);
+                }
+              }
+            }
+
+            if (articleTitle && articleImage) {
+              const censoredTitle = censorText(articleTitle, wordRestrictionsRef.current);
+              const dataUrl = await generatePhotoCardInternal(censoredTitle, articleImage);
+              const newRecord: AutoRecord = {
+                id: Math.random().toString(36).substr(2, 9),
+                url: article.url,
+                title: censoredTitle,
+                imageUrl: articleImage,
+                previewUrl: dataUrl,
+                timestamp: new Date().toISOString(),
+                postTime: article.postTime,
+                contentId: article.contentId
+              };
+              await saveRecordDB(newRecord);
+              setAutoRecords(prev => {
+                const next = [newRecord, ...prev];
+                return next.sort((a, b) => {
+                  const aVal = a.contentId || new Date(a.timestamp).getTime();
+                  const bVal = b.contentId || new Date(b.timestamp).getTime();
+                  return bVal - aVal;
+                }).slice(0, 50);
+              });
+              setProcessedUrls(prev => {
+                const next = new Map(prev);
+                next.set(normalizeUrl(article.url), Date.now());
+                return next;
+              });
+              toast.success(`Auto-generated: ${censoredTitle}`);
+              playNotification();
+            }
+            await new Promise(r => setTimeout(r, 1000));
           }
-          await new Promise(r => setTimeout(r, 1000));
         }
       }
     } catch (e) {
@@ -1084,7 +1307,7 @@ const Secret = () => {
                     isLeader ? 'bg-green-500 animate-pulse' : 'bg-amber-500'
                   )} />
                   <span className="text-[10px] uppercase font-bold">
-                    {!autoModeActive ? 'Idle' : isLeader ? 'Active' : 'Standby'}
+                    {!autoModeActive ? 'Idle' : isLeader ? `Active (${automationMode === 'main' ? 'Regular' : 'Backup'})` : 'Standby'}
                   </span>
                 </div>
               </div>
@@ -1173,7 +1396,7 @@ const Secret = () => {
                       )}
                       {record.postTime && (
                         <span className="font-normal text-muted-foreground ml-1.5">
-                          ({record.postTime})
+                          {record.postTime}
                         </span>
                       )}
                     </h3>
@@ -1254,6 +1477,7 @@ const Secret = () => {
 
               <div className="border-t pt-6 space-y-4">
                 <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Automation Settings</Label>
+
                 <div className="flex items-center justify-between p-3 rounded-xl bg-surface-2 border border-transparent hover:border-primary/20 transition-all">
                   <div className="flex items-center gap-3">
                     <Zap className={cn("h-4 w-4", livePreview ? "text-primary animate-pulse" : "text-muted-foreground")} />
@@ -1269,6 +1493,37 @@ const Secret = () => {
                   </Button>
                 </div>
                 <p className="text-[10px] text-muted-foreground italic px-1">When enabled, photocard generates automatically as you type.</p>
+
+                <div className="flex items-center justify-between p-3 rounded-xl bg-surface-2 border border-transparent hover:border-primary/20 transition-all">
+                  <div className="flex items-center gap-3">
+                    <History className={cn("h-4 w-4", automationMode === 'backup' ? "text-primary" : "text-muted-foreground")} />
+                    <span className="text-sm font-medium">Automation Mode</span>
+                  </div>
+                  <div className="flex bg-surface-1 p-1 rounded-lg border">
+                    <button
+                      onClick={() => setAutomationMode('main')}
+                      className={cn(
+                        "px-3 py-1 text-[10px] font-bold rounded-md transition-all",
+                        automationMode === 'main' ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      REGULAR
+                    </button>
+                    <button
+                      onClick={() => setAutomationMode('backup')}
+                      className={cn(
+                        "px-3 py-1 text-[10px] font-bold rounded-md transition-all",
+                        automationMode === 'backup' ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      BACKUP
+                    </button>
+                  </div>
+                </div>
+                <p className="text-[10px] text-muted-foreground italic px-1">
+                  Regular means your website's API is being used. And Backup means your websites sitemap is being used. <span className="text-red-600 font-bold">DO NOT TOUCH THIS PART.</span> It may change automatically based on your use.
+                </p>
+
               </div>
 
               <div className="border-t pt-6 space-y-4">
