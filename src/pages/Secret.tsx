@@ -508,13 +508,14 @@ const Secret = () => {
   };
 
   const getRelativeDateStr = (date: Date) => {
+    if (!date || isNaN(date.getTime())) return '';
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     const diffTime = today.getTime() - target.getTime();
-    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 0) return 'Today';
+    if (diffDays <= 0) return 'Today';
     if (diffDays === 1) return '1 day ago';
     if (diffDays < 7) return `${diffDays} days ago`;
     if (diffDays === 7) return 'A week ago';
@@ -1314,7 +1315,7 @@ const Secret = () => {
                 <Button
                   variant={autoModeActive ? "destructive" : "default"}
                   size="sm"
-                  className="w-full text-[10px]"
+                  className="flex-1 text-[10px]"
                   onClick={() => {
                     if (!autoModeActive) {
                       cleanOldCache();
@@ -1329,6 +1330,23 @@ const Secret = () => {
                   ) : (
                     <><Play className="h-3 w-3 mr-1" /> START</>
                   )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="px-3 text-[10px] font-bold"
+                  onClick={() => {
+                    nextFetchLimitRef.current = 36;
+                    if (!autoModeActive) {
+                      cleanOldCache();
+                      setAutoModeActive(true);
+                    } else {
+                      checkAndGenerate();
+                    }
+                  }}
+                  title="Fetch latest 36 posts once"
+                >
+                  +30
                 </Button>
               </div>
               <div className="bg-surface-2 rounded-lg p-3 h-32 overflow-y-auto scrollbar-hide text-[10px] space-y-1">
@@ -1507,32 +1525,6 @@ const Secret = () => {
                   Auto-reverts to Regular every 2 hours.
                 </p>
 
-                <div className="flex items-center justify-between p-3 rounded-xl bg-surface-2 border border-transparent hover:border-primary/20 transition-all">
-                  <div className="flex items-center gap-3">
-                    <List className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">Batch Fetch (+30)</span>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-[10px] px-4 font-bold"
-                    onClick={() => {
-                      nextFetchLimitRef.current = 36;
-                      if (!autoModeActive) {
-                        cleanOldCache();
-                        setAutoModeActive(true);
-                      } else {
-                        checkAndGenerate();
-                      }
-                      toast.info("Batch fetch triggered");
-                    }}
-                  >
-                    RUN NOW
-                  </Button>
-                </div>
-                <p className="text-[10px] text-muted-foreground italic px-1">
-                  Manually triggers a check for the latest 36 posts.
-                </p>
               </div>
 
               <div className="border-t pt-6 space-y-4">
