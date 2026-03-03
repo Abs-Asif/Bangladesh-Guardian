@@ -168,6 +168,9 @@ const Secret = () => {
   }, [wordRestrictions]);
 
   // Automation State
+  const [automationMode, setAutomationMode] = useState<'main' | 'backup'>(() => {
+    return (localStorage.getItem('bg_secret_automation_mode') as 'main' | 'backup') || 'main';
+  });
   const [autoModeActive, setAutoModeActive] = useState(false);
   const [isLeader, setIsLeader] = useState(false);
   const [isAutoChecking, setIsAutoChecking] = useState(false);
@@ -176,11 +179,21 @@ const Secret = () => {
   const [autoLogs, setAutoLogs] = useState<LogEntry[]>([]);
   const [processedUrls, setProcessedUrls] = useState<Map<string, number>>(new Map());
   const processedUrlsRef = useRef<Map<string, number>>(new Map());
+  const automationModeRef = useRef<'main' | 'backup'>(automationMode);
+  const wordRestrictionsRef = useRef<Record<string, string>>(wordRestrictions);
   const nextFetchLimitRef = useRef<number | null>(null);
 
   useEffect(() => {
     processedUrlsRef.current = processedUrls;
   }, [processedUrls]);
+
+  useEffect(() => {
+    automationModeRef.current = automationMode;
+  }, [automationMode]);
+
+  useEffect(() => {
+    wordRestrictionsRef.current = wordRestrictions;
+  }, [wordRestrictions]);
 
   useEffect(() => {
     // Preload fonts
@@ -259,6 +272,10 @@ const Secret = () => {
   useEffect(() => {
     localStorage.setItem('bg_secret_auto_active', String(autoModeActive));
   }, [autoModeActive]);
+
+  useEffect(() => {
+    localStorage.setItem('bg_secret_automation_mode', automationMode);
+  }, [automationMode]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -372,14 +389,26 @@ const Secret = () => {
       const articles = data.archive_data || [];
       const article = articles.find((item: BGArchiveItem) => String(item.ContentID) === contentId);
 
-      if (!article) {
-        toast.error("Post not found in latest archive.");
-        return;
-      }
+      let extractedTitle = '';
+      let extractedImage = '';
+      let postTime = '';
+      let finalContentId = parseInt(contentId);
 
-      const extractedTitle = article.ContentHeading;
-      const extractedImage = `https://backoffice.bangladeshguardian.com/media/imgAll/${article.ImageBgPath}`;
-      const postTime = article.create_date ? formatPostTime(article.create_date) : '';
+      if (article) {
+        extractedTitle = article.ContentHeading;
+        extractedImage = `https://backoffice.bangladeshguardian.com/media/imgAll/${article.ImageBgPath}`;
+        postTime = article.create_date ? formatPostTime(article.create_date) : '';
+      } else {
+        addLog(`Post ${contentId} not in archive. Scraping metadata...`, "info");
+        const meta = await getMetadata(trimmedUrl);
+        if (meta && meta.title && meta.image) {
+          extractedTitle = meta.title;
+          extractedImage = meta.image;
+        } else {
+          toast.error("Post not found and scraping failed.");
+          return;
+        }
+      }
 
       const censoredTitle = censorText(extractedTitle, wordRestrictions);
       const dataUrl = await generatePhotoCardInternal(censoredTitle, extractedImage);
@@ -394,7 +423,7 @@ const Secret = () => {
         previewUrl: dataUrl,
         timestamp: new Date().toISOString(),
         postTime,
-        contentId: article.ContentID
+        contentId: finalContentId
       };
 
       await saveRecordDB(newRecord);
@@ -699,13 +728,83 @@ const Secret = () => {
       });
       if (!response.ok) throw new Error("API request failed");
       const data = await response.json();
-      return (data.archive_data || []).map((item: BGArchiveItem) => ({
+      const articles = data.archive_data || [];
+      if (articles.length === 0) return null;
+
+      return articles.map((item: BGArchiveItem) => ({
         url: `https://www.bangladeshguardian.com/${item.Slug}/${item.ContentID}`,
         title: item.ContentHeading,
         image: `https://backoffice.bangladeshguardian.com/media/imgAll/${item.ImageBgPath}`,
         postTime: item.create_date ? formatPostTime(item.create_date) : '',
         contentId: item.ContentID
       }));
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const formatSitemapTime = (isoStr: string) => {
+    try {
+      const date = new Date(isoStr);
+      const h = date.getHours();
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      return `${h12}:${minutes} ${ampm}`;
+    } catch (e) {
+      return '';
+    }
+  };
+
+  const scrapeSitemapLinks = async () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const sitemapUrl = `https://www.bangladeshguardian.com/english-sitemap/sitemap-daily-${year}-${month}-${day}.xml`;
+
+    let xmlText = '';
+    const proxies = [
+      (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+      (u: string) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
+      (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`
+    ];
+
+    for (const proxy of proxies) {
+      try {
+        const response = await fetch(proxy(sitemapUrl));
+        if (response.ok) {
+          xmlText = await response.text();
+          if (xmlText && xmlText.includes('<urlset')) break;
+        }
+      } catch (e) {}
+    }
+
+    if (!xmlText) return [];
+
+    try {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+      const urls = Array.from(xmlDoc.getElementsByTagName("url"));
+
+      const results = urls.map(urlNode => {
+        const loc = urlNode.getElementsByTagName("loc")[0]?.textContent || '';
+        const imageLoc = urlNode.getElementsByTagName("image:loc")[0]?.textContent || '';
+        const lastmod = urlNode.getElementsByTagName("lastmod")[0]?.textContent || '';
+        const contentId = parseInt(loc.split('/').pop() || '0');
+
+        return {
+          url: loc,
+          title: '', // Need to fetch via getMetadata
+          image: imageLoc,
+          postTime: lastmod ? formatSitemapTime(lastmod) : '',
+          contentId: contentId || Date.now()
+        };
+      }).filter(item => item.url && item.image);
+
+      // Newest first in the XML is usually at the bottom, so we reverse it if needed.
+      // But looking at the sitemap provided, the higher IDs are at the bottom.
+      return results.reverse();
     } catch (e) {
       return [];
     }
@@ -719,54 +818,81 @@ const Secret = () => {
     const limitToUse = nextFetchLimitRef.current || 6;
     nextFetchLimitRef.current = null;
 
-    addLog(`Checking for ${limitToUse} new posts...`, "process");
+    addLog(`Checking for new posts (${automationModeRef.current.toUpperCase()} MODE)...`, "process");
 
     try {
-      const articles = await scrapeLatestLinks(limitToUse);
-      // Filter out already processed URLs
-      const newArticles = articles.filter(art => !processedUrlsRef.current.has(art.url));
+      let articles = null;
 
-      if (newArticles.length === 0) {
+      if (automationModeRef.current === 'main') {
+        articles = await scrapeLatestLinks(limitToUse);
+        if (!articles) {
+          addLog("Main automation failed. Switching to BACKUP MODE.", "error");
+          setAutomationMode('backup');
+          articles = await scrapeSitemapLinks();
+        }
+      } else {
+        articles = await scrapeSitemapLinks();
+      }
+
+      if (!articles || articles.length === 0) {
         addLog("No new posts found.");
       } else {
-        addLog(`Found ${newArticles.length} new post(s).`);
+        // Filter out already processed URLs
+        const newArticles = (articles || []).filter(art => !processedUrlsRef.current.has(art.url));
 
-        // Process articles in reverse order (oldest to newest among the new ones)
-        // so that when we prepend to state, the newest ends up at the very top.
-        const articlesToProcess = [...newArticles].reverse();
+        if (newArticles.length === 0) {
+          addLog("No new posts found.");
+        } else {
+          addLog(`Found ${newArticles.length} new post(s).`);
 
-        for (const article of articlesToProcess) {
-          if (article.title && article.image) {
-            const censoredTitle = censorText(article.title, wordRestrictions);
-            const dataUrl = await generatePhotoCardInternal(censoredTitle, article.image);
-            const newRecord: AutoRecord = {
-              id: Math.random().toString(36).substr(2, 9),
-              url: article.url,
-              title: censoredTitle,
-              imageUrl: article.image,
-              previewUrl: dataUrl,
-              timestamp: new Date().toISOString(),
-              postTime: article.postTime,
-              contentId: article.contentId
-            };
-            await saveRecordDB(newRecord);
-            setAutoRecords(prev => {
-              const next = [newRecord, ...prev];
-              return next.sort((a, b) => {
-                const aVal = a.contentId || new Date(a.timestamp).getTime();
-                const bVal = b.contentId || new Date(b.timestamp).getTime();
-                return bVal - aVal;
-              }).slice(0, 50);
-            });
-            setProcessedUrls(prev => {
-              const next = new Map(prev);
-              next.set(article.url, Date.now());
-              return next;
-            });
-            toast.success(`Auto-generated: ${censoredTitle}`);
-            playNotification();
+          // If we have a limit, apply it
+          const articlesToProcess = newArticles.slice(0, limitToUse).reverse();
+
+          for (const article of articlesToProcess) {
+            let articleTitle = article.title;
+            let articleImage = article.image;
+
+            if (!articleTitle || !articleImage) {
+              addLog(`Scraping metadata for ${article.url}...`, "info");
+              const meta = await getMetadata(article.url);
+              if (meta) {
+                articleTitle = articleTitle || meta.title;
+                articleImage = articleImage || meta.image;
+              }
+            }
+
+            if (articleTitle && articleImage) {
+              const censoredTitle = censorText(articleTitle, wordRestrictionsRef.current);
+              const dataUrl = await generatePhotoCardInternal(censoredTitle, articleImage);
+              const newRecord: AutoRecord = {
+                id: Math.random().toString(36).substr(2, 9),
+                url: article.url,
+                title: censoredTitle,
+                imageUrl: articleImage,
+                previewUrl: dataUrl,
+                timestamp: new Date().toISOString(),
+                postTime: article.postTime,
+                contentId: article.contentId
+              };
+              await saveRecordDB(newRecord);
+              setAutoRecords(prev => {
+                const next = [newRecord, ...prev];
+                return next.sort((a, b) => {
+                  const aVal = a.contentId || new Date(a.timestamp).getTime();
+                  const bVal = b.contentId || new Date(b.timestamp).getTime();
+                  return bVal - aVal;
+                }).slice(0, 50);
+              });
+              setProcessedUrls(prev => {
+                const next = new Map(prev);
+                next.set(article.url, Date.now());
+                return next;
+              });
+              toast.success(`Auto-generated: ${censoredTitle}`);
+              playNotification();
+            }
+            await new Promise(r => setTimeout(r, 1000));
           }
-          await new Promise(r => setTimeout(r, 1000));
         }
       }
     } catch (e) {
@@ -1084,7 +1210,7 @@ const Secret = () => {
                     isLeader ? 'bg-green-500 animate-pulse' : 'bg-amber-500'
                   )} />
                   <span className="text-[10px] uppercase font-bold">
-                    {!autoModeActive ? 'Idle' : isLeader ? 'Active' : 'Standby'}
+                    {!autoModeActive ? 'Idle' : isLeader ? `Active (${automationMode})` : 'Standby'}
                   </span>
                 </div>
               </div>
@@ -1107,6 +1233,18 @@ const Secret = () => {
                   ) : (
                     <><Play className="h-3 w-3 mr-1" /> START</>
                   )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 text-[10px]"
+                  onClick={() => {
+                    const nextMode = automationMode === 'main' ? 'backup' : 'main';
+                    setAutomationMode(nextMode);
+                    addLog(`Switched to ${nextMode.toUpperCase()} mode.`);
+                  }}
+                >
+                  {automationMode === 'main' ? 'BACKUP MODE' : 'MAIN MODE'}
                 </Button>
                 <Button
                   variant="outline"
