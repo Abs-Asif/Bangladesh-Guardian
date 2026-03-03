@@ -529,8 +529,8 @@ const Secret = () => {
       const parts = apiDateStr.split(',');
       if (parts.length < 3) return '';
 
-      const datePart = parts.slice(1, 3).join(',').trim(); // " 27 February 2026"
-      const timePart = parts[parts.length - 1].trim(); // "22:21"
+      const datePart = parts.slice(1, -1).join(',').trim();
+      const timePart = parts[parts.length - 1].trim();
       const [hours, minutes] = timePart.split(':');
       const h = parseInt(hours);
       const ampm = h >= 12 ? 'PM' : 'AM';
@@ -1521,8 +1521,7 @@ const Secret = () => {
                   </div>
                 </div>
                 <p className="text-[10px] text-muted-foreground italic px-1">
-                  Backup mode uses sitemaps when the regular API fails.
-                  Auto-reverts to Regular every 2 hours.
+                  Regular means your website's API is being used. And Backup means your websites sitemap is being used. <span className="text-red-600 font-bold">DO NOT TOUCH THIS PART.</span> It may change automatically based on your use.
                 </p>
 
               </div>

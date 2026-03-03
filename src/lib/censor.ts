@@ -3,6 +3,7 @@ export const defaultMappings: Record<string, string> = {
   'Kills': 'Ki*lls',
   'Killing': 'ki*lling',
   'Killer': 'ki*ller',
+  'Killers': 'Ki*llers',
   'Killed': 'ki*lled',
   'Suicide': 'Su*icide',
   'Suicides': 'Su*icides',
