@@ -169,7 +169,15 @@ const Secret = () => {
 
   // Automation State
   const [automationMode, setAutomationMode] = useState<'main' | 'backup'>(() => {
-    return (localStorage.getItem('bg_secret_automation_mode') as 'main' | 'backup') || 'main';
+    const saved = localStorage.getItem('bg_secret_automation_mode') as 'main' | 'backup';
+    const lastSwitch = localStorage.getItem('bg_secret_automation_switch_time');
+    if (saved === 'backup' && lastSwitch) {
+      const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000);
+      if (parseInt(lastSwitch) < twoHoursAgo) {
+        return 'main';
+      }
+    }
+    return saved || 'main';
   });
   const [autoModeActive, setAutoModeActive] = useState(false);
   const [isLeader, setIsLeader] = useState(false);
@@ -275,12 +283,24 @@ const Secret = () => {
 
   useEffect(() => {
     localStorage.setItem('bg_secret_automation_mode', automationMode);
+    localStorage.setItem('bg_secret_automation_switch_time', Date.now().toString());
   }, [automationMode]);
 
   useEffect(() => {
     const interval = setInterval(() => {
       const oneHourAgo = Date.now() - 3600000;
       setAutoLogs(prev => prev.filter(log => log.timestamp > oneHourAgo));
+
+      // Auto-revert Backup mode every 2 hours
+      const savedMode = localStorage.getItem('bg_secret_automation_mode');
+      const lastSwitch = localStorage.getItem('bg_secret_automation_switch_time');
+      if (savedMode === 'backup' && lastSwitch) {
+        const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000);
+        if (parseInt(lastSwitch) < twoHoursAgo) {
+          setAutomationMode('main');
+          addLog("Backup mode expired. Reverting to REGULAR mode.");
+        }
+      }
     }, 60000);
     return () => clearInterval(interval);
   }, []);
@@ -356,9 +376,13 @@ const Secret = () => {
                     doc.querySelector('meta[name="og:image"]')?.getAttribute('content');
     const twitterImage = doc.querySelector('meta[name="twitter:image"]')?.getAttribute('content');
 
+    const pubDate = doc.querySelector('meta[property="article:published_time"]')?.getAttribute('content') ||
+                    doc.querySelector('meta[name="publish-date"]')?.getAttribute('content');
+
     return {
       title: ogTitle || metaTitle || h1Title || '',
-      image: ogImage || twitterImage || ''
+      image: ogImage || twitterImage || '',
+      publishDate: pubDate || ''
     };
   };
 
@@ -404,6 +428,9 @@ const Secret = () => {
         if (meta && meta.title && meta.image) {
           extractedTitle = meta.title;
           extractedImage = meta.image;
+          if (meta.publishDate) {
+            postTime = formatSitemapTime(meta.publishDate);
+          }
         } else {
           toast.error("Post not found and scraping failed.");
           return;
@@ -487,12 +514,12 @@ const Secret = () => {
     const diffTime = today.getTime() - target.getTime();
     const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 0) return '(Today)';
-    if (diffDays === 1) return '(1 day ago)';
-    if (diffDays < 7) return `(${diffDays} days ago)`;
-    if (diffDays === 7) return '(A week ago)';
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return '1 day ago';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays === 7) return 'A week ago';
     const weeks = Math.floor(diffDays / 7);
-    return `(${weeks} week${weeks > 1 ? 's' : ''} ago)`;
+    return `${weeks} week${weeks > 1 ? 's' : ''} ago`;
   };
 
   const formatPostTime = (apiDateStr: string) => {
@@ -511,7 +538,7 @@ const Secret = () => {
       const dateObj = new Date(`${datePart} ${timePart}`);
       const relative = getRelativeDateStr(dateObj);
 
-      return `${h12}:${minutes} ${ampm} ${relative}`;
+      return `[${h12}:${minutes} ${ampm}] [${relative}]`;
     } catch (e) {
       return '';
     }
@@ -693,13 +720,22 @@ const Secret = () => {
       setGeneratedTitle(censoredTitle);
 
       if (!isLive) {
+        const now = new Date();
+        const h = now.getHours();
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const h12 = h % 12 || 12;
+        const relative = getRelativeDateStr(now);
+        const manualPostTime = `[Manually Generated at ${h12}:${minutes} ${ampm}] [${relative}]`;
+
         const newRecord: AutoRecord = {
           id: Math.random().toString(36).substr(2, 9),
           url: postUrl || 'manual',
           title: censoredTitle,
           imageUrl: imageUrl,
           previewUrl: dataUrl,
-          timestamp: new Date().toISOString()
+          timestamp: now.toISOString(),
+          postTime: manualPostTime
         };
 
         await saveRecordDB(newRecord);
@@ -772,7 +808,7 @@ const Secret = () => {
       const ampm = h >= 12 ? 'PM' : 'AM';
       const h12 = h % 12 || 12;
       const relative = getRelativeDateStr(date);
-      return `${h12}:${minutes} ${ampm} ${relative}`;
+      return `[${h12}:${minutes} ${ampm}] [${relative}]`;
     } catch (e) {
       return '';
     }
@@ -915,6 +951,9 @@ const Secret = () => {
               if (meta) {
                 articleTitle = articleTitle || meta.title;
                 articleImage = articleImage || meta.image;
+                if (!article.postTime && meta.publishDate) {
+                  article.postTime = formatSitemapTime(meta.publishDate);
+                }
               }
             }
 
@@ -942,7 +981,7 @@ const Secret = () => {
               });
               setProcessedUrls(prev => {
                 const next = new Map(prev);
-              next.set(normalizeUrl(article.url), Date.now());
+                next.set(normalizeUrl(article.url), Date.now());
                 return next;
               });
               toast.success(`Auto-generated: ${censoredTitle}`);
@@ -1267,7 +1306,7 @@ const Secret = () => {
                     isLeader ? 'bg-green-500 animate-pulse' : 'bg-amber-500'
                   )} />
                   <span className="text-[10px] uppercase font-bold">
-                    {!autoModeActive ? 'Idle' : isLeader ? `Active (${automationMode})` : 'Standby'}
+                    {!autoModeActive ? 'Idle' : isLeader ? `Active (${automationMode === 'main' ? 'Regular' : 'Backup'})` : 'Standby'}
                   </span>
                 </div>
               </div>
@@ -1275,7 +1314,7 @@ const Secret = () => {
                 <Button
                   variant={autoModeActive ? "destructive" : "default"}
                   size="sm"
-                  className="flex-1 text-[10px]"
+                  className="w-full text-[10px]"
                   onClick={() => {
                     if (!autoModeActive) {
                       cleanOldCache();
@@ -1290,35 +1329,6 @@ const Secret = () => {
                   ) : (
                     <><Play className="h-3 w-3 mr-1" /> START</>
                   )}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 text-[10px]"
-                  onClick={() => {
-                    const nextMode = automationMode === 'main' ? 'backup' : 'main';
-                    setAutomationMode(nextMode);
-                    addLog(`Switched to ${nextMode.toUpperCase()} mode.`);
-                  }}
-                >
-                  {automationMode === 'main' ? 'BACKUP MODE' : 'MAIN MODE'}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="px-3 text-[10px] font-bold"
-                  onClick={() => {
-                    nextFetchLimitRef.current = 36;
-                    if (!autoModeActive) {
-                      cleanOldCache();
-                      setAutoModeActive(true);
-                    } else {
-                      checkAndGenerate();
-                    }
-                  }}
-                  title="Fetch latest 36 posts once"
-                >
-                  +30
                 </Button>
               </div>
               <div className="bg-surface-2 rounded-lg p-3 h-32 overflow-y-auto scrollbar-hide text-[10px] space-y-1">
@@ -1368,7 +1378,7 @@ const Secret = () => {
                       )}
                       {record.postTime && (
                         <span className="font-normal text-muted-foreground ml-1.5">
-                          ({record.postTime})
+                          {record.postTime}
                         </span>
                       )}
                     </h3>
@@ -1449,6 +1459,7 @@ const Secret = () => {
 
               <div className="border-t pt-6 space-y-4">
                 <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Automation Settings</Label>
+
                 <div className="flex items-center justify-between p-3 rounded-xl bg-surface-2 border border-transparent hover:border-primary/20 transition-all">
                   <div className="flex items-center gap-3">
                     <Zap className={cn("h-4 w-4", livePreview ? "text-primary animate-pulse" : "text-muted-foreground")} />
@@ -1464,6 +1475,64 @@ const Secret = () => {
                   </Button>
                 </div>
                 <p className="text-[10px] text-muted-foreground italic px-1">When enabled, photocard generates automatically as you type.</p>
+
+                <div className="flex items-center justify-between p-3 rounded-xl bg-surface-2 border border-transparent hover:border-primary/20 transition-all">
+                  <div className="flex items-center gap-3">
+                    <History className={cn("h-4 w-4", automationMode === 'backup' ? "text-primary" : "text-muted-foreground")} />
+                    <span className="text-sm font-medium">Automation Mode</span>
+                  </div>
+                  <div className="flex bg-surface-1 p-1 rounded-lg border">
+                    <button
+                      onClick={() => setAutomationMode('main')}
+                      className={cn(
+                        "px-3 py-1 text-[10px] font-bold rounded-md transition-all",
+                        automationMode === 'main' ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      REGULAR
+                    </button>
+                    <button
+                      onClick={() => setAutomationMode('backup')}
+                      className={cn(
+                        "px-3 py-1 text-[10px] font-bold rounded-md transition-all",
+                        automationMode === 'backup' ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      BACKUP
+                    </button>
+                  </div>
+                </div>
+                <p className="text-[10px] text-muted-foreground italic px-1">
+                  Backup mode uses sitemaps when the regular API fails.
+                  Auto-reverts to Regular every 2 hours.
+                </p>
+
+                <div className="flex items-center justify-between p-3 rounded-xl bg-surface-2 border border-transparent hover:border-primary/20 transition-all">
+                  <div className="flex items-center gap-3">
+                    <List className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Batch Fetch (+30)</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-[10px] px-4 font-bold"
+                    onClick={() => {
+                      nextFetchLimitRef.current = 36;
+                      if (!autoModeActive) {
+                        cleanOldCache();
+                        setAutoModeActive(true);
+                      } else {
+                        checkAndGenerate();
+                      }
+                      toast.info("Batch fetch triggered");
+                    }}
+                  >
+                    RUN NOW
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground italic px-1">
+                  Manually triggers a check for the latest 36 posts.
+                </p>
               </div>
 
               <div className="border-t pt-6 space-y-4">
