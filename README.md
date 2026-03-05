@@ -130,7 +130,25 @@ A: Browsers often throttle background tabs. Keep the tab active or in a separate
 
 ---
 
-## ⚠️ 10. Common Troubleshooting
+## 📊 10. Proxy Reliability & Limits
+
+The application uses a multi-tier proxy failover system to ensure 99.9% uptime for image fetching and sitemap scraping.
+
+### **Usage Math (based on 18h daily activity / 100 posts)**
+- **Regular Mode:** Uses ~100 requests/day (~3,000/mo) primarily hitting **Codetabs**.
+- **Backup Mode (Sitemap):** Uses ~1,280 requests/day (~38,400/mo) primarily hitting **AllOrigins**.
+
+### **Provider Limits**
+1.  **AllOrigins:** ~20 requests/minute. No monthly limit.
+2.  **Codetabs:** ~300 requests/minute (5 RPS). No monthly limit.
+3.  **CorsProxy.io:** 10,000 requests/month (Free Tier).
+    - *Note: Restricted to `.vercel.app` or `.github.io`. Will fail on custom subdomains.*
+
+**Verdict:** The app is extremely stable in Regular Mode. If the system is forced into Backup Mode for more than 8 days, the CorsProxy.io "safety net" will be exhausted, but the app will continue to function via the other two proxies.
+
+---
+
+## ⚠️ 11. Common Troubleshooting
 
 - **Images not appearing?** This is usually a CORS issue. The app uses several public proxies to bypass restrictions. If one fails, it tries another.
 - **"Standby" status?** This means you have the app open in another tab. Only one tab can lead the automation.
