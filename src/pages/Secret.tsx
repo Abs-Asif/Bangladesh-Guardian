@@ -172,8 +172,8 @@ const Secret = () => {
     const saved = localStorage.getItem('bg_secret_automation_mode') as 'main' | 'backup';
     const lastSwitch = localStorage.getItem('bg_secret_automation_switch_time');
     if (saved === 'backup' && lastSwitch) {
-      const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000);
-      if (parseInt(lastSwitch) < twoHoursAgo) {
+      const thirtyMinutesAgo = Date.now() - (30 * 60 * 1000);
+      if (parseInt(lastSwitch) < thirtyMinutesAgo) {
         return 'main';
       }
     }
@@ -291,12 +291,12 @@ const Secret = () => {
       const oneHourAgo = Date.now() - 3600000;
       setAutoLogs(prev => prev.filter(log => log.timestamp > oneHourAgo));
 
-      // Auto-revert Backup mode every 2 hours
+      // Auto-revert Backup mode every 30 minutes
       const savedMode = localStorage.getItem('bg_secret_automation_mode');
       const lastSwitch = localStorage.getItem('bg_secret_automation_switch_time');
       if (savedMode === 'backup' && lastSwitch) {
-        const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000);
-        if (parseInt(lastSwitch) < twoHoursAgo) {
+        const thirtyMinutesAgo = Date.now() - (30 * 60 * 1000);
+        if (parseInt(lastSwitch) < thirtyMinutesAgo) {
           setAutomationMode('main');
           addLog("Backup mode expired. Reverting to REGULAR mode.");
         }
@@ -777,7 +777,7 @@ const Secret = () => {
     return () => clearTimeout(timeoutId);
   }, [title, imageUrl, livePreview, fontSize, titleLetterSpacing, lineHeightFactor, dateFontSize, dateXOffset, dateYOffset]);
 
-  const scrapeLatestLinks = async (fetchLimit: number = 6) => {
+  const scrapeLatestLinks = async (fetchLimit: number = 3) => {
     try {
       const response = await fetch("https://backoffice.bangladeshguardian.com/api-en/archive", {
         method: "POST",
@@ -909,7 +909,7 @@ const Secret = () => {
 
     const normalizeUrl = (url: string) => url.trim().replace(/\/$/, '');
 
-    const limitToUse = nextFetchLimitRef.current || 6;
+    const limitToUse = nextFetchLimitRef.current || 3;
     nextFetchLimitRef.current = null;
 
     addLog(`Checking for new posts (${automationModeRef.current.toUpperCase()} MODE)...`, "process");
@@ -1405,7 +1405,7 @@ const Secret = () => {
                     <img src={record.previewUrl} alt={record.title} className="w-full h-full object-contain" />
                   </div>
                   <div className="mt-3 flex gap-2">
-                    <Button variant="secondary" size="sm" className="flex-grow text-[10px] h-9" onClick={() => {
+                    <Button variant="destructive" size="sm" className="flex-grow text-[10px] h-9" onClick={() => {
                       const link = document.createElement('a');
                       link.download = `${record.title}.png`;
                       link.href = record.previewUrl;
@@ -1413,7 +1413,7 @@ const Secret = () => {
                     }}>
                       <Download className="h-3.5 w-3.5 mr-1.5" /> DOWNLOAD
                     </Button>
-                    <Button variant="destructive" size="icon" className="h-9 w-9 flex-shrink-0" onClick={() => {
+                    <Button variant="outline" size="icon" className="h-9 w-9 flex-shrink-0" onClick={() => {
                       if (window.confirm("Delete?")) handleDelete(record.id);
                     }}>
                       <Trash2 className="h-4 w-4" />
@@ -1501,19 +1501,23 @@ const Secret = () => {
                   </div>
                   <div className="flex bg-surface-1 p-1 rounded-lg border">
                     <button
-                      onClick={() => setAutomationMode('main')}
+                      onClick={() => !autoModeActive && setAutomationMode('main')}
+                      disabled={autoModeActive}
                       className={cn(
                         "px-3 py-1 text-[10px] font-bold rounded-md transition-all",
-                        automationMode === 'main' ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                        automationMode === 'main' ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                        autoModeActive && "opacity-50 cursor-not-allowed"
                       )}
                     >
                       REGULAR
                     </button>
                     <button
-                      onClick={() => setAutomationMode('backup')}
+                      onClick={() => !autoModeActive && setAutomationMode('backup')}
+                      disabled={autoModeActive}
                       className={cn(
                         "px-3 py-1 text-[10px] font-bold rounded-md transition-all",
-                        automationMode === 'backup' ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                        automationMode === 'backup' ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                        autoModeActive && "opacity-50 cursor-not-allowed"
                       )}
                     >
                       BACKUP
