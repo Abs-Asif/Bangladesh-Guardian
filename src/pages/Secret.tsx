@@ -120,6 +120,12 @@ const getAllRecordsDB = async (): Promise<AutoRecord[]> => {
   });
 };
 
+const FREQ_OPTIONS = [
+  { id: '1m3p', label: '1m 3p', interval: 60000, limit: 3 },
+  { id: '2m6p', label: '2m 6p', interval: 120000, limit: 6 },
+  { id: '3m6p', label: '3m 6p', interval: 180000, limit: 6 }
+];
+
 const Secret = () => {
   const [isAuthorized, setIsAuthorized] = useState(localStorage.getItem('bg_authorized') === 'true');
   const [password, setPassword] = useState('');
@@ -187,6 +193,15 @@ const Secret = () => {
   const [autoLogs, setAutoLogs] = useState<LogEntry[]>([]);
   const [processedUrls, setProcessedUrls] = useState<Map<string, number>>(new Map());
   const processedUrlsRef = useRef<Map<string, number>>(new Map());
+  const [automationFrequency, setAutomationFrequency] = useState(() => {
+    const saved = localStorage.getItem('bg_secret_automation_frequency');
+    if (saved) {
+      const found = FREQ_OPTIONS.find(opt => opt.id === saved);
+      if (found) return found;
+    }
+    return FREQ_OPTIONS[0];
+  });
+  const automationFrequencyRef = useRef(automationFrequency);
   const automationModeRef = useRef<'main' | 'backup'>(automationMode);
   const wordRestrictionsRef = useRef<Record<string, string>>(wordRestrictions);
   const nextFetchLimitRef = useRef<number | null>(null);
@@ -202,6 +217,11 @@ const Secret = () => {
   useEffect(() => {
     wordRestrictionsRef.current = wordRestrictions;
   }, [wordRestrictions]);
+
+  useEffect(() => {
+    automationFrequencyRef.current = automationFrequency;
+    localStorage.setItem('bg_secret_automation_frequency', automationFrequency.id);
+  }, [automationFrequency]);
 
   useEffect(() => {
     // Preload fonts
@@ -909,7 +929,7 @@ const Secret = () => {
 
     const normalizeUrl = (url: string) => url.trim().replace(/\/$/, '');
 
-    const limitToUse = nextFetchLimitRef.current || 3;
+    const limitToUse = nextFetchLimitRef.current || automationFrequencyRef.current.limit;
     nextFetchLimitRef.current = null;
 
     addLog(`Checking for new posts (${automationModeRef.current.toUpperCase()} MODE)...`, "process");
@@ -1007,13 +1027,13 @@ const Secret = () => {
     let isMounted = true;
     const controller = new AbortController();
 
-    const startAutomation = () => {
+    const startAutomation = (intervalMs: number) => {
       const workerCode = `
         let interval;
         self.onmessage = (e) => {
           if (e.data === 'start') {
             self.postMessage('tick');
-            interval = setInterval(() => self.postMessage('tick'), 60000);
+            interval = setInterval(() => self.postMessage('tick'), ${intervalMs});
           } else if (e.data === 'stop') {
             clearInterval(interval);
           }
@@ -1042,7 +1062,7 @@ const Secret = () => {
             if (!isMounted) return;
             setIsLeader(true);
             addLog("Took leadership of automation.", "success");
-            workerInstance = startAutomation();
+            workerInstance = startAutomation(automationFrequency.interval);
 
             await new Promise(resolve => {
               controller.signal.addEventListener('abort', resolve);
@@ -1056,11 +1076,11 @@ const Secret = () => {
           });
         } else {
           setIsLeader(true);
-          workerInstance = startAutomation();
+          workerInstance = startAutomation(automationFrequency.interval);
         }
       } catch (err) {
         setIsLeader(true);
-        workerInstance = startAutomation();
+        workerInstance = startAutomation(automationFrequency.interval);
       }
     };
 
@@ -1076,7 +1096,7 @@ const Secret = () => {
         URL.revokeObjectURL(workerInstance.url);
       }
     };
-  }, [autoModeActive]);
+  }, [autoModeActive, automationFrequency.interval]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -1528,6 +1548,31 @@ const Secret = () => {
                   Regular means your website's API is being used. And Backup means your websites sitemap is being used. <span className="text-red-600 font-bold">DO NOT TOUCH THIS PART.</span> It may change automatically based on your use.
                 </p>
 
+                <div className="flex items-center justify-between p-3 rounded-xl bg-surface-2 border border-transparent hover:border-primary/20 transition-all">
+                  <div className="flex items-center gap-3">
+                    <Clock className={cn("h-4 w-4", autoModeActive ? "text-muted-foreground" : "text-primary")} />
+                    <span className="text-sm font-medium">Checking Frequency</span>
+                  </div>
+                  <div className="flex bg-surface-1 p-1 rounded-lg border">
+                    {FREQ_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.id}
+                        onClick={() => !autoModeActive && setAutomationFrequency(opt)}
+                        disabled={autoModeActive}
+                        className={cn(
+                          "px-2 py-1 text-[10px] font-bold rounded-md transition-all",
+                          automationFrequency.id === opt.id ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                          autoModeActive && "opacity-50 cursor-not-allowed"
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-[10px] text-muted-foreground italic px-1">
+                  Select how often the automation checks for new posts and how many it fetches.
+                </p>
               </div>
 
               <div className="border-t pt-6 space-y-4">
