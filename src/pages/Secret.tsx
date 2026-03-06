@@ -183,6 +183,8 @@ const Secret = () => {
   const [isLeader, setIsLeader] = useState(false);
   const [isAutoChecking, setIsAutoChecking] = useState(false);
   const isAutoCheckingRef = useRef(false);
+  const autoModeActiveRef = useRef(autoModeActive);
+  const pendingUrlsRef = useRef(new Set<string>());
   const [autoRecords, setAutoRecords] = useState<AutoRecord[]>([]);
   const [autoLogs, setAutoLogs] = useState<LogEntry[]>([]);
   const [processedUrls, setProcessedUrls] = useState<Map<string, number>>(new Map());
@@ -279,6 +281,7 @@ const Secret = () => {
 
   useEffect(() => {
     localStorage.setItem('bg_secret_auto_active', String(autoModeActive));
+    autoModeActiveRef.current = autoModeActive;
   }, [autoModeActive]);
 
   useEffect(() => {
@@ -777,7 +780,7 @@ const Secret = () => {
     return () => clearTimeout(timeoutId);
   }, [title, imageUrl, livePreview, fontSize, titleLetterSpacing, lineHeightFactor, dateFontSize, dateXOffset, dateYOffset]);
 
-  const scrapeLatestLinks = async (fetchLimit: number = 6) => {
+  const scrapeLatestLinks = async (fetchLimit: number = 3) => {
     try {
       const response = await fetch("https://backoffice.bangladeshguardian.com/api-en/archive", {
         method: "POST",
@@ -902,6 +905,92 @@ const Secret = () => {
     }
   };
 
+  const processArticleDelayed = async (article: any) => {
+    const normalizeUrl = (url: string) => url.trim().replace(/\/$/, '');
+    const url = normalizeUrl(article.url);
+
+    try {
+      if (!autoModeActiveRef.current) {
+        pendingUrlsRef.current.delete(url);
+        return;
+      }
+
+      addLog(`Processing delayed post: ${url}`, "process");
+
+      // Re-fetch data from archive API to ensure it's the latest
+      const urlParts = url.split('/');
+      const contentId = urlParts[urlParts.length - 1];
+
+      const response = await fetch("https://backoffice.bangladeshguardian.com/api-en/archive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ start_date: "", end_date: "", category_name: "", limit: 50, offset: 0 })
+      });
+
+      let articleTitle = '';
+      let articleImage = '';
+      let postTime = article.postTime;
+      let finalContentId = article.contentId;
+
+      if (response.ok) {
+        const data = await response.json();
+        const articles = data.archive_data || [];
+        const found = articles.find((item: BGArchiveItem) => String(item.ContentID) === contentId);
+        if (found) {
+          articleTitle = found.ContentHeading;
+          articleImage = `https://backoffice.bangladeshguardian.com/media/imgAll/${found.ImageBgPath}`;
+          if (found.create_date) postTime = formatPostTime(found.create_date);
+          finalContentId = found.ContentID;
+        }
+      }
+
+      // Fallback to metadata if archive fetch failed or post not found
+      if (!articleTitle || !articleImage) {
+        const meta = await getMetadata(url);
+        if (meta) {
+          articleTitle = meta.title;
+          articleImage = meta.image;
+          if (meta.publishDate) postTime = formatSitemapTime(meta.publishDate);
+        }
+      }
+
+      if (articleTitle && articleImage) {
+        const censoredTitle = censorText(articleTitle, wordRestrictionsRef.current);
+        const dataUrl = await generatePhotoCardInternal(censoredTitle, articleImage);
+        const newRecord: AutoRecord = {
+          id: Math.random().toString(36).substr(2, 9),
+          url: article.url,
+          title: censoredTitle,
+          imageUrl: articleImage,
+          previewUrl: dataUrl,
+          timestamp: new Date().toISOString(),
+          postTime: postTime,
+          contentId: finalContentId
+        };
+        await saveRecordDB(newRecord);
+        setAutoRecords(prev => {
+          const next = [newRecord, ...prev];
+          return next.sort((a, b) => {
+            const aVal = a.contentId || new Date(a.timestamp).getTime();
+            const bVal = b.contentId || new Date(b.timestamp).getTime();
+            return bVal - aVal;
+          }).slice(0, 50);
+        });
+        setProcessedUrls(prev => {
+          const next = new Map(prev);
+          next.set(url, Date.now());
+          return next;
+        });
+        toast.success(`Auto-generated: ${censoredTitle}`);
+        playNotification();
+      }
+    } catch (e) {
+      addLog(`Error processing delayed post ${url}`, "error");
+    } finally {
+      pendingUrlsRef.current.delete(url);
+    }
+  };
+
   const checkAndGenerate = async () => {
     if (isAutoCheckingRef.current) return;
     isAutoCheckingRef.current = true;
@@ -909,7 +998,7 @@ const Secret = () => {
 
     const normalizeUrl = (url: string) => url.trim().replace(/\/$/, '');
 
-    const limitToUse = nextFetchLimitRef.current || 6;
+    const limitToUse = nextFetchLimitRef.current || 3;
     nextFetchLimitRef.current = null;
 
     addLog(`Checking for new posts (${automationModeRef.current.toUpperCase()} MODE)...`, "process");
@@ -931,8 +1020,11 @@ const Secret = () => {
       if (!articles || articles.length === 0) {
         addLog("No new posts found.");
       } else {
-        // Filter out already processed URLs
-        const newArticles = (articles || []).filter(art => !processedUrlsRef.current.has(normalizeUrl(art.url)));
+        // Filter out already processed OR pending URLs
+        const newArticles = (articles || []).filter(art => {
+          const url = normalizeUrl(art.url);
+          return !processedUrlsRef.current.has(url) && !pendingUrlsRef.current.has(url);
+        });
 
         if (newArticles.length === 0) {
           addLog("No new posts found.");
@@ -943,50 +1035,60 @@ const Secret = () => {
           const articlesToProcess = newArticles.slice(0, limitToUse).reverse();
 
           for (const article of articlesToProcess) {
-            let articleTitle = article.title;
-            let articleImage = article.image;
+            const url = normalizeUrl(article.url);
 
-            if (!articleTitle || !articleImage) {
-              addLog(`Scraping metadata for ${article.url}...`, "info");
-              const meta = await getMetadata(article.url);
-              if (meta) {
-                articleTitle = articleTitle || meta.title;
-                articleImage = articleImage || meta.image;
-                if (!article.postTime && meta.publishDate) {
-                  article.postTime = formatSitemapTime(meta.publishDate);
+            if (automationModeRef.current === 'main') {
+              // REGULAR MODE: 30-second delay
+              pendingUrlsRef.current.add(url);
+              addLog(`New post detected. Waiting 30s to process: ${url}`, "info");
+              setTimeout(() => processArticleDelayed(article), 30000);
+            } else {
+              // BACKUP MODE: Process immediately
+              let articleTitle = article.title;
+              let articleImage = article.image;
+
+              if (!articleTitle || !articleImage) {
+                addLog(`Scraping metadata for ${article.url}...`, "info");
+                const meta = await getMetadata(article.url);
+                if (meta) {
+                  articleTitle = articleTitle || meta.title;
+                  articleImage = articleImage || meta.image;
+                  if (!article.postTime && meta.publishDate) {
+                    article.postTime = formatSitemapTime(meta.publishDate);
+                  }
                 }
               }
-            }
 
-            if (articleTitle && articleImage) {
-              const censoredTitle = censorText(articleTitle, wordRestrictionsRef.current);
-              const dataUrl = await generatePhotoCardInternal(censoredTitle, articleImage);
-              const newRecord: AutoRecord = {
-                id: Math.random().toString(36).substr(2, 9),
-                url: article.url,
-                title: censoredTitle,
-                imageUrl: articleImage,
-                previewUrl: dataUrl,
-                timestamp: new Date().toISOString(),
-                postTime: article.postTime,
-                contentId: article.contentId
-              };
-              await saveRecordDB(newRecord);
-              setAutoRecords(prev => {
-                const next = [newRecord, ...prev];
-                return next.sort((a, b) => {
-                  const aVal = a.contentId || new Date(a.timestamp).getTime();
-                  const bVal = b.contentId || new Date(b.timestamp).getTime();
-                  return bVal - aVal;
-                }).slice(0, 50);
-              });
-              setProcessedUrls(prev => {
-                const next = new Map(prev);
-                next.set(normalizeUrl(article.url), Date.now());
-                return next;
-              });
-              toast.success(`Auto-generated: ${censoredTitle}`);
-              playNotification();
+              if (articleTitle && articleImage) {
+                const censoredTitle = censorText(articleTitle, wordRestrictionsRef.current);
+                const dataUrl = await generatePhotoCardInternal(censoredTitle, articleImage);
+                const newRecord: AutoRecord = {
+                  id: Math.random().toString(36).substr(2, 9),
+                  url: article.url,
+                  title: censoredTitle,
+                  imageUrl: articleImage,
+                  previewUrl: dataUrl,
+                  timestamp: new Date().toISOString(),
+                  postTime: article.postTime,
+                  contentId: article.contentId
+                };
+                await saveRecordDB(newRecord);
+                setAutoRecords(prev => {
+                  const next = [newRecord, ...prev];
+                  return next.sort((a, b) => {
+                    const aVal = a.contentId || new Date(a.timestamp).getTime();
+                    const bVal = b.contentId || new Date(b.timestamp).getTime();
+                    return bVal - aVal;
+                  }).slice(0, 50);
+                });
+                setProcessedUrls(prev => {
+                  const next = new Map(prev);
+                  next.set(url, Date.now());
+                  return next;
+                });
+                toast.success(`Auto-generated: ${censoredTitle}`);
+                playNotification();
+              }
             }
             await new Promise(r => setTimeout(r, 1000));
           }
@@ -1405,7 +1507,7 @@ const Secret = () => {
                     <img src={record.previewUrl} alt={record.title} className="w-full h-full object-contain" />
                   </div>
                   <div className="mt-3 flex gap-2">
-                    <Button variant="secondary" size="sm" className="flex-grow text-[10px] h-9" onClick={() => {
+                    <Button variant="destructive" size="sm" className="flex-grow text-[10px] h-9" onClick={() => {
                       const link = document.createElement('a');
                       link.download = `${record.title}.png`;
                       link.href = record.previewUrl;
@@ -1413,7 +1515,7 @@ const Secret = () => {
                     }}>
                       <Download className="h-3.5 w-3.5 mr-1.5" /> DOWNLOAD
                     </Button>
-                    <Button variant="destructive" size="icon" className="h-9 w-9 flex-shrink-0" onClick={() => {
+                    <Button variant="outline" size="icon" className="h-9 w-9 flex-shrink-0 bg-white" onClick={() => {
                       if (window.confirm("Delete?")) handleDelete(record.id);
                     }}>
                       <Trash2 className="h-4 w-4" />
