@@ -178,8 +178,8 @@ const Secret = () => {
     const saved = localStorage.getItem('bg_secret_automation_mode') as 'main' | 'backup';
     const lastSwitch = localStorage.getItem('bg_secret_automation_switch_time');
     if (saved === 'backup' && lastSwitch) {
-      const thirtyMinutesAgo = Date.now() - (30 * 60 * 1000);
-      if (parseInt(lastSwitch) < thirtyMinutesAgo) {
+      const tenMinutesAgo = Date.now() - (10 * 60 * 1000);
+      if (parseInt(lastSwitch) < tenMinutesAgo) {
         return 'main';
       }
     }
@@ -191,6 +191,7 @@ const Secret = () => {
   const isAutoCheckingRef = useRef(false);
   const [autoRecords, setAutoRecords] = useState<AutoRecord[]>([]);
   const [autoLogs, setAutoLogs] = useState<LogEntry[]>([]);
+  const [showLogs, setShowLogs] = useState(false);
   const [processedUrls, setProcessedUrls] = useState<Map<string, number>>(new Map());
   const processedUrlsRef = useRef<Map<string, number>>(new Map());
   const [automationFrequency, setAutomationFrequency] = useState(() => {
@@ -205,6 +206,7 @@ const Secret = () => {
   const automationModeRef = useRef<'main' | 'backup'>(automationMode);
   const wordRestrictionsRef = useRef<Record<string, string>>(wordRestrictions);
   const nextFetchLimitRef = useRef<number | null>(null);
+  const backupInitializedRef = useRef(false);
 
   useEffect(() => {
     processedUrlsRef.current = processedUrls;
@@ -311,12 +313,12 @@ const Secret = () => {
       const oneHourAgo = Date.now() - 3600000;
       setAutoLogs(prev => prev.filter(log => log.timestamp > oneHourAgo));
 
-      // Auto-revert Backup mode every 30 minutes
+      // Auto-revert Backup mode every 10 minutes
       const savedMode = localStorage.getItem('bg_secret_automation_mode');
       const lastSwitch = localStorage.getItem('bg_secret_automation_switch_time');
       if (savedMode === 'backup' && lastSwitch) {
-        const thirtyMinutesAgo = Date.now() - (30 * 60 * 1000);
-        if (parseInt(lastSwitch) < thirtyMinutesAgo) {
+        const tenMinutesAgo = Date.now() - (10 * 60 * 1000);
+        if (parseInt(lastSwitch) < tenMinutesAgo) {
           setAutomationMode('main');
           addLog("Backup mode expired. Reverting to REGULAR mode.");
         }
@@ -843,21 +845,13 @@ const Secret = () => {
     const sitemapUrl = `https://www.bangladeshguardian.com/english-sitemap/sitemap-daily-${year}-${month}-${day}.xml`;
 
     let xmlText = '';
-    const tryUrls = [
-      sitemapUrl,
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(sitemapUrl)}`,
-      `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(sitemapUrl)}`,
-      `https://corsproxy.io/?${encodeURIComponent(sitemapUrl)}`
-    ];
-
-    for (const url of tryUrls) {
-      try {
-        const response = await fetch(url);
-        if (response.ok) {
-          xmlText = await response.text();
-          if (xmlText && xmlText.includes('<url')) break;
-        }
-      } catch (e) {}
+    try {
+      const response = await fetch(sitemapUrl);
+      if (response.ok) {
+        xmlText = await response.text();
+      }
+    } catch (e) {
+      console.warn("Direct sitemap fetch failed:", e);
     }
 
     if (!xmlText) {
@@ -935,14 +929,27 @@ const Secret = () => {
     addLog(`Checking for new posts (${automationModeRef.current.toUpperCase()} MODE)...`, "process");
 
     try {
+      if (automationModeRef.current === 'backup' && !backupInitializedRef.current) {
+        addLog("Initializing Backup mode (Creating baseline cache)...", "process");
+        const articles = await scrapeSitemapLinks();
+        if (articles && articles.length > 0) {
+          const nextMap = new Map(processedUrlsRef.current);
+          articles.forEach(art => nextMap.set(normalizeUrl(art.url), Date.now()));
+          setProcessedUrls(nextMap);
+        }
+        backupInitializedRef.current = true;
+        addLog(`Backup mode initialized with ${articles?.length || 0} baseline posts.`, "success");
+        setIsAutoChecking(false);
+        isAutoCheckingRef.current = false;
+        return;
+      }
+
       let articles = null;
 
       if (automationModeRef.current === 'main') {
         articles = await scrapeLatestLinks(limitToUse);
         if (!articles) {
-          addLog("Main automation failed. Switching to BACKUP MODE.", "error");
-          setAutomationMode('backup');
-          articles = await scrapeSitemapLinks();
+          addLog("Main automation failed.", "error");
         }
       } else {
         articles = await scrapeSitemapLinks();
@@ -1317,10 +1324,21 @@ const Secret = () => {
 
             <div className="bg-card p-5 space-y-4 rounded-2xl border shadow-sm">
               <div className="flex items-center justify-between border-b pb-2.5">
-                <h3 className="text-sm font-bold flex items-center gap-2 text-primary">
-                  <Zap className="h-4 w-4" />
-                  AUTOMATION
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold flex items-center gap-2 text-primary">
+                    <Zap className="h-4 w-4" />
+                    AUTOMATION
+                  </h3>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
+                    onClick={() => setShowLogs(!showLogs)}
+                    title={showLogs ? "Hide Logs" : "Show Logs"}
+                  >
+                    {showLogs ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </Button>
+                </div>
                 <div className="flex items-center gap-2">
                   <div className={cn("w-2 h-2 rounded-full",
                     !autoModeActive ? 'bg-zinc-400' :
@@ -1339,6 +1357,7 @@ const Secret = () => {
                   onClick={() => {
                     if (!autoModeActive) {
                       cleanOldCache();
+                      backupInitializedRef.current = false;
                       setAutoModeActive(true);
                     } else {
                       setAutoModeActive(false);
@@ -1369,13 +1388,15 @@ const Secret = () => {
                   +30
                 </Button>
               </div>
-              <div className="bg-surface-2 rounded-lg p-3 h-32 overflow-y-auto scrollbar-hide text-[10px] space-y-1">
-                {autoLogs.length === 0 ? <div className="text-muted-foreground italic">Waiting for activity...</div> : autoLogs.map((log, i) => (
-                  <div key={i} className={cn(log.type === 'success' ? 'text-green-600' : log.type === 'error' ? 'text-red-600' : log.type === 'process' ? 'text-primary' : 'text-muted-foreground')}>
-                    [{new Date(log.timestamp).toLocaleTimeString()}] {log.message}
-                  </div>
-                ))}
-              </div>
+              {showLogs && (
+                <div className="bg-surface-2 rounded-lg p-3 h-32 overflow-y-auto scrollbar-hide text-[10px] space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                  {autoLogs.length === 0 ? <div className="text-muted-foreground italic">Waiting for activity...</div> : autoLogs.map((log, i) => (
+                    <div key={i} className={cn(log.type === 'success' ? 'text-green-600' : log.type === 'error' ? 'text-red-600' : log.type === 'process' ? 'text-primary' : 'text-muted-foreground')}>
+                      [{new Date(log.timestamp).toLocaleTimeString()}] {log.message}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1545,7 +1566,7 @@ const Secret = () => {
                   </div>
                 </div>
                 <p className="text-[10px] text-muted-foreground italic px-1">
-                  Regular means your website's API is being used. And Backup means your websites sitemap is being used. <span className="text-red-600 font-bold">DO NOT TOUCH THIS PART.</span> It may change automatically based on your use.
+                  Regular means your website's API is being used. And Backup means your websites sitemap is being used. <span className="text-red-600 font-bold uppercase">Only turn Backup on when Main mode is not working.</span>
                 </p>
 
                 <div className="flex items-center justify-between p-3 rounded-xl bg-surface-2 border border-transparent hover:border-primary/20 transition-all">
