@@ -15,7 +15,31 @@ The **Bangladesh Guardian Photocard Automation** is a specialized tool that stre
 
 ---
 
-## 🛠️ 2. Tech Stack
+## 📁 2. Project Structure
+
+```text
+├── .github/workflows/  # CI/CD pipelines (Build, Package, Release)
+├── public/             # Static assets (fonts, icons, template images, audio)
+│   ├── fonts/          # Cambria and Solaiman Lipi fonts
+│   ├── sw.js           # PWA Service Worker (v2)
+│   └── manifest.json   # PWA Manifest configuration
+├── src/
+│   ├── components/     # UI components (shadcn/ui)
+│   ├── lib/            # Shared utilities (censor, utils)
+│   │   └── censor.ts   # Text moderation engine
+│   ├── pages/
+│   │   ├── Secret.tsx  # Main application logic and UI
+│   │   └── NotFound.tsx # 404 Error page
+│   └── test/           # Test setup and configurations
+├── index.html          # Main entry point (Secret page)
+├── 404.html            # MPA fallback page
+├── vite.config.ts      # Build and development server configuration
+└── vitest.config.ts    # Unit testing configuration
+```
+
+---
+
+## 🛠️ 3. Tech Stack
 
 This application is built with a modern, type-safe frontend stack optimized for performance and reliability:
 
@@ -29,23 +53,42 @@ This application is built with a modern, type-safe frontend stack optimized for 
 
 ---
 
-## ⚙️ 3. How It Works (Internal Architecture)
+## ⚙️ 4. How It Works (Internal Architecture)
 
-### **Automation Logic**
-The app employs a "Leadership" pattern using `navigator.locks`. Only one open tab acts as the **Leader**, running the automation worker. Other tabs stay in **Standby** to prevent redundant API calls.
+### **Leader Election System**
+To prevent redundant API calls and processing, the app uses the `navigator.locks` (Web Locks API).
+- **Leader:** The first tab opened takes a lock named `bg_photocard_automation`. This tab is responsible for running the Web Worker and performing all automation tasks.
+- **Standby:** Any subsequent tabs that cannot acquire the lock enter a "Standby" state. They will automatically attempt to take leadership if the primary tab is closed.
 
-1.  **Polling:** A Web Worker ticks every 60 seconds.
-2.  **Fetching:**
-    - **Regular Mode:** Hits the Backoffice Archive API (`/api-en/archive`).
-    - **Backup Mode:** Scrapes the daily XML sitemap (e.g., `sitemap-daily-YYYY-MM-DD.xml`) using CORS proxies.
-3.  **Deduplication:** Checks the article URL against a `processedUrls` cache in `localStorage` (automatically cleaned after 2 days).
-4.  **Content Extraction:** If API data is missing, a fallback scraper extracts OpenGraph (`og:title`, `og:image`) metadata directly from the article page.
-5.  **Censorship:** Titles pass through a moderation engine (`src/lib/censor.ts`) that replaces restricted keywords while preserving case sensitivity.
-6.  **Canvas Rendering:** The `generatePhotoCardInternal` function combines the template, user image, and text onto an 1080x1080 canvas.
+### **Automation Modes**
+Users can toggle between two modes in the settings:
+1.  **Regular Mode (Main):**
+    - Queries the Backoffice Archive API (`/api-en/archive`) via POST.
+    - Optimized for speed and direct data access.
+    - Includes a non-blocking 30-second delay for stability.
+2.  **Backup Mode:**
+    - Fetches the daily XML sitemap (e.g., `sitemap-daily-YYYY-MM-DD.xml`).
+    - Uses a combination of direct fetching and multiple CORS proxies (AllOrigins, Codetabs, CorsProxy.io).
+    - Scrapes OpenGraph metadata (`og:title`, `og:image`) if the API is unreachable.
+    - Automatically reverts to Regular mode after 10 minutes to conserve proxy limits.
+
+### **Text Moderation (Censorship)**
+The `censorText` engine (`src/lib/censor.ts`) uses a dictionary-based approach to replace sensitive keywords.
+- **Case Preservation:** A custom `applyCase` utility ensures that replacements match the original word's case (e.g., `KILL` -> `KI*LL`, `Kill` -> `Ki*ll`, `kill` -> `ki*ll`).
+- **Customization:** Users can add, edit, or remove word restrictions directly through the UI settings.
 
 ---
 
-## 💻 4. Localhost Setup
+## 📱 5. PWA Features
+
+The app is a fully functional Progressive Web App:
+- **Offline Access:** Service Worker caches essential assets (JS, CSS, fonts, template) for offline use.
+- **Installable:** Includes high-resolution PNG icons (192px, 512px) and a `manifest.json` for installation on mobile and desktop devices.
+- **Performance:** Preloads critical assets (Cambria/Solaiman Lipi fonts) upon initialization to ensure zero-lag photocard generation.
+
+---
+
+## 💻 6. Localhost Setup
 
 Follow these steps to run the app on your local machine:
 
@@ -66,73 +109,43 @@ Follow these steps to run the app on your local machine:
 
 ---
 
-## 🔄 5. Updating Dependencies
-
-To keep the app secure and performant:
-
-- **Minor/Patch Updates:** `npm update`
-- **Major Updates:** `npm install [package-name]@latest`
-- **Cleanup:** Run `npm prune` after removing packages to keep the `node_modules` clean.
-- **Verification:** Always run `npm test` after updating dependencies to ensure no breaking changes.
-
----
-
-## 🎨 6. Changing Photocard Design
+## 🎨 7. Changing Photocard Design
 
 The photocard is rendered dynamically. To change the design, edit `src/pages/Secret.tsx`:
 
 - **Template Image:** Replace `public/PhotocardTemplate.png` (Keep dimensions 1080x1080).
 - **Layout Constants:** Modify the `BOX` object (for image placement) or `TITLE_Y`, `DATE_Y` constants.
-- **Canvas Logic:** Look for `generatePhotoCardInternal`. This is where the image is clipped (rounded corners), text is wrapped, and the red border is drawn.
-- **Typography:** Default fonts are `Cambria` and `Solaiman Lipi`. Ensure any new fonts are added to `public/fonts/` and preloaded in the `useEffect` hook.
+- **Canvas Logic:** Look for `generatePhotoCardInternal`. This function handles:
+  - Clipping the news image with rounded corners (35px radius).
+  - Drawing a 2px red border (`#FF0000`).
+  - Dynamic font-size scaling to fit long titles (up to 3 lines).
+  - Advanced Typography: Users can adjust `fontSize`, `letterSpacing`, `lineHeight`, and date offsets via the UI.
 
 ---
 
-## 📦 7. Creating the Dist File (Deployment)
+## 📦 8. Deployment (GitHub Actions)
 
-### **Manual Build**
-1.  Run `npm run build`.
-2.  The output will be in the `dist/` folder.
-3.  Zip the contents of `dist/` to create your deployment package.
-
-### **GitHub Actions**
 The repository includes a workflow (`.github/workflows/package.yml`) that triggers on every push to `main`:
-- It builds the project.
-- Adds `.htaccess` and `_redirects` for MPA 404 handling.
-- Zips the `dist` folder into `dist.zip`.
-- Creates a GitHub Release tagged with the current date (e.g., `2026.02.27`).
+1.  **Build:** Runs `npm run build`.
+2.  **Config:** Adds `.htaccess` and `_redirects` for MPA 404 handling.
+3.  **Package:** Zips the `dist` folder into `dist.zip`.
+4.  **Release:** Creates a GitHub Release tagged with the current date (e.g., `2026.02.27`).
 
 ---
 
-## ✨ 8. Feature List
+## ✨ 9. Feature Highlights
 
-- ✅ **Auto-Detection:** Background monitoring for new news posts.
-- ✅ **Advanced Typography:** Adjust font size, letter spacing, line height, and date offsets via UI.
-- ✅ **Text Moderation:** Auto-censor sensitive words based on custom mappings.
-- ✅ **Generation History:** Stores up to 50 recent photocards locally in IndexedDB.
-- ✅ **Live Preview:** Real-time updates as you edit manual fields.
-- ✅ **Audio Notifications:** Customizable sounds when a new card is generated.
-- ✅ **Backup Mode:** Automatic failover to Sitemap scraping if the API is down.
-- ✅ **Security:** Password-protected access (Security Key).
+- ✅ **Live Preview:** Real-time updates as you edit manual fields with a 500ms debounce.
+- ✅ **History:** Stores up to 50 recent photocards in IndexedDB (auto-cleaned).
+- ✅ **Audio Notifications:** Customizable alert sounds (Alert, Instant, Loud).
+- ✅ **Security:** Security Key protection with Base64 encoding.
+- ✅ **Leader Election:** Ensures only one tab performs background automation.
 
 ---
 
-## ❓ 9. FAQ
+## ⚠️ 10. Troubleshooting
 
-**Q: What is the Security Key?**
-A: It is a password stored in the `ENC_PW` constant (Base64 encoded) to restrict access to authorized personnel.
-
-**Q: Where are the generated images stored?**
-A: They are stored **locally in your browser** (IndexedDB). They are not uploaded to any server. If you clear your browser data, the history will be lost.
-
-**Q: Why did automation stop?**
-A: Browsers often throttle background tabs. Keep the tab active or in a separate window to ensure the Web Worker continues to tick reliably.
-
----
-
-## ⚠️ 10. Common Troubleshooting
-
-- **Images not appearing?** This is usually a CORS issue. The app uses several public proxies to bypass restrictions. If one fails, it tries another.
-- **"Standby" status?** This means you have the app open in another tab. Only one tab can lead the automation.
-- **Wrong Date/Time?** The app uses the client's local time for manual generations and the article's `create_date` for automated ones.
-- **Font looks weird?** Ensure `Cambria` and `Solaiman Lipi` are installed on your system or correctly loaded from the `public/` folder.
+- **CORS Issues:** If images or data fail to load, the app automatically cycles through multiple CORS proxies. However, some proxies have rate limits (e.g., AllOrigins ~20 RPM).
+- **Background Throttling:** Browsers throttle background tabs. For consistent automation, keep the tab active or in a dedicated window.
+- **Database Limits:** History is capped at 50 items to maintain performance; the oldest items are automatically deleted.
+- **Authorization:** If the Security Key is lost, it can be found/modified in `src/pages/Secret.tsx` (`ENC_PW` constant).
