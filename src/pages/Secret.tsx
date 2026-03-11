@@ -286,9 +286,9 @@ const Secret = () => {
       setAutoRecords(sorted);
     });
 
-    fetchEnglishNewsSitemap();
-    const sitemapInterval = setInterval(fetchEnglishNewsSitemap, 120000);
-    return () => clearInterval(sitemapInterval);
+    fetchRecentNewsFromAPI();
+    const newsInterval = setInterval(fetchRecentNewsFromAPI, 120000);
+    return () => clearInterval(newsInterval);
   }, []);
 
   useEffect(() => {
@@ -933,87 +933,68 @@ const Secret = () => {
     }
   };
 
-  const fetchEnglishNewsSitemap = async () => {
-    const targetUrl = "https://www.bangladeshguardian.com/english-news-sitemap.xml";
-    let xmlText = '';
-    const proxies = [
-      { url: (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`, type: 'text' },
-      { url: (u: string) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`, type: 'text' },
-      { url: (u: string) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`, type: 'json' },
-      { url: (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`, type: 'text' }
-    ];
+  const fetchRecentNewsFromAPI = async () => {
+    const targetUrl = "https://backoffice.bangladeshguardian.com/api-en/archive";
+    const body = JSON.stringify({ start_date: "", end_date: "", category_name: "", limit: 500, offset: 0 });
+    let data: any = null;
 
     try {
-      const response = await fetch(targetUrl);
+      const response = await fetch(targetUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body
+      });
       if (response.ok) {
-        xmlText = await response.text();
+        data = await response.json();
       }
     } catch (e) {
-      console.warn("Direct sitemap fetch failed:", e);
+      console.warn("Direct API fetch failed:", e);
     }
 
-    if (!xmlText) {
+    if (!data) {
+      const proxies = [
+        { url: (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`, type: 'text' },
+        { url: (u: string) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`, type: 'text' },
+        { url: (u: string) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`, type: 'json' },
+        { url: (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`, type: 'text' }
+      ];
+
       for (const proxy of proxies) {
         try {
-          const response = await fetch(proxy.url(targetUrl));
+          const proxyUrl = proxy.url(targetUrl);
+          // Note: Most free proxies don't support POST with body well, but AllOrigins/Codetabs sometimes work for GET.
+          // However, backoffice API requires POST.
+          // If direct fetch fails, we try to proxify. Some proxies might support method forwarding.
+          const response = await fetch(proxyUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body
+          });
           if (response.ok) {
             if (proxy.type === 'json') {
-              const data = await response.json();
-              xmlText = data.contents;
+              const resJson = await response.json();
+              data = JSON.parse(resJson.contents);
             } else {
-              xmlText = await response.text();
+              data = await response.json();
             }
-            if (xmlText && xmlText.includes('<urlset')) break;
+            if (data && data.archive_data) break;
           }
-        } catch (e) {
-          console.warn("Proxy failed for sitemap fetch:", e);
-        }
+        } catch (e) {}
       }
     }
 
-    if (!xmlText) return;
-
     try {
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-      const urls = Array.from(xmlDoc.getElementsByTagName("url"));
+      if (!data) throw new Error("API request failed");
+      const articles = data.archive_data || [];
 
-      if (urls.length === 0) {
-        const urlset = xmlDoc.documentElement;
-        if (urlset) {
-          const children = Array.from(urlset.children);
-          urls.push(...children.filter(c => c.nodeName === 'url' || c.nodeName.endsWith(':url')));
-        }
-      }
-
-      const results = urls.map(urlNode => {
-        let loc = '';
-        let title = '';
-
-        Array.from(urlNode.children).forEach(child => {
-          const name = child.nodeName.split(':').pop();
-          if (name === 'loc') loc = child.textContent || '';
-          else if (name === 'news' || name === 'news:news') {
-            Array.from(child.children).forEach(newsChild => {
-              if (newsChild.nodeName.split(':').pop() === 'title') {
-                title = newsChild.textContent || '';
-              }
-            });
-          }
-        });
-
-        if (!loc) loc = urlNode.getElementsByTagName("loc")[0]?.textContent || '';
-        if (!title) title = urlNode.getElementsByTagName("news:title")[0]?.textContent || '';
-
-        return {
-          url: loc.trim(),
-          title: title.trim()
-        };
-      }).filter(item => item.url && item.title);
+      const results = articles.map((item: BGArchiveItem) => ({
+        url: `https://www.bangladeshguardian.com/${item.Slug}/${item.ContentID}`,
+        title: item.ContentHeading
+      }));
 
       setSitemapPosts(results);
     } catch (e) {
-      console.error("Failed to parse sitemap XML", e);
+      console.error("Failed to fetch recent news from API", e);
     }
   };
 
