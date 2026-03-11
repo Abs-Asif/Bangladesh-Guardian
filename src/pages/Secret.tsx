@@ -5,8 +5,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { censorText, defaultMappings } from "@/lib/censor";
-import { Download, RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings2, X, ClipboardPaste, History, Clock, AlertCircle, List, Zap, Play, Square, Trash2, Volume2, Eye, EyeOff, Copy, Plus, ShieldAlert, ArrowRight } from "lucide-react";
+import { Download, RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings2, X, ClipboardPaste, History, Clock, AlertCircle, List, Zap, Play, Square, Trash2, Volume2, Eye, EyeOff, Copy, Plus, ShieldAlert, ArrowRight, CloudUpload, Link as LinkIcon, FileText } from "lucide-react";
 import { toast } from "sonner";
+import { puter } from '@heyputer/puter.js';
 
 interface AutoRecord {
   id: string;
@@ -130,6 +131,14 @@ const Secret = () => {
   const [isAuthorized, setIsAuthorized] = useState(localStorage.getItem('bg_authorized') === 'true');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // File Storage State
+  const [showStoragePopup, setShowStoragePopup] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [postUrl, setPostUrl] = useState('');
   const [isFetching, setIsFetching] = useState(false);
@@ -510,6 +519,42 @@ const Secret = () => {
       }
     } catch (err) {
       toast.error("Failed to paste.");
+    }
+  };
+
+  const handleFileUpload = async () => {
+    if (!selectedFile) {
+      toast.error("Please select a file first");
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      // Puter.js will prompt the user to sign in if they aren't already
+      const uploadPath = `uploads/${Date.now()}_${selectedFile.name}`;
+
+      // We use puter.fs.write for single file or puter.fs.upload for multiple
+      // puter.fs.write is simpler for a single File object
+      await puter.fs.write(uploadPath, selectedFile, {
+        createMissingParents: true,
+        progress: (opId, progress) => {
+          // progress is 0-100 as per puter.js source
+          setUploadProgress(Math.round(Number(progress)));
+        }
+      });
+
+      // Once uploaded, get a public-ish URL
+      const url = await puter.fs.getReadURL(uploadPath);
+      setUploadedUrl(url);
+      setUploadProgress(100);
+      toast.success("File uploaded successfully!");
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      toast.error(error?.message || "Failed to upload file");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -1634,6 +1679,25 @@ const Secret = () => {
                 <p className="text-[10px] text-muted-foreground italic px-1">Fine-tune text sizes, spacing, and positions.</p>
               </div>
 
+              <div className="border-t pt-6 space-y-4">
+                <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Utility Features</Label>
+                <Button
+                  variant="outline"
+                  className="w-full h-11 rounded-xl flex items-center justify-between px-4 hover:bg-surface-2 group transition-all"
+                  onClick={() => {
+                    setShowSettings(false);
+                    setShowStoragePopup(true);
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <CloudUpload className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <span className="text-sm font-medium">File Hosting (Puter)</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </Button>
+                <p className="text-[10px] text-muted-foreground italic px-1">Upload files and get a public shareable link.</p>
+              </div>
+
               <Button onClick={() => setShowSettings(false)} className="w-full">Close Settings</Button>
             </div>
           </div>
@@ -1859,6 +1923,152 @@ const Secret = () => {
               </div>
 
               <Button onClick={() => setShowAdvancedSettings(false)} className="w-full">Save & Close</Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showStoragePopup && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-card border rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-lg md:max-w-2xl lg:max-w-3xl overflow-hidden animate-fade-in-up flex flex-col max-h-[90vh]">
+            <div className="p-4 border-b flex-shrink-0 flex items-center justify-between bg-surface-1">
+              <h3 className="font-bold flex items-center gap-2">
+                <CloudUpload className="h-4 w-4" />
+                FILE HOSTING (PUTER)
+              </h3>
+              <Button variant="ghost" size="icon" onClick={() => {
+                setShowStoragePopup(false);
+                setUploadedUrl(null);
+                setSelectedFile(null);
+                setUploadProgress(0);
+              }}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="p-6 space-y-6 overflow-y-auto">
+              <div className="space-y-4">
+                <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Select File</Label>
+                <div
+                  onClick={() => !isUploading && fileInputRef.current?.click()}
+                  className={cn(
+                    "border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all",
+                    selectedFile ? "border-primary bg-primary/5" : "border-muted-foreground/20 hover:border-primary/50 hover:bg-surface-2",
+                    isUploading && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setSelectedFile(file);
+                        setUploadedUrl(null);
+                      }
+                    }}
+                  />
+                  {selectedFile ? (
+                    <>
+                      <FileText className="h-10 w-10 text-primary" />
+                      <div className="text-center">
+                        <p className="text-sm font-bold truncate max-w-[250px]">{selectedFile.name}</p>
+                        <p className="text-[10px] text-muted-foreground">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <CloudUpload className="h-10 w-10 text-muted-foreground opacity-20" />
+                      <div className="text-center">
+                        <p className="text-sm font-medium">Click to browse files</p>
+                        <p className="text-[10px] text-muted-foreground">Upload any file to get a shareable link</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {isUploading && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
+                    <span className="text-primary">Uploading...</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-surface-2 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-primary h-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {uploadedUrl && (
+                <div className="space-y-3 p-4 bg-green-500/5 border border-green-500/20 rounded-xl animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-center gap-2 text-green-600">
+                    <LinkIcon className="h-4 w-4" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Public Link Generated</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      readOnly
+                      value={uploadedUrl}
+                      className="h-9 text-xs bg-surface-1 border-green-500/20"
+                    />
+                    <Button
+                      size="sm"
+                      className="h-9 px-4 shrink-0"
+                      onClick={() => {
+                        copyToClipboard(uploadedUrl);
+                      }}
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      COPY
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground italic">Anyone with this link can view/download the file.</p>
+                </div>
+              )}
+
+              {!uploadedUrl && (
+                <Button
+                  onClick={handleFileUpload}
+                  disabled={!selectedFile || isUploading}
+                  className="w-full h-11 font-bold rounded-xl"
+                >
+                  {isUploading ? (
+                    <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> UPLOADING...</>
+                  ) : (
+                    <><CloudUpload className="mr-2 h-4 w-4" /> START UPLOAD</>
+                  )}
+                </Button>
+              )}
+
+              {uploadedUrl && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedFile(null);
+                    setUploadedUrl(null);
+                    setUploadProgress(0);
+                  }}
+                  className="w-full h-11 font-bold rounded-xl"
+                >
+                  UPLOAD ANOTHER
+                </Button>
+              )}
+
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setShowStoragePopup(false);
+                  setUploadedUrl(null);
+                  setSelectedFile(null);
+                  setUploadProgress(0);
+                }}
+                className="w-full text-xs text-muted-foreground"
+              >
+                Cancel & Close
+              </Button>
             </div>
           </div>
         </div>
