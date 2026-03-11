@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -133,6 +133,9 @@ const Secret = () => {
 
   const [postUrl, setPostUrl] = useState('');
   const [isFetching, setIsFetching] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sitemapPosts, setSitemapPosts] = useState<{ title: string; url: string }[]>([]);
+  const searchRef = useRef<HTMLDivElement>(null);
   const [title, setTitle] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [fontSize, setFontSize] = useState(70);
@@ -282,6 +285,10 @@ const Secret = () => {
       });
       setAutoRecords(sorted);
     });
+
+    fetchEnglishNewsSitemap();
+    const sitemapInterval = setInterval(fetchEnglishNewsSitemap, 120000);
+    return () => clearInterval(sitemapInterval);
   }, []);
 
   useEffect(() => {
@@ -302,6 +309,16 @@ const Secret = () => {
   useEffect(() => {
     localStorage.setItem('bg_secret_auto_active', String(autoModeActive));
   }, [autoModeActive]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setSearchQuery('');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('bg_secret_automation_mode', automationMode);
@@ -438,7 +455,7 @@ const Secret = () => {
       let extractedTitle = '';
       let extractedImage = '';
       let postTime = '';
-      let finalContentId = parseInt(contentId);
+      const finalContentId = parseInt(contentId);
 
       if (article) {
         extractedTitle = article.ContentHeading;
@@ -730,7 +747,7 @@ const Secret = () => {
     }
   };
 
-  const generatePhotoCard = async (isLive = false) => {
+  const generatePhotoCard = useCallback(async (isLive = false) => {
     if (!title || !imageUrl) {
       if (!isLive) toast.error("Please provide both title and image URL");
       return;
@@ -787,7 +804,7 @@ const Secret = () => {
     } finally {
       if (!isLive) setIsGenerating(false);
     }
-  };
+  }, [title, imageUrl, wordRestrictions, postUrl, processedUrls, dateFontSize, dateXOffset, dateYOffset, fontSize, lineHeightFactor, titleLetterSpacing, generatedTitle, selectedAudio]);
 
   useEffect(() => {
     if (!livePreview || !title || !imageUrl) return;
@@ -797,7 +814,7 @@ const Secret = () => {
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [title, imageUrl, livePreview, fontSize, titleLetterSpacing, lineHeightFactor, dateFontSize, dateXOffset, dateYOffset]);
+  }, [title, imageUrl, livePreview, fontSize, titleLetterSpacing, lineHeightFactor, dateFontSize, dateXOffset, dateYOffset, generatePhotoCard]);
 
   const scrapeLatestLinks = async (fetchLimit: number = 3) => {
     try {
@@ -916,7 +933,91 @@ const Secret = () => {
     }
   };
 
-  const checkAndGenerate = async () => {
+  const fetchEnglishNewsSitemap = async () => {
+    const targetUrl = "https://www.bangladeshguardian.com/english-news-sitemap.xml";
+    let xmlText = '';
+    const proxies = [
+      { url: (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`, type: 'text' },
+      { url: (u: string) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`, type: 'text' },
+      { url: (u: string) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`, type: 'json' },
+      { url: (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`, type: 'text' }
+    ];
+
+    try {
+      const response = await fetch(targetUrl);
+      if (response.ok) {
+        xmlText = await response.text();
+      }
+    } catch (e) {
+      console.warn("Direct sitemap fetch failed:", e);
+    }
+
+    if (!xmlText) {
+      for (const proxy of proxies) {
+        try {
+          const response = await fetch(proxy.url(targetUrl));
+          if (response.ok) {
+            if (proxy.type === 'json') {
+              const data = await response.json();
+              xmlText = data.contents;
+            } else {
+              xmlText = await response.text();
+            }
+            if (xmlText && xmlText.includes('<urlset')) break;
+          }
+        } catch (e) {
+          console.warn("Proxy failed for sitemap fetch:", e);
+        }
+      }
+    }
+
+    if (!xmlText) return;
+
+    try {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+      const urls = Array.from(xmlDoc.getElementsByTagName("url"));
+
+      if (urls.length === 0) {
+        const urlset = xmlDoc.documentElement;
+        if (urlset) {
+          const children = Array.from(urlset.children);
+          urls.push(...children.filter(c => c.nodeName === 'url' || c.nodeName.endsWith(':url')));
+        }
+      }
+
+      const results = urls.map(urlNode => {
+        let loc = '';
+        let title = '';
+
+        Array.from(urlNode.children).forEach(child => {
+          const name = child.nodeName.split(':').pop();
+          if (name === 'loc') loc = child.textContent || '';
+          else if (name === 'news' || name === 'news:news') {
+            Array.from(child.children).forEach(newsChild => {
+              if (newsChild.nodeName.split(':').pop() === 'title') {
+                title = newsChild.textContent || '';
+              }
+            });
+          }
+        });
+
+        if (!loc) loc = urlNode.getElementsByTagName("loc")[0]?.textContent || '';
+        if (!title) title = urlNode.getElementsByTagName("news:title")[0]?.textContent || '';
+
+        return {
+          url: loc.trim(),
+          title: title.trim()
+        };
+      }).filter(item => item.url && item.title);
+
+      setSitemapPosts(results);
+    } catch (e) {
+      console.error("Failed to parse sitemap XML", e);
+    }
+  };
+
+  const checkAndGenerate = useCallback(async () => {
     if (isAutoCheckingRef.current) return;
     isAutoCheckingRef.current = true;
     setIsAutoChecking(true);
@@ -1025,7 +1126,7 @@ const Secret = () => {
       setIsAutoChecking(false);
       isAutoCheckingRef.current = false;
     }
-  };
+  }, [automationFrequency.limit, automationMode, wordRestrictions]);
 
   useEffect(() => {
     if (!autoModeActive) return;
@@ -1103,7 +1204,7 @@ const Secret = () => {
         URL.revokeObjectURL(workerInstance.url);
       }
     };
-  }, [autoModeActive, automationFrequency.interval]);
+  }, [autoModeActive, automationFrequency.interval, checkAndGenerate]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -1209,6 +1310,47 @@ const Secret = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-6 bg-card p-5 md:p-6 rounded-2xl border shadow-sm">
             <div className="space-y-4">
+              <div className="space-y-2 relative" ref={searchRef}>
+                <Label htmlFor="newsSearch">Search News</Label>
+                <div className="relative">
+                  <Input
+                    id="newsSearch"
+                    placeholder="Search past 7 days news..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="bg-surface-2 pr-10"
+                  />
+                  {searchQuery && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:text-foreground"
+                      onClick={() => setSearchQuery('')}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                {searchQuery && sitemapPosts.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-card border rounded-xl shadow-2xl max-h-60 overflow-y-auto overflow-x-hidden">
+                    {sitemapPosts
+                      .filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                      .map((post, i) => (
+                        <button
+                          key={i}
+                          className="w-full text-left px-4 py-3 text-sm hover:bg-surface-2 border-b last:border-0 transition-colors"
+                          onClick={() => {
+                            setPostUrl(post.url);
+                            setSearchQuery('');
+                          }}
+                        >
+                          <div className="font-medium text-primary line-clamp-2">{post.title}</div>
+                        </button>
+                      ))}
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="postUrl">News post</Label>
                 <div className="flex gap-2">
