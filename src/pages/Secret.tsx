@@ -5,9 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { censorText, defaultMappings } from "@/lib/censor";
-import { Download, RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings2, X, ClipboardPaste, History, Clock, AlertCircle, List, Zap, Play, Square, Trash2, Volume2, Eye, EyeOff, Copy, Plus, ShieldAlert, ArrowRight, CloudUpload, Link as LinkIcon, FileText } from "lucide-react";
+import { Download, RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings2, X, ClipboardPaste, History, Clock, AlertCircle, List, Zap, Play, Square, Trash2, Volume2, Eye, EyeOff, Copy, Plus, ShieldAlert, ArrowRight, CloudUpload, Link as LinkIcon, FileText, Globe } from "lucide-react";
 import { toast } from "sonner";
-import { puter } from '@heyputer/puter.js';
 
 interface AutoRecord {
   id: string;
@@ -139,6 +138,8 @@ const Secret = () => {
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadEndpoint, setUploadEndpoint] = useState(localStorage.getItem('bg_storage_endpoint') || 'https://backoffice.bangladeshguardian.com/api-en/image-upload');
+  const [uploadFieldName, setUploadFieldName] = useState(localStorage.getItem('bg_storage_field') || 'image');
 
   const [postUrl, setPostUrl] = useState('');
   const [isFetching, setIsFetching] = useState(false);
@@ -532,27 +533,69 @@ const Secret = () => {
     setUploadProgress(0);
 
     try {
-      // Puter.js will prompt the user to sign in if they aren't already
-      const uploadPath = `uploads/${Date.now()}_${selectedFile.name}`;
+      // Discovery-based upload logic
+      const endpoints = [
+        uploadEndpoint,
+        "https://backoffice.bangladeshguardian.com/api-en/image-upload",
+        "https://backoffice.bangladeshguardian.com/api-en/save-image",
+        "https://backoffice.bangladeshguardian.com/api/image-upload"
+      ];
 
-      // We use puter.fs.write for single file or puter.fs.upload for multiple
-      // puter.fs.write is simpler for a single File object
-      await puter.fs.write(uploadPath, selectedFile, {
-        createMissingParents: true,
-        progress: (opId, progress) => {
-          // progress is 0-100 as per puter.js source
-          setUploadProgress(Math.round(Number(progress)));
+      let success = false;
+      let finalUrl = "";
+
+      // We use a small fake progress because browser fetch doesn't natively support upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => prev < 90 ? prev + 10 : prev);
+      }, 500);
+
+      for (const endpoint of endpoints) {
+        if (!endpoint) continue;
+        try {
+          const formData = new FormData();
+          formData.append(uploadFieldName, selectedFile);
+          // Some APIs might use 'file' or 'img'
+          if (uploadFieldName !== 'file') formData.append('file', selectedFile);
+          if (uploadFieldName !== 'image') formData.append('image', selectedFile);
+
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            body: formData,
+            // Mode 'cors' is important
+            mode: 'cors'
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            // Typical response might be { success: true, url: "..." } or { path: "..." }
+            finalUrl = data.url || data.path || data.link || "";
+            if (finalUrl) {
+              if (!finalUrl.startsWith('http')) {
+                finalUrl = `https://backoffice.bangladeshguardian.com/${finalUrl.replace(/^\//, '')}`;
+              }
+              success = true;
+              break;
+            }
+          }
+        } catch (e) {
+          console.warn(`Upload to ${endpoint} failed, trying next...`);
         }
-      });
+      }
 
-      // Once uploaded, get a public-ish URL
-      const url = await puter.fs.getReadURL(uploadPath);
-      setUploadedUrl(url);
-      setUploadProgress(100);
-      toast.success("File uploaded successfully!");
+      clearInterval(progressInterval);
+
+      if (success && finalUrl) {
+        setUploadedUrl(finalUrl);
+        setUploadProgress(100);
+        toast.success("File uploaded to Backoffice successfully!");
+      } else {
+        // Fallback for manual link construction if we suspect it might have worked but returned 200 without URL
+        toast.error("Backoffice storage is still under discovery. Please ensure the endpoint is correct.");
+        setUploadProgress(0);
+      }
     } catch (error: any) {
       console.error("Upload error:", error);
-      toast.error(error?.message || "Failed to upload file");
+      toast.error("Failed to upload file to backoffice.");
     } finally {
       setIsUploading(false);
     }
@@ -1691,11 +1734,11 @@ const Secret = () => {
                 >
                   <div className="flex items-center gap-3">
                     <CloudUpload className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                    <span className="text-sm font-medium">File Hosting (Puter)</span>
+                    <span className="text-sm font-medium">Backoffice Storage</span>
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </Button>
-                <p className="text-[10px] text-muted-foreground italic px-1">Upload files and get a public shareable link.</p>
+                <p className="text-[10px] text-muted-foreground italic px-1">Upload files directly to backoffice.bangladeshguardian.com.</p>
               </div>
 
               <Button onClick={() => setShowSettings(false)} className="w-full">Close Settings</Button>
@@ -1932,8 +1975,8 @@ const Secret = () => {
           <div className="bg-card border rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-lg md:max-w-2xl lg:max-w-3xl overflow-hidden animate-fade-in-up flex flex-col max-h-[90vh]">
             <div className="p-4 border-b flex-shrink-0 flex items-center justify-between bg-surface-1">
               <h3 className="font-bold flex items-center gap-2">
-                <CloudUpload className="h-4 w-4" />
-                FILE HOSTING (PUTER)
+                <Globe className="h-4 w-4" />
+                BACKOFFICE STORAGE
               </h3>
               <Button variant="ghost" size="icon" onClick={() => {
                 setShowStoragePopup(false);
@@ -1945,6 +1988,41 @@ const Secret = () => {
               </Button>
             </div>
             <div className="p-6 space-y-6 overflow-y-auto">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Configuration</Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-[10px] text-primary"
+                    onClick={() => {
+                      const ep = prompt("Enter Upload Endpoint:", uploadEndpoint);
+                      if (ep) {
+                        setUploadEndpoint(ep);
+                        localStorage.setItem('bg_storage_endpoint', ep);
+                      }
+                      const field = prompt("Enter Form Field Name:", uploadFieldName);
+                      if (field) {
+                        setUploadFieldName(field);
+                        localStorage.setItem('bg_storage_field', field);
+                      }
+                    }}
+                  >
+                    Edit Config
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-surface-2 p-2 rounded-lg border">
+                    <p className="text-[8px] uppercase text-muted-foreground font-bold">Endpoint</p>
+                    <p className="text-[10px] truncate font-mono">{uploadEndpoint}</p>
+                  </div>
+                  <div className="bg-surface-2 p-2 rounded-lg border">
+                    <p className="text-[8px] uppercase text-muted-foreground font-bold">Field</p>
+                    <p className="text-[10px] truncate font-mono">{uploadFieldName}</p>
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-4">
                 <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Select File</Label>
                 <div
