@@ -96,6 +96,8 @@ export const censorText = (text: string, customMappings?: Record<string, string>
   if (!text) return text;
 
   const mappings = customMappings || defaultMappings;
+  if (Object.keys(mappings).length === 0) return text;
+
   let regex: RegExp;
   let lowerMap: Record<string, string>;
 
@@ -108,7 +110,8 @@ export const censorText = (text: string, customMappings?: Record<string, string>
     const keys = Object.keys(mappings).sort((a, b) => b.length - a.length);
     // Escape special characters to safely use words in a regular expression
     const escapedKeys = keys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-    regex = new RegExp(escapedKeys.join('|'), 'gi');
+    // Use Unicode-aware word boundaries (lookarounds) to avoid partial word matches
+    regex = new RegExp(`(?<!\\p{L})(?:${escapedKeys.join('|')})(?!\\p{L})`, 'giu');
 
     // Create a lowercase-keyed map for fast replacement lookup
     lowerMap = {};
