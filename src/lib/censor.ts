@@ -84,17 +84,49 @@ const applyCase = (original: string, replacement: string): string => {
   return result;
 };
 
+// Internal cache for default mappings to optimize performance
+let cachedDefaultRegex: RegExp | null = null;
+let cachedLowerDefaultMappings: Record<string, string> | null = null;
+
+/**
+ * Censors restricted words in a text while preserving the original case.
+ * Optimized to use a single-pass regex replacement.
+ */
 export const censorText = (text: string, customMappings?: Record<string, string>) => {
   if (!text) return text;
-  let censored = text;
+
   const mappings = customMappings || defaultMappings;
+  let regex: RegExp;
+  let lowerMap: Record<string, string>;
 
-  // Sort by length descending to match longer words first
-  const sortedUnsafe = Object.keys(mappings).sort((a, b) => b.length - a.length);
+  // Use cached regex and mapping if using default restricted words
+  if (!customMappings && cachedDefaultRegex && cachedLowerDefaultMappings) {
+    regex = cachedDefaultRegex;
+    lowerMap = cachedLowerDefaultMappings;
+  } else {
+    // Sort keys by length descending to ensure longest matches are prioritized in the regex alternation
+    const keys = Object.keys(mappings).sort((a, b) => b.length - a.length);
+    // Escape special characters to safely use words in a regular expression
+    const escapedKeys = keys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    regex = new RegExp(escapedKeys.join('|'), 'gi');
 
-  sortedUnsafe.forEach((unsafe) => {
-    const regex = new RegExp(unsafe, 'gi');
-    censored = censored.replace(regex, (match) => applyCase(match, mappings[unsafe]));
+    // Create a lowercase-keyed map for fast replacement lookup
+    lowerMap = {};
+    for (const [k, v] of Object.entries(mappings)) {
+      lowerMap[k.toLowerCase()] = v;
+    }
+
+    // Cache the results for default mappings
+    if (!customMappings) {
+      cachedDefaultRegex = regex;
+      cachedLowerDefaultMappings = lowerMap;
+    }
+  }
+
+  // Single-pass replacement using the combined regex
+  return text.replace(regex, (match) => {
+    const template = lowerMap[match.toLowerCase()];
+    if (!template) return match;
+    return applyCase(match, template);
   });
-  return censored;
 };
