@@ -148,6 +148,8 @@ const Secret = () => {
   const [newWord, setNewWord] = useState('');
   const [newReplacement, setNewReplacement] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const templateRef = useRef<HTMLImageElement | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -172,6 +174,14 @@ const Secret = () => {
   useEffect(() => {
     localStorage.setItem('bg_secret_word_restrictions', JSON.stringify(wordRestrictions));
   }, [wordRestrictions]);
+
+  useEffect(() => {
+    return () => {
+      if (uploadedImage) {
+        URL.revokeObjectURL(uploadedImage);
+      }
+    };
+  }, [uploadedImage]);
 
   // Automation State
   const [automationMode, setAutomationMode] = useState<'main' | 'backup'>(() => {
@@ -359,6 +369,29 @@ const Secret = () => {
     toast.success("Audio setting saved");
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (uploadedImage) {
+        URL.revokeObjectURL(uploadedImage);
+      }
+      const url = URL.createObjectURL(file);
+      setUploadedImage(url);
+      setImageUrl('');
+      toast.success("Image uploaded successfully");
+    }
+  };
+
+  const clearUploadedImage = () => {
+    if (uploadedImage) {
+      URL.revokeObjectURL(uploadedImage);
+    }
+    setUploadedImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const getMetadata = async (targetUrl: string) => {
     let html = '';
     const proxies = [
@@ -438,7 +471,7 @@ const Secret = () => {
       let extractedTitle = '';
       let extractedImage = '';
       let postTime = '';
-      let finalContentId = parseInt(contentId);
+      const finalContentId = parseInt(contentId);
 
       if (article) {
         extractedTitle = article.ContentHeading;
@@ -646,7 +679,12 @@ const Secret = () => {
         document.fonts.load(`${dateFontSize}px "Cambria"`)
       ]);
 
-      userImgBlobUrl = await fetchImageWithProxy(targetImageUrl);
+      if (targetImageUrl.startsWith('blob:') || targetImageUrl.startsWith('data:')) {
+        userImgBlobUrl = targetImageUrl;
+      } else {
+        userImgBlobUrl = await fetchImageWithProxy(targetImageUrl);
+      }
+
       const userImg = new Image();
       userImg.src = userImgBlobUrl;
       await new Promise((resolve, reject) => {
@@ -724,21 +762,22 @@ const Secret = () => {
       ctx.letterSpacing = "0px";
       return canvas.toDataURL('image/png');
     } finally {
-      if (userImgBlobUrl && userImgBlobUrl.startsWith('blob:')) {
+      if (userImgBlobUrl && userImgBlobUrl.startsWith('blob:') && userImgBlobUrl !== targetImageUrl) {
         URL.revokeObjectURL(userImgBlobUrl);
       }
     }
   };
 
   const generatePhotoCard = async (isLive = false) => {
-    if (!title || !imageUrl) {
-      if (!isLive) toast.error("Please provide both title and image URL");
+    const finalImageUrl = uploadedImage || imageUrl;
+    if (!title || !finalImageUrl) {
+      if (!isLive) toast.error("Please provide both title and image");
       return;
     }
     if (!isLive) setIsGenerating(true);
     try {
       const censoredTitle = censorText(title, wordRestrictions);
-      const dataUrl = await generatePhotoCardInternal(censoredTitle, imageUrl);
+      const dataUrl = await generatePhotoCardInternal(censoredTitle, finalImageUrl);
       setPreviewUrl(dataUrl);
       setGeneratedTitle(censoredTitle);
 
@@ -755,7 +794,7 @@ const Secret = () => {
           id: Math.random().toString(36).substr(2, 9),
           url: postUrl || 'manual',
           title: censoredTitle,
-          imageUrl: imageUrl,
+          imageUrl: finalImageUrl,
           previewUrl: dataUrl,
           timestamp: now.toISOString(),
           postTime: manualPostTime
@@ -790,14 +829,15 @@ const Secret = () => {
   };
 
   useEffect(() => {
-    if (!livePreview || !title || !imageUrl) return;
+    const finalImageUrl = uploadedImage || imageUrl;
+    if (!livePreview || !title || !finalImageUrl) return;
 
     const timeoutId = setTimeout(() => {
       generatePhotoCard(true);
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [title, imageUrl, livePreview, fontSize, titleLetterSpacing, lineHeightFactor, dateFontSize, dateXOffset, dateYOffset]);
+  }, [title, imageUrl, uploadedImage, livePreview, fontSize, titleLetterSpacing, lineHeightFactor, dateFontSize, dateXOffset, dateYOffset]);
 
   const scrapeLatestLinks = async (fetchLimit: number = 3) => {
     try {
@@ -1224,7 +1264,7 @@ const Secret = () => {
                     <Button variant="outline" size="icon" onClick={() => handlePaste(setPostUrl)}>
                       <ClipboardPaste className="h-4 w-4" />
                     </Button>
-                    <Button variant="secondary" size="icon" onClick={fetchPostData} disabled={isFetching || !postUrl}>
+                    <Button variant="destructive" size="icon" onClick={fetchPostData} disabled={isFetching || !postUrl}>
                       {isFetching ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />}
                     </Button>
                   </div>
@@ -1263,20 +1303,33 @@ const Secret = () => {
                     onChange={(e) => setImageUrl(e.target.value)}
                     className="bg-surface-2 min-h-[80px]"
                     rows={2}
+                    disabled={!!uploadedImage}
                   />
-                  <Button variant="outline" size="icon" onClick={() => handlePaste(setImageUrl)}>
-                    <ClipboardPaste className="h-4 w-4" />
-                  </Button>
+                  <div className="flex flex-col gap-2">
+                    <Button variant="outline" size="icon" onClick={() => handlePaste(setImageUrl)} disabled={!!uploadedImage}>
+                      <ClipboardPaste className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} className={cn(uploadedImage && "bg-primary text-primary-foreground")}>
+                      <ImageIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                />
               </div>
             </div>
 
             <div className="flex gap-2">
-              <Button className="flex-grow" onClick={() => generatePhotoCard()} disabled={isGenerating}>
+              <Button className="flex-grow" onClick={() => generatePhotoCard()} disabled={isGenerating || (!imageUrl && !uploadedImage)}>
                 {isGenerating ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
                 Generate Preview
               </Button>
-              {(previewUrl || title || imageUrl || postUrl) && (
+              {(previewUrl || title || imageUrl || postUrl || uploadedImage) && (
                 <Button
                   variant="outline"
                   size="icon"
@@ -1287,6 +1340,7 @@ const Secret = () => {
                     setPreviewUrl(null);
                     setGeneratedTitle('');
                     setPostUrl('');
+                    clearUploadedImage();
                     toast.info("Form cleared");
                   }}
                   title="Clear all inputs and preview"
@@ -1306,6 +1360,24 @@ const Secret = () => {
                 <Download className="mr-2 h-4 w-4" />
                 Download PNG
               </Button>
+            )}
+
+            {uploadedImage && (
+              <div className="mt-4 flex flex-col items-center">
+                <div className="relative group">
+                  <div className="w-24 h-24 rounded-lg overflow-hidden border bg-surface-2">
+                    <img src={uploadedImage} alt="Uploaded" className="w-full h-full object-cover" />
+                  </div>
+                  <button
+                    onClick={clearUploadedImage}
+                    className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 shadow-md hover:scale-110 transition-transform"
+                    title="Clear uploaded image"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+                <span className="text-[10px] text-muted-foreground mt-1">Uploaded image active</span>
+              </div>
             )}
           </div>
 
@@ -1644,10 +1716,23 @@ const Secret = () => {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-card border rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-lg md:max-w-2xl lg:max-w-3xl overflow-hidden animate-fade-in-up flex flex-col max-h-[90vh]">
             <div className="p-4 border-b flex-shrink-0 flex items-center justify-between bg-surface-1">
-              <h3 className="font-bold flex items-center gap-2">
-                <ShieldAlert className="h-4 w-4" />
-                WORD RESTRICTIONS
-              </h3>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => {
+                    setShowRestrictionsSettings(false);
+                    setShowSettings(true);
+                  }}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <h3 className="font-bold flex items-center gap-2">
+                  <ShieldAlert className="h-4 w-4" />
+                  WORD RESTRICTIONS
+                </h3>
+              </div>
               <Button variant="ghost" size="icon" onClick={() => setShowRestrictionsSettings(false)}>
                 <X className="h-4 w-4" />
               </Button>
@@ -1757,10 +1842,23 @@ const Secret = () => {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-card border rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-lg md:max-w-2xl lg:max-w-3xl overflow-hidden animate-fade-in-up flex flex-col max-h-[90vh]">
             <div className="p-4 border-b flex-shrink-0 flex items-center justify-between bg-surface-1">
-              <h3 className="font-bold flex items-center gap-2">
-                <Settings2 className="h-4 w-4" />
-                ADVANCED TYPOGRAPHY
-              </h3>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => {
+                    setShowAdvancedSettings(false);
+                    setShowSettings(true);
+                  }}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <h3 className="font-bold flex items-center gap-2">
+                  <Settings2 className="h-4 w-4" />
+                  ADVANCED TYPOGRAPHY
+                </h3>
+              </div>
               <Button variant="ghost" size="icon" onClick={() => setShowAdvancedSettings(false)}>
                 <X className="h-4 w-4" />
               </Button>
