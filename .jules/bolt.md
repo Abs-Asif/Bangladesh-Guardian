@@ -1,3 +1,0 @@
-## 2025-05-15 - [Optimize censorText with single-pass regex and caching]
-**Learning:** Sequential string replacements on the same text lead to $O(N \times M)$ complexity and redundant scans. Combining restricted words into a single-pass regex alternation (`|`) reduces complexity to $O(M)$ and provides a measurable speedup (~1.45x-1.8x in this codebase). Caching the compiled regex and lookup map for the default configuration further avoids redundant $O(K \log K)$ sorting and map initialization.
-**Action:** Use single-pass regex alternation for multi-word replacement tasks and cache compiled patterns/mappings when the input ruleset is static or changes infrequently.
