@@ -1153,41 +1153,65 @@ const Secret = () => {
       // Convert data URL to Blob
       const res = await fetch(dataUrl);
       const blob = await res.blob();
+      const fileName = `${id}.png`;
+      const file = new File([blob], fileName, { type: 'image/png' });
+
+      // Try Native Web Share API first (Best for mobile and "No Link" requirement)
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: 'Photocard',
+          });
+          toast.success("Photocard shared successfully!");
+          setIsSharing(null);
+          return;
+        } catch (shareError) {
+          // If user cancels or it fails, we continue to the link method
+          console.warn("Native share failed or cancelled", shareError);
+        }
+      }
+
+      // Fallback for desktop where Share API is limited
+      // Note: Facebook Sharer API ALWAYS requires a link.
+      // We host the image temporarily to provide that link.
 
       // Check if we already have a subdomain for hosting
       let subdomain = await puter.kv.get("bg_photocard_subdomain");
       if (!subdomain) {
-        // Generate a unique subdomain and create the site
         subdomain = "bg-card-" + Math.random().toString(36).substring(2, 9);
         try {
           await puter.hosting.create(subdomain, "photocards");
           await puter.kv.set("bg_photocard_subdomain", subdomain);
         } catch (e) {
-          // If creation fails, it might already exist or hosting is not available,
-          // we'll try to proceed with a random one or use getReadURL fallback
-          console.warn("Hosting creation failed, falling back to direct URL", e);
+          console.warn("Hosting creation failed", e);
         }
       }
 
-      // Ensure directory exists
       try { await puter.fs.mkdir("photocards"); } catch (e) {}
 
-      // Upload to Puter.js
-      const fileName = `photocards/${id}.png`;
-      await puter.fs.write(fileName, blob);
+      const filePath = `photocards/${id}.png`;
+      await puter.fs.write(filePath, blob);
 
-      // Get public URL
-      // If we have a subdomain, the file is accessible at https://subdomain.puter.site/id.png
-      // because we mapped the 'photocards' directory to the subdomain.
       let publicUrl = "";
       if (subdomain) {
         publicUrl = `https://${subdomain}.puter.site/${id}.png`;
       } else {
-        // Fallback to getReadURL if hosting setup failed
-        publicUrl = await puter.fs.getReadURL(fileName);
+        publicUrl = await puter.fs.getReadURL(filePath);
       }
 
-      // Open Facebook sharer
+      // Auto-cleanup: Delete old files to stay under 500MB limit
+      // We'll delete files older than 24 hours
+      const yesterday = Date.now() - (24 * 60 * 60 * 1000);
+      try {
+        const items = await puter.fs.list("photocards");
+        for (const item of items) {
+          if (item.modified < yesterday) {
+            await puter.fs.delete(`photocards/${item.name}`);
+          }
+        }
+      } catch (e) {}
+
       const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(publicUrl)}`;
       window.open(facebookUrl, '_blank');
 
@@ -1775,6 +1799,15 @@ const Secret = () => {
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </Button>
                 <p className="text-[10px] text-muted-foreground italic px-1">Fine-tune text sizes, spacing, and positions.</p>
+              </div>
+
+              <div className="border-t pt-6 space-y-4">
+                <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Cloud Storage Information</Label>
+                <div className="p-3 rounded-xl bg-surface-2 border border-transparent">
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    Facebook sharing uses Puter.js Cloud (500MB Free Limit). For ~400 daily shares, the app automatically deletes images older than 24 hours to stay within limits. On mobile, the app attempts to share the image file directly without links.
+                  </p>
+                </div>
               </div>
 
               <Button onClick={() => setShowSettings(false)} className="w-full">Close Settings</Button>
