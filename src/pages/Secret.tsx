@@ -5,8 +5,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { censorText, defaultMappings } from "@/lib/censor";
-import { Download, RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings2, X, ClipboardPaste, History, Clock, AlertCircle, List, Zap, Play, Square, Trash2, Volume2, Eye, EyeOff, Copy, Plus, ShieldAlert, ArrowRight } from "lucide-react";
+import { Download, RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings2, X, ClipboardPaste, History, Clock, AlertCircle, List, Zap, Play, Square, Trash2, Volume2, Eye, EyeOff, Copy, Plus, ShieldAlert, ArrowRight, Facebook } from "lucide-react";
 import { toast } from "sonner";
+import puter from '@heyputer/puter.js';
 
 interface AutoRecord {
   id: string;
@@ -154,6 +155,7 @@ const Secret = () => {
   const templateRef = useRef<HTMLImageElement | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [generatedTitle, setGeneratedTitle] = useState('');
+  const [isSharing, setIsSharing] = useState<string | null>(null);
 
   // Audio State
   const [selectedAudio, setSelectedAudio] = useState(localStorage.getItem('bg_secret_audio') || '/Alert.mp3');
@@ -1145,6 +1147,59 @@ const Secret = () => {
     };
   }, [autoModeActive, automationFrequency.interval]);
 
+  const handleFacebookShare = async (id: string, dataUrl: string) => {
+    setIsSharing(id);
+    try {
+      // Convert data URL to Blob
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+
+      // Check if we already have a subdomain for hosting
+      let subdomain = await puter.kv.get("bg_photocard_subdomain");
+      if (!subdomain) {
+        // Generate a unique subdomain and create the site
+        subdomain = "bg-card-" + Math.random().toString(36).substring(2, 9);
+        try {
+          await puter.hosting.create(subdomain, "photocards");
+          await puter.kv.set("bg_photocard_subdomain", subdomain);
+        } catch (e) {
+          // If creation fails, it might already exist or hosting is not available,
+          // we'll try to proceed with a random one or use getReadURL fallback
+          console.warn("Hosting creation failed, falling back to direct URL", e);
+        }
+      }
+
+      // Ensure directory exists
+      try { await puter.fs.mkdir("photocards"); } catch (e) {}
+
+      // Upload to Puter.js
+      const fileName = `photocards/${id}.png`;
+      await puter.fs.write(fileName, blob);
+
+      // Get public URL
+      // If we have a subdomain, the file is accessible at https://subdomain.puter.site/id.png
+      // because we mapped the 'photocards' directory to the subdomain.
+      let publicUrl = "";
+      if (subdomain) {
+        publicUrl = `https://${subdomain}.puter.site/${id}.png`;
+      } else {
+        // Fallback to getReadURL if hosting setup failed
+        publicUrl = await puter.fs.getReadURL(fileName);
+      }
+
+      // Open Facebook sharer
+      const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(publicUrl)}`;
+      window.open(facebookUrl, '_blank');
+
+      toast.success("Ready to post on Facebook!");
+    } catch (error) {
+      console.error("Facebook share error:", error);
+      toast.error("Failed to prepare Facebook post.");
+    } finally {
+      setIsSharing(null);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     try {
       await deleteRecordDB(id);
@@ -1351,15 +1406,24 @@ const Secret = () => {
             </div>
 
             {previewUrl && (
-              <Button variant="secondary" className="w-full" onClick={() => {
-                const link = document.createElement('a');
-                link.download = `${generatedTitle || title || 'photocard'}.png`;
-                link.href = previewUrl;
-                link.click();
-              }}>
-                <Download className="mr-2 h-4 w-4" />
-                Download PNG
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  className="bg-[#1877F2] hover:bg-[#1877F2]/90 text-white flex-shrink-0 h-10 w-10 p-0"
+                  onClick={() => handleFacebookShare('manual-preview', previewUrl)}
+                  disabled={isSharing === 'manual-preview'}
+                >
+                  {isSharing === 'manual-preview' ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Facebook className="h-5 w-5" />}
+                </Button>
+                <Button variant="secondary" className="flex-grow" onClick={() => {
+                  const link = document.createElement('a');
+                  link.download = `${generatedTitle || title || 'photocard'}.png`;
+                  link.href = previewUrl;
+                  link.click();
+                }}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Download PNG
+                </Button>
+              </div>
             )}
 
             {uploadedImage && (
@@ -1518,6 +1582,13 @@ const Secret = () => {
                     <img src={record.previewUrl} alt={record.title} className="w-full h-full object-contain" />
                   </div>
                   <div className="mt-3 flex gap-2">
+                    <Button
+                      className="bg-[#1877F2] hover:bg-[#1877F2]/90 text-white h-9 w-9 p-0 flex-shrink-0"
+                      onClick={() => handleFacebookShare(record.id, record.previewUrl)}
+                      disabled={isSharing === record.id}
+                    >
+                      {isSharing === record.id ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Facebook className="h-4 w-4" />}
+                    </Button>
                     <Button variant="destructive" size="sm" className="flex-grow text-[10px] h-9" onClick={() => {
                       const link = document.createElement('a');
                       link.download = `${record.title}.png`;
