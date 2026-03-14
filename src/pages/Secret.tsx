@@ -449,8 +449,8 @@ const Secret = () => {
       toast.error("Please enter a Post URL");
       return;
     }
-    if (!trimmedUrl.includes('bangladeshguardian.com')) {
-      toast.error("Only bangladeshguardian.com links are supported");
+    if (!trimmedUrl.includes('channel24bd.tv')) {
+      toast.error("Only channel24bd.tv links are supported");
       return;
     }
 
@@ -459,7 +459,7 @@ const Secret = () => {
       const urlParts = trimmedUrl.split('/');
       const contentId = urlParts[urlParts.length - 1];
 
-      const response = await fetch("https://backoffice.bangladeshguardian.com/api-en/archive", {
+      const response = await fetch("https://backoffice.channel24bd.tv/api-en/archive", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ start_date: "", end_date: "", category_name: "", limit: 50, offset: 0 })
@@ -477,7 +477,7 @@ const Secret = () => {
 
       if (article) {
         extractedTitle = article.ContentHeading;
-        extractedImage = `https://backoffice.bangladeshguardian.com/media/imgAll/${article.ImageBgPath}`;
+        extractedImage = `https://backoffice.channel24bd.tv/media/imgAll/${article.ImageBgPath}`;
         postTime = article.create_date ? formatPostTime(article.create_date) : '';
       } else {
         addLog(`Post ${contentId} not in archive. Scraping metadata...`, "info");
@@ -609,7 +609,7 @@ const Secret = () => {
       (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
     ];
 
-    const isRestricted = url.includes('bangladeshguardian.com') || url.includes('backoffice.bangladeshguardian.com');
+    const isRestricted = url.includes('channel24bd.tv') || url.includes('backoffice.channel24bd.tv');
     if (!isRestricted) {
       try {
         const response = await fetch(url, { mode: 'cors' });
@@ -812,7 +812,7 @@ const Secret = () => {
           }).slice(0, 50);
         });
 
-        if (postUrl && postUrl.includes('bangladeshguardian.com')) {
+        if (postUrl && postUrl.includes('channel24bd.tv')) {
           setProcessedUrls(prev => {
             const next = new Map(prev);
             next.set(postUrl.trim(), Date.now());
@@ -843,7 +843,7 @@ const Secret = () => {
 
   const scrapeLatestLinks = async (fetchLimit: number = 3) => {
     try {
-      const response = await fetch("https://backoffice.bangladeshguardian.com/api-en/archive", {
+      const response = await fetch("https://backoffice.channel24bd.tv/api-en/archive", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ start_date: "", end_date: "", category_name: "", limit: fetchLimit, offset: 0 })
@@ -854,9 +854,9 @@ const Secret = () => {
       if (articles.length === 0) return null;
 
       return articles.map((item: BGArchiveItem) => ({
-        url: `https://www.bangladeshguardian.com/${item.Slug}/${item.ContentID}`,
+        url: `https://www.channel24bd.tv/${item.Slug}/${item.ContentID}`,
         title: item.ContentHeading,
-        image: `https://backoffice.bangladeshguardian.com/media/imgAll/${item.ImageBgPath}`,
+        image: `https://backoffice.channel24bd.tv/media/imgAll/${item.ImageBgPath}`,
         postTime: item.create_date ? formatPostTime(item.create_date) : '',
         contentId: item.ContentID
       }));
@@ -884,7 +884,7 @@ const Secret = () => {
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
-    const sitemapUrl = `https://www.bangladeshguardian.com/english-sitemap/sitemap-daily-${year}-${month}-${day}.xml`;
+    const sitemapUrl = `https://www.channel24bd.tv/english-sitemap/sitemap-daily-${year}-${month}-${day}.xml`;
 
     let xmlText = '';
     try {
@@ -1264,7 +1264,7 @@ const Secret = () => {
               </div>
             </div>
             <div className="text-center space-y-2">
-              <h1 className="text-2xl font-bold text-white tracking-tight">Bangladesh Guardian's Photocard Automation</h1>
+              <h1 className="text-2xl font-bold text-white tracking-tight">Channel 24's Photocard Automation</h1>
               <p className="text-zinc-400 text-sm">Please enter your security key to access the automation tool.</p>
             </div>
           </div>
@@ -1333,7 +1333,7 @@ const Secret = () => {
                 <div className="flex gap-2">
                   <Textarea
                     id="postUrl"
-                    placeholder="https://www.bangladeshguardian.com/..."
+                  placeholder="https://www.channel24bd.tv/..."
                     value={postUrl}
                     onChange={(e) => setPostUrl(e.target.value)}
                     className="bg-surface-2 min-h-[80px]"

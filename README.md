@@ -1,12 +1,12 @@
-# Bangladesh Guardian Photocard Automation
+# Channel 24 Photocard Automation
 
-A professional, high-performance web application designed for social media managers of the **Bangladesh Guardian**. This tool automates the creation of news photocards by fetching content directly from the website's backoffice or sitemaps, applying text moderation, and rendering high-quality PNGs via HTML5 Canvas.
+A professional, high-performance web application designed for social media managers of **Channel 24**. This tool automates the creation of news photocards by fetching content directly from the website's backoffice or sitemaps, applying text moderation, and rendering high-quality PNGs via HTML5 Canvas.
 
 ---
 
 ## 🚀 1. What is this App?
 
-The **Bangladesh Guardian Photocard Automation** is a specialized tool that streamlines the workflow of posting news to social media. Instead of manually designing photocards for every article, this app "watches" for new posts and generates ready-to-download images instantly.
+The **Channel 24 Photocard Automation** is a specialized tool that streamlines the workflow of posting news to social media.
 
 **Key use cases:**
 - **Instant Social Sharing:** Generate cards as soon as an article is published.
