@@ -1201,12 +1201,12 @@ const Secret = () => {
       }
 
       // Auto-cleanup: Delete old files to stay under 500MB limit
-      // We'll delete files older than 24 hours
-      const yesterday = Date.now() - (24 * 60 * 60 * 1000);
+      // We'll delete files older than 6 hours
+      const sixHoursAgo = Date.now() - (6 * 60 * 60 * 1000);
       try {
         const items = await puter.fs.list("photocards");
         for (const item of items) {
-          if (item.modified < yesterday) {
+          if (item.modified < sixHoursAgo) {
             await puter.fs.delete(`photocards/${item.name}`);
           }
         }
@@ -1799,15 +1799,6 @@ const Secret = () => {
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </Button>
                 <p className="text-[10px] text-muted-foreground italic px-1">Fine-tune text sizes, spacing, and positions.</p>
-              </div>
-
-              <div className="border-t pt-6 space-y-4">
-                <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Cloud Storage Information</Label>
-                <div className="p-3 rounded-xl bg-surface-2 border border-transparent">
-                  <p className="text-[10px] text-muted-foreground leading-relaxed">
-                    Facebook sharing uses Puter.js Cloud (500MB Free Limit). For ~400 daily shares, the app automatically deletes images older than 24 hours to stay within limits. On mobile, the app attempts to share the image file directly without links.
-                  </p>
-                </div>
               </div>
 
               <Button onClick={() => setShowSettings(false)} className="w-full">Close Settings</Button>
