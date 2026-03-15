@@ -222,6 +222,104 @@
   }
 }
 
+/* From Uiverse.io by MuhammadHasann - popular-seahorse-73 */
+.switch {
+  --circle-dim: 140px;
+  --circle-fill: #333;
+  --circle-outline: #1f1f1f;
+  --circle-shadow: #000;
+  --power-fill: #555;
+  --power-shadow: #111;
+  --color-invert: #ccc;
+  --color-active: #ff3d3d;
+  --color-active-shadow: rgba(255, 61, 61, 0.5);
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: var(--circle-dim);
+  height: var(--circle-dim);
+}
+
+.switch input {
+  display: none;
+}
+
+.switch label {
+  cursor: pointer;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background-color: var(--circle-fill);
+  border-radius: 50%;
+  border: 10px solid var(--circle-outline);
+  box-shadow: 0 10px 20px var(--circle-shadow),
+    inset 0 2px 5px rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.switch label::after {
+  content: "";
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border: 6px solid var(--power-fill);
+  border-top-color: transparent;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.switch label::before {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 20px;
+  background-color: var(--power-fill);
+  top: 35px;
+  border-radius: 3px;
+  transition: all 0.3s ease;
+}
+
+.switch input:checked + label {
+  border-color: var(--color-active);
+  box-shadow: 0 0 30px var(--color-active-shadow),
+    inset 0 0 10px var(--color-active-shadow);
+}
+
+.switch input:checked + label::after {
+  border-color: var(--color-active);
+  border-top-color: transparent;
+  filter: drop-shadow(0 0 5px var(--color-active));
+}
+
+.switch input:checked + label::before {
+  background-color: var(--color-active);
+  filter: drop-shadow(0 0 5px var(--color-active));
+}
+
+.switch label:hover {
+  transform: scale(1.05);
+}
+
+.switch label:active {
+  transform: scale(0.95);
+}
+
+/* New Generation Glow Alert */
+@keyframes glow-alert {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); border-color: rgba(239, 68, 68, 1); }
+  70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); border-color: rgba(239, 68, 68, 0.5); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); border-color: inherit; }
+}
+
+.new-generation-glow {
+  animation: glow-alert 2s ease-out;
+  border-width: 2px;
+}
+
 /* Animations */
 @keyframes fade-in-up {
   from { opacity: 0; transform: translateY(10px); }

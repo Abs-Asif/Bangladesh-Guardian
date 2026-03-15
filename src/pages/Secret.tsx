@@ -804,7 +804,8 @@ const Secret = () => {
           imageUrl: finalImageUrl,
           previewUrl: dataUrl,
           timestamp: now.toISOString(),
-          postTime: manualPostTime
+          postTime: manualPostTime,
+          contentId: Date.now() // Use current timestamp as contentId for correct sorting
         };
 
         await saveRecordDB(newRecord);
@@ -837,14 +838,14 @@ const Secret = () => {
 
   useEffect(() => {
     const finalImageUrl = uploadedImage || imageUrl;
-    if (!livePreview || !title || !finalImageUrl) return;
+    if (!livePreview || manualInputMode !== 'manual' || !title || !finalImageUrl) return;
 
     const timeoutId = setTimeout(() => {
       generatePhotoCard(true);
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [title, imageUrl, uploadedImage, livePreview, fontSize, titleLetterSpacing, lineHeightFactor, dateFontSize, dateXOffset, dateYOffset, generatePhotoCard]);
+  }, [title, imageUrl, uploadedImage, livePreview, manualInputMode, fontSize, titleLetterSpacing, lineHeightFactor, dateFontSize, dateXOffset, dateYOffset, generatePhotoCard]);
 
   const scrapeLatestLinks = async (fetchLimit: number = 3) => {
     try {
@@ -1404,27 +1405,24 @@ const Secret = () => {
               </div>
             </div>
 
-            <div className="flex flex-col items-center gap-6 py-8">
-              <button
-                onClick={() => {
-                  if (!autoModeActive) {
-                    cleanOldCache();
-                    backupInitializedRef.current = false;
-                    setAutoModeActive(true);
-                  } else {
-                    setAutoModeActive(false);
-                  }
-                }}
-                className={cn(
-                  "w-32 h-32 rounded-full border-8 flex flex-col items-center justify-center transition-all duration-300 shadow-xl",
-                  autoModeActive
-                    ? "bg-destructive border-destructive/20 text-destructive-foreground scale-95 shadow-destructive/20"
-                    : "bg-primary border-primary/20 text-primary-foreground hover:scale-105 shadow-primary/20"
-                )}
-              >
-                {autoModeActive ? <Square className="h-8 w-8 mb-1" /> : <Play className="h-8 w-8 mb-1" />}
-                <span className="text-xs font-black tracking-tighter">{autoModeActive ? 'STOP' : 'START'}</span>
-              </button>
+            <div className="flex flex-col items-center gap-6 py-12">
+              <div className="switch">
+                <input
+                  type="checkbox"
+                  id="autoToggle"
+                  checked={autoModeActive}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      cleanOldCache();
+                      backupInitializedRef.current = false;
+                      setAutoModeActive(true);
+                    } else {
+                      setAutoModeActive(false);
+                    }
+                  }}
+                />
+                <label htmlFor="autoToggle"></label>
+              </div>
 
               <Button
                 variant="outline"
@@ -1500,77 +1498,85 @@ const Secret = () => {
             </Button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-8">
             {/* Live Preview Card (Fixed First Position) */}
-            {livePreview && previewUrl && (
+            {livePreview && manualInputMode === 'manual' && previewUrl && (
               <div className="flex flex-col animate-in fade-in zoom-in-95 duration-300">
-                <div className="mb-2 px-1">
-                  <span className="text-[10px] font-black bg-primary text-primary-foreground px-2 py-0.5 rounded-full uppercase tracking-tighter">Live Preview</span>
+                <div className="mb-3 px-1">
+                  <span className="text-xs font-black bg-primary text-primary-foreground px-3 py-1 rounded-full uppercase tracking-tighter">Live Preview</span>
                 </div>
-                <div className="rounded-xl overflow-hidden aspect-square relative bg-white border-2 border-primary shadow-lg">
+                <div className="rounded-2xl overflow-hidden aspect-square relative bg-white border-4 border-primary shadow-2xl">
                   <img src={previewUrl} alt="Live Preview" className="w-full h-full object-contain" />
                 </div>
-                <div className="mt-2 flex gap-1">
-                  <Button variant="destructive" size="sm" className="flex-1 text-[9px] h-8" onClick={() => {
+                <div className="mt-3 flex gap-2">
+                  <Button variant="destructive" size="lg" className="flex-1 text-xs font-bold" onClick={() => {
                     const link = document.createElement('a');
                     link.download = `preview.png`;
                     link.href = previewUrl;
                     link.click();
                   }}>
-                    <Download className="h-3 w-3 mr-1" /> SAVE
+                    <Download className="h-4 w-4 mr-2" /> SAVE PHOTO
                   </Button>
                 </div>
               </div>
             )}
 
-            {autoRecords.map((record) => (
+            {autoRecords.map((record) => {
+              const isVeryNew = (Date.now() - new Date(record.timestamp).getTime()) < 10000;
+              return (
                 <div key={record.id} className="flex flex-col animate-fade-in-up group">
-                  <div className="mb-2 px-1 flex items-start gap-2">
+                  <div className="mb-3 px-1 flex items-start gap-2">
                     {record.url && record.url !== 'manual' && (
                       <button
                         onClick={() => copyToClipboard(record.url)}
-                        className="mt-0.5 p-1 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
+                        className="mt-1 p-1.5 rounded-md hover:bg-surface-2 text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
                         title="Copy post URL"
                       >
-                        <Copy className="h-3 w-3" />
+                        <Copy className="h-3.5 w-3.5" />
                       </button>
                     )}
-                    <h3 className="text-[11px] font-bold text-primary line-clamp-2 leading-tight min-h-[2.4em]">
-                      {record.url && record.url !== 'manual' ? (
-                        <a href={record.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                          {record.title}
-                        </a>
-                      ) : (
-                        record.title
-                      )}
+                    <div className="flex flex-col gap-1">
+                      <h3 className="text-xs font-bold text-primary leading-tight">
+                        {record.url && record.url !== 'manual' ? (
+                          <a href={record.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                            {record.title}
+                          </a>
+                        ) : (
+                          record.title
+                        )}
+                      </h3>
                       {record.postTime && (
-                        <span className="font-normal text-muted-foreground ml-1.5">
+                        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
                           {record.postTime}
-                        </span>
+                        </p>
                       )}
-                    </h3>
+                    </div>
                   </div>
-                  <div className="rounded-2xl overflow-hidden aspect-square relative bg-surface-1 border shadow-sm group-hover:shadow-md transition-shadow">
+                  <div className={cn(
+                    "rounded-2xl overflow-hidden aspect-square relative bg-surface-1 border-2 shadow-md group-hover:shadow-xl transition-all",
+                    isVeryNew && "new-generation-glow"
+                  )}>
                     <img src={record.previewUrl} alt={record.title} className="w-full h-full object-contain" />
                   </div>
-                  <div className="mt-3 flex gap-2">
-                    <Button variant="destructive" size="sm" className="flex-grow text-[10px] h-9" onClick={() => {
+                  <div className="mt-4 flex gap-2">
+                    <Button variant="destructive" className="flex-grow text-xs font-bold h-10" onClick={() => {
                       const link = document.createElement('a');
                       link.download = `${record.title}.png`;
                       link.href = record.previewUrl;
                       link.click();
                     }}>
-                      <Download className="h-3.5 w-3.5 mr-1.5" /> DOWNLOAD
+                      <Download className="h-4 w-4 mr-2" /> DOWNLOAD
                     </Button>
-                    <Button variant="outline" size="icon" className="h-9 w-9 flex-shrink-0" onClick={() => {
+                    <Button variant="outline" size="icon" className="h-10 w-10 flex-shrink-0" onClick={() => {
                       if (window.confirm("Delete?")) handleDelete(record.id);
                     }}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
+          </div>
           </div>
         </div>
 
