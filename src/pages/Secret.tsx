@@ -36,16 +36,6 @@ interface LogEntry {
 const DB_NAME = 'SecretBGDB';
 const STORE_NAME = 'photocards';
 
-const FacebookThinIcon = ({ className }: { className?: string }) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="currentColor"
-  >
-    <path d="M9 2.97973C9 2.43863 9.43863 2 9.97973 2H14.0203C14.5614 2 15 2.43863 15 2.97973V6.97973H19.0203C19.5614 6.97973 20 7.41836 20 7.95946V11.0203C20 11.5614 19.5614 12 19.0203 12H15V21.0203C15 21.5614 14.5614 22 14.0203 22H9.97973C9.43863 22 9 21.5614 9 21.0203V12H6.97973C6.43863 12 6 11.5614 6 11.0203V7.95946C6 7.41836 6.43863 6.97973 6.97973 6.97973H9V2.97973Z" />
-  </svg>
-);
-
 const ENC_PW = "MDE1MjIxMDUzNzM="; // btoa("01522105373")
 
 const initDB = (): Promise<IDBDatabase> => {
@@ -164,7 +154,6 @@ const Secret = () => {
   const templateRef = useRef<HTMLImageElement | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [generatedTitle, setGeneratedTitle] = useState('');
-  const [isSharing, setIsSharing] = useState<string | null>(null);
 
   // Audio State
   const [selectedAudio, setSelectedAudio] = useState(localStorage.getItem('bg_secret_audio') || '/Alert.mp3');
@@ -355,7 +344,6 @@ const Secret = () => {
 
   const cleanOldCache = async () => {
     const twoDaysAgo = Date.now() - (2 * 24 * 60 * 60 * 1000);
-    const oneHourAgo = Date.now() - (60 * 60 * 1000);
     let changed = false;
 
     // Clean processed URLs cache
@@ -369,26 +357,6 @@ const Secret = () => {
     if (changed) {
       setProcessedUrls(nextMap);
       addLog("Cleaned up old cached URLs.");
-    }
-
-    // Clean photocards IndexedDB cache (older than 1 hour as Flash Upload expires)
-    try {
-      const records = await getAllRecordsDB();
-      for (const record of records) {
-        const recordTime = new Date(record.timestamp).getTime();
-        if (recordTime < oneHourAgo) {
-          await deleteRecordDB(record.id);
-        }
-      }
-      const updatedRecords = await getAllRecordsDB();
-      setAutoRecords(updatedRecords.sort((a, b) => {
-        const aVal = a.contentId || new Date(a.timestamp).getTime();
-        const bVal = b.contentId || new Date(b.timestamp).getTime();
-        return bVal - aVal;
-      }));
-      addLog("Purged expired photocard records (older than 1h).");
-    } catch (e) {
-      console.error("Cache purge failed:", e);
     }
   };
 
@@ -1185,54 +1153,6 @@ const Secret = () => {
     };
   }, [autoModeActive, automationFrequency.interval, checkAndGenerate]);
 
-  const handleFacebookShare = async (id: string, dataUrl: string) => {
-    setIsSharing(id);
-    try {
-      // Convert data URL to Blob
-      const res = await fetch(dataUrl);
-      const blob = await res.blob();
-
-      const formData = new FormData();
-      formData.append('file', blob, `${id}.png`);
-
-      const uploadRes = await fetch('https://flash-upload-api.lovable.app/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!uploadRes.ok) throw new Error("Upload failed");
-      const uploadData = await uploadRes.json();
-      const publicUrl = uploadData.url;
-
-      const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(publicUrl)}`;
-
-      const isAndroid = /android/i.test(navigator.userAgent);
-
-      if (isAndroid) {
-        // For android: trigger "fb://" to open facebook app with the sharing link
-        window.location.href = `fb://facewebmodal/f?href=${encodeURIComponent(facebookUrl)}`;
-      } else {
-        // On PC: open a new popup window with Facebook
-        const width = 600;
-        const height = 500;
-        const left = (window.innerWidth - width) / 2;
-        const top = (window.innerHeight - height) / 2;
-        window.open(
-          facebookUrl,
-          'facebook-share-dialog',
-          `width=${width},height=${height},top=${top},left=${left}`
-        );
-      }
-
-      toast.success("Ready to post on Facebook!");
-    } catch (error) {
-      console.error("Facebook share error:", error);
-      toast.error("Failed to prepare Facebook post.");
-    } finally {
-      setIsSharing(null);
-    }
-  };
-
   const handleDelete = async (id: string) => {
     try {
       await deleteRecordDB(id);
@@ -1440,18 +1360,6 @@ const Secret = () => {
 
             {previewUrl && (
               <div className="flex gap-2">
-                <Button
-                  className="bg-[#1877F2] hover:bg-[#1877F2]/90 text-white flex-grow font-bold"
-                  onClick={() => handleFacebookShare('manual-preview', previewUrl)}
-                  disabled={isSharing === 'manual-preview'}
-                >
-                  {isSharing === 'manual-preview' ? (
-                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <FacebookThinIcon className="mr-2 h-4 w-4" />
-                  )}
-                  Prepare to Post
-                </Button>
                 <Button variant="secondary" className="flex-grow" onClick={() => {
                   const link = document.createElement('a');
                   link.download = `${generatedTitle || title || 'photocard'}.png`;
@@ -1620,18 +1528,6 @@ const Secret = () => {
                     <img src={record.previewUrl} alt={record.title} className="w-full h-full object-contain" />
                   </div>
                   <div className="mt-3 flex gap-2">
-                    <Button
-                      className="bg-[#1877F2] hover:bg-[#1877F2]/90 text-white flex-grow font-bold h-9 text-[11px]"
-                      onClick={() => handleFacebookShare(record.id, record.previewUrl)}
-                      disabled={isSharing === record.id}
-                    >
-                      {isSharing === record.id ? (
-                        <RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <FacebookThinIcon className="mr-2 h-3.5 w-3.5" />
-                      )}
-                      Prepare to Post
-                    </Button>
                     <Button variant="destructive" size="sm" className="flex-grow text-[10px] h-9" onClick={() => {
                       const link = document.createElement('a');
                       link.download = `${record.title}.png`;
