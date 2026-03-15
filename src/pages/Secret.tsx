@@ -1153,27 +1153,7 @@ const Secret = () => {
       // Convert data URL to Blob
       const res = await fetch(dataUrl);
       const blob = await res.blob();
-      const fileName = `${id}.png`;
-      const file = new File([blob], fileName, { type: 'image/png' });
-
-      // Try Native Web Share API first (Best for mobile and "No Link" requirement)
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({
-            files: [file],
-            title: 'Photocard',
-          });
-          toast.success("Photocard shared successfully!");
-          setIsSharing(null);
-          return;
-        } catch (shareError) {
-          // If user cancels or it fails, we continue to the link method
-          console.warn("Native share failed or cancelled", shareError);
-        }
-      }
-
-      // Fallback for desktop where Share API is limited
-      // Note: Facebook Sharer API ALWAYS requires a link.
+      // Facebook Sharer API ALWAYS requires a link.
       // We host the image temporarily to provide that link.
 
       // Check if we already have a subdomain for hosting
@@ -1213,7 +1193,24 @@ const Secret = () => {
       } catch (e) {}
 
       const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(publicUrl)}`;
-      window.open(facebookUrl, '_blank');
+
+      const isAndroid = /android/i.test(navigator.userAgent);
+
+      if (isAndroid) {
+        // For android: trigger "fb://" to open facebook app with the sharing link
+        window.location.href = `fb://facewebmodal/f?href=${encodeURIComponent(facebookUrl)}`;
+      } else {
+        // On PC: open a new popup window with Facebook
+        const width = 600;
+        const height = 500;
+        const left = (window.innerWidth - width) / 2;
+        const top = (window.innerHeight - height) / 2;
+        window.open(
+          facebookUrl,
+          'facebook-share-dialog',
+          `width=${width},height=${height},top=${top},left=${left}`
+        );
+      }
 
       toast.success("Ready to post on Facebook!");
     } catch (error) {
