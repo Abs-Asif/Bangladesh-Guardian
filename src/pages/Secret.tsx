@@ -142,6 +142,7 @@ const Secret = () => {
   const [titleLetterSpacing, setTitleLetterSpacing] = useState(-2.4);
   const [lineHeightFactor, setLineHeightFactor] = useState(0.9);
   const [livePreview, setLivePreview] = useState(false);
+  const [manualInputMode, setManualInputMode] = useState<'url' | 'manual'>('url');
   const [showSettings, setShowSettings] = useState(false);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [showRestrictionsSettings, setShowRestrictionsSettings] = useState(false);
@@ -1235,12 +1236,12 @@ const Secret = () => {
   }
 
   return (
-    <div className="min-h-screen light-theme bg-background text-foreground p-3 md:p-8 font-solaiman-regular">
-      <div className="max-w-4xl mx-auto space-y-8">
-        <header className="rounded-xl overflow-hidden shadow-xl">
+    <div className="min-h-screen light-theme bg-background text-foreground p-4 font-solaiman-regular">
+      <div className="w-full space-y-8">
+        <header className="rounded-xl overflow-hidden shadow-xl border">
           <div className="bg-black py-6 flex items-center justify-center relative">
-            <img src="/logo.png" alt="Logo" className="h-16 md:h-20 object-contain" />
-            <div className="absolute top-4 right-4">
+            <img src="/logo.png" alt="Logo" className="h-12 md:h-16 object-contain" />
+            <div className="absolute top-1/2 -translate-y-1/2 right-6">
               <Button
                 variant="ghost"
                 size="icon"
@@ -1254,250 +1255,275 @@ const Secret = () => {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="space-y-6 bg-card p-5 md:p-6 rounded-2xl border shadow-sm">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="postUrl">News post</Label>
-                <div className="flex gap-2">
-                  <Textarea
-                    id="postUrl"
-                    placeholder="https://www.bangladeshguardian.com/..."
-                    value={postUrl}
-                    onChange={(e) => setPostUrl(e.target.value)}
-                    className="bg-surface-2 min-h-[80px]"
-                    rows={2}
-                  />
-                  <div className="flex flex-col gap-2">
-                    <Button variant="outline" size="icon" onClick={() => handlePaste(setPostUrl)}>
-                      <ClipboardPaste className="h-4 w-4" />
-                    </Button>
-                    <Button variant="destructive" size="icon" onClick={fetchPostData} disabled={isFetching || !postUrl}>
-                      {isFetching ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ChevronRight className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="relative flex items-center py-2">
-                <div className="flex-grow border-t"></div>
-                <span className="flex-shrink mx-4 text-xs text-muted-foreground uppercase tracking-widest">OR MANUAL</span>
-                <div className="flex-grow border-t"></div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="title">Title Text</Label>
-                <div className="flex gap-2">
-                  <Textarea
-                    id="title"
-                    placeholder="Enter photocard title..."
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="bg-surface-2 min-h-[80px]"
-                    rows={2}
-                  />
-                  <Button variant="outline" size="icon" onClick={() => handlePaste(setTitle)}>
-                    <ClipboardPaste className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="imageUrl">Image URL</Label>
-                <div className="flex gap-2">
-                  <Textarea
-                    id="imageUrl"
-                    placeholder="https://example.com/image.jpg"
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                    className="bg-surface-2 min-h-[80px]"
-                    rows={2}
-                    disabled={!!uploadedImage}
-                  />
-                  <div className="flex flex-col gap-2">
-                    <Button variant="outline" size="icon" onClick={() => handlePaste(setImageUrl)} disabled={!!uploadedImage}>
-                      <ClipboardPaste className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} className={cn(uploadedImage && "bg-primary text-primary-foreground")}>
-                      <ImageIcon className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  className="hidden"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                />
-              </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* First (Left): Manual Option */}
+          <div className="space-y-6 bg-card p-6 rounded-2xl border shadow-sm flex flex-col">
+            <div className="flex p-1 bg-surface-2 rounded-xl border mb-2">
+              <button
+                onClick={() => setManualInputMode('url')}
+                className={cn(
+                  "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
+                  manualInputMode === 'url' ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                NEWS URL
+              </button>
+              <button
+                onClick={() => setManualInputMode('manual')}
+                className={cn(
+                  "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
+                  manualInputMode === 'manual' ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                MANUAL ENTRY
+              </button>
             </div>
 
-            <div className="flex gap-2">
-              <Button className="flex-grow" onClick={() => generatePhotoCard()} disabled={isGenerating || (!imageUrl && !uploadedImage)}>
-                {isGenerating ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
-                Generate Preview
-              </Button>
-              {(previewUrl || title || imageUrl || postUrl || uploadedImage) && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="shrink-0"
-                  onClick={() => {
-                    setTitle('');
-                    setImageUrl('');
-                    setPreviewUrl(null);
-                    setGeneratedTitle('');
-                    setPostUrl('');
-                    clearUploadedImage();
-                    toast.info("Form cleared");
-                  }}
-                  title="Clear all inputs and preview"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+            <div className="flex-grow space-y-4">
+              {manualInputMode === 'url' ? (
+                <div className="space-y-4 animate-in fade-in slide-in-from-left-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="postUrl">News post URL</Label>
+                    <div className="flex gap-2">
+                      <Textarea
+                        id="postUrl"
+                        placeholder="https://www.bangladeshguardian.com/..."
+                        value={postUrl}
+                        onChange={(e) => setPostUrl(e.target.value)}
+                        className="bg-surface-1 min-h-[100px] resize-none"
+                      />
+                      <Button variant="outline" size="icon" className="shrink-0" onClick={() => handlePaste(setPostUrl)}>
+                        <ClipboardPaste className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <Button className="w-full h-12" variant="destructive" onClick={fetchPostData} disabled={isFetching || !postUrl}>
+                    {isFetching ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <ChevronRight className="mr-2 h-4 w-4" />}
+                    Fetch & Generate
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4 animate-in fade-in slide-in-from-right-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Title Text</Label>
+                    <div className="flex gap-2">
+                      <Textarea
+                        id="title"
+                        placeholder="Enter photocard title..."
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        className="bg-surface-1 min-h-[80px] resize-none"
+                      />
+                      <Button variant="outline" size="icon" className="shrink-0" onClick={() => handlePaste(setTitle)}>
+                        <ClipboardPaste className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="imageUrl">Image URL / Upload</Label>
+                    <div className="flex gap-2">
+                      <Textarea
+                        id="imageUrl"
+                        placeholder="https://example.com/image.jpg"
+                        value={imageUrl}
+                        onChange={(e) => setImageUrl(e.target.value)}
+                        className="bg-surface-1 min-h-[80px] resize-none"
+                        disabled={!!uploadedImage}
+                      />
+                      <div className="flex flex-col gap-2">
+                        <Button variant="outline" size="icon" onClick={() => handlePaste(setImageUrl)} disabled={!!uploadedImage}>
+                          <ClipboardPaste className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} className={cn(uploadedImage && "bg-primary text-primary-foreground")}>
+                          <ImageIcon className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+                  </div>
+                  <Button className="w-full h-12" onClick={() => generatePhotoCard()} disabled={isGenerating || (!imageUrl && !uploadedImage)}>
+                    {isGenerating ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
+                    Generate Preview
+                  </Button>
+                </div>
               )}
             </div>
 
-            {previewUrl && (
-              <div className="flex gap-2">
-                <Button variant="secondary" className="flex-grow" onClick={() => {
-                  const link = document.createElement('a');
-                  link.download = `${generatedTitle || title || 'photocard'}.png`;
-                  link.href = previewUrl;
-                  link.click();
-                }}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Download PNG
-                </Button>
-              </div>
+            {(previewUrl || title || imageUrl || postUrl || uploadedImage) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-muted-foreground hover:text-destructive"
+                onClick={() => {
+                  setTitle('');
+                  setImageUrl('');
+                  setPreviewUrl(null);
+                  setGeneratedTitle('');
+                  setPostUrl('');
+                  clearUploadedImage();
+                  toast.info("Form cleared");
+                }}
+              >
+                <Trash2 className="h-3 w-3 mr-2" /> Clear Form
+              </Button>
             )}
 
             {uploadedImage && (
               <div className="mt-4 flex flex-col items-center">
                 <div className="relative group">
-                  <div className="w-24 h-24 rounded-lg overflow-hidden border bg-surface-2">
+                  <div className="w-16 h-16 rounded-lg overflow-hidden border bg-surface-2">
                     <img src={uploadedImage} alt="Uploaded" className="w-full h-full object-cover" />
                   </div>
                   <button
                     onClick={clearUploadedImage}
-                    className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 shadow-md hover:scale-110 transition-transform"
-                    title="Clear uploaded image"
+                    className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 shadow-md"
                   >
                     <X className="h-3 w-3" />
                   </button>
                 </div>
-                <span className="text-[10px] text-muted-foreground mt-1">Uploaded image active</span>
+                <span className="text-[10px] text-muted-foreground mt-1">Image active</span>
               </div>
             )}
           </div>
 
-          <div className="flex flex-col space-y-6">
-            <div className="relative w-full aspect-square border-2 border-dashed rounded-2xl overflow-hidden flex items-center justify-center bg-surface-1 shadow-inner">
-              {previewUrl ? (
-                <img src={previewUrl} alt="Preview" className="w-full h-full object-contain" />
-              ) : (
-                <div className="text-muted-foreground flex flex-col items-center gap-2">
-                  <ImageIcon className="h-12 w-12 opacity-20" />
-                  <span>Preview will appear here</span>
-                </div>
-              )}
+          {/* Second (Middle): Automation Part */}
+          <div className="space-y-6 bg-card p-6 rounded-2xl border shadow-sm flex flex-col items-center justify-center relative overflow-hidden">
+            <div className="absolute top-4 left-6 right-6 flex items-center justify-between border-b pb-2">
+              <h3 className="text-xs font-bold flex items-center gap-2 text-primary">
+                <Zap className="h-4 w-4" />
+                AUTOMATION SYSTEM
+              </h3>
+              <div className="flex items-center gap-2">
+                <div className={cn("w-2 h-2 rounded-full",
+                  !autoModeActive ? 'bg-zinc-400' :
+                  isLeader ? 'bg-green-500 animate-pulse' : 'bg-amber-500'
+                )} />
+                <span className="text-[10px] uppercase font-bold">
+                  {!autoModeActive ? 'Idle' : isLeader ? 'Active' : 'Standby'}
+                </span>
+              </div>
             </div>
-            <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} className="hidden" />
 
-            <div className="bg-card p-5 space-y-4 rounded-2xl border shadow-sm">
-              <div className="flex items-center justify-between border-b pb-2.5">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold flex items-center gap-2 text-primary">
-                    <Zap className="h-4 w-4" />
-                    AUTOMATION
-                  </h3>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
-                    onClick={() => setShowLogs(!showLogs)}
-                    title={showLogs ? "Hide Logs" : "Show Logs"}
-                  >
-                    {showLogs ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </Button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className={cn("w-2 h-2 rounded-full",
-                    !autoModeActive ? 'bg-zinc-400' :
-                    isLeader ? 'bg-green-500 animate-pulse' : 'bg-amber-500'
-                  )} />
-                  <span className="text-[10px] uppercase font-bold">
-                    {!autoModeActive ? 'Idle' : isLeader ? `Active (${automationMode === 'main' ? 'Regular' : 'Backup'})` : 'Standby'}
-                  </span>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant={autoModeActive ? "destructive" : "default"}
-                  size="sm"
-                  className="flex-1 text-[10px]"
-                  onClick={() => {
-                    if (!autoModeActive) {
-                      cleanOldCache();
-                      backupInitializedRef.current = false;
-                      setAutoModeActive(true);
-                    } else {
-                      setAutoModeActive(false);
-                    }
-                  }}
-                >
-                  {autoModeActive ? (
-                    <><Square className="h-3 w-3 mr-1" /> STOP</>
-                  ) : (
-                    <><Play className="h-3 w-3 mr-1" /> START</>
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="px-3 text-[10px] font-bold"
-                  onClick={() => {
-                    nextFetchLimitRef.current = 36;
-                    if (!autoModeActive) {
-                      cleanOldCache();
-                      setAutoModeActive(true);
-                    } else {
-                      checkAndGenerate();
-                    }
-                  }}
-                  title="Fetch latest 36 posts once"
-                >
-                  +30
-                </Button>
-              </div>
+            <div className="flex flex-col items-center gap-6 py-8">
+              <button
+                onClick={() => {
+                  if (!autoModeActive) {
+                    cleanOldCache();
+                    backupInitializedRef.current = false;
+                    setAutoModeActive(true);
+                  } else {
+                    setAutoModeActive(false);
+                  }
+                }}
+                className={cn(
+                  "w-32 h-32 rounded-full border-8 flex flex-col items-center justify-center transition-all duration-300 shadow-xl",
+                  autoModeActive
+                    ? "bg-destructive border-destructive/20 text-destructive-foreground scale-95 shadow-destructive/20"
+                    : "bg-primary border-primary/20 text-primary-foreground hover:scale-105 shadow-primary/20"
+                )}
+              >
+                {autoModeActive ? <Square className="h-8 w-8 mb-1" /> : <Play className="h-8 w-8 mb-1" />}
+                <span className="text-xs font-black tracking-tighter">{autoModeActive ? 'STOP' : 'START'}</span>
+              </button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full px-6 font-bold"
+                onClick={() => {
+                  nextFetchLimitRef.current = 36;
+                  if (!autoModeActive) {
+                    cleanOldCache();
+                    setAutoModeActive(true);
+                  } else {
+                    checkAndGenerate();
+                  }
+                }}
+              >
+                FETCH LATEST +30
+              </Button>
+            </div>
+
+            <div className="w-full mt-auto">
+              <button
+                onClick={() => setShowLogs(!showLogs)}
+                className="w-full flex items-center justify-between p-3 bg-surface-2 rounded-xl border hover:bg-surface-3 transition-colors"
+              >
+                <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-2">
+                  <List className="h-3 w-3" /> System Logs
+                </span>
+                {showLogs ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
               {showLogs && (
-                <div className="bg-surface-2 rounded-lg p-3 h-32 overflow-y-auto scrollbar-hide text-[10px] space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
-                  {autoLogs.length === 0 ? <div className="text-muted-foreground italic">Waiting for activity...</div> : autoLogs.map((log, i) => (
-                    <div key={i} className={cn(log.type === 'success' ? 'text-green-600' : log.type === 'error' ? 'text-red-600' : log.type === 'process' ? 'text-primary' : 'text-muted-foreground')}>
-                      [{new Date(log.timestamp).toLocaleTimeString()}] {log.message}
-                    </div>
-                  ))}
+                <div className="mt-2 bg-black rounded-xl p-3 h-32 overflow-y-auto font-mono text-[9px] space-y-1 animate-in slide-in-from-top-2">
+                  {autoLogs.length === 0 ? (
+                    <div className="text-zinc-600 italic">No system activity logged...</div>
+                  ) : (
+                    autoLogs.map((log, i) => (
+                      <div key={i} className={cn(
+                        log.type === 'success' ? 'text-green-400' :
+                        log.type === 'error' ? 'text-red-400' :
+                        log.type === 'process' ? 'text-blue-400' : 'text-zinc-400'
+                      )}>
+                        <span className="text-zinc-600">[{new Date(log.timestamp).toLocaleTimeString()}]</span> {log.message}
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </div>
           </div>
+
+          {/* Third (Right): Configurations */}
+          <div className="space-y-6 bg-card p-6 rounded-2xl border shadow-sm flex flex-col">
+            <div className="flex items-center gap-2 border-b pb-2 mb-4">
+              <Settings2 className="h-4 w-4 text-primary" />
+              <h3 className="text-xs font-bold uppercase tracking-wider">Configurations</h3>
+            </div>
+            <div className="flex-grow flex items-center justify-center border-2 border-dashed rounded-xl opacity-30 italic text-xs">
+              Configurations part (Empty)
+            </div>
+          </div>
         </div>
 
-        {autoRecords.length > 0 && (
-          <div className="space-y-6 pt-8 border-t">
-            <div className="flex items-center justify-between border-b pb-4">
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                <List className="h-6 w-6 text-primary" /> GENERATIONS
-              </h2>
-              <Button variant="destructive" size="sm" onClick={async () => {
-                if (window.confirm("Clear all?")) { await clearRecordsDB(); setAutoRecords([]); }
-              }}>
-                <Trash2 className="h-3.5 w-3.5 mr-1.5" /> CLEAR ALL
-              </Button>
-            </div>
+        <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} className="hidden" />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {autoRecords.map((record) => (
+        <div className="space-y-6 pt-4">
+          <div className="flex items-center justify-between border-b pb-4">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <History className="h-6 w-6 text-primary" /> GENERATIONS
+            </h2>
+            <Button variant="destructive" size="sm" onClick={async () => {
+              if (window.confirm("Clear all generations?")) { await clearRecordsDB(); setAutoRecords([]); }
+            }}>
+              <Trash2 className="h-3.5 w-3.5 mr-1.5" /> CLEAR ALL
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {/* Live Preview Card (Fixed First Position) */}
+            {livePreview && previewUrl && (
+              <div className="flex flex-col animate-in fade-in zoom-in-95 duration-300">
+                <div className="mb-2 px-1">
+                  <span className="text-[10px] font-black bg-primary text-primary-foreground px-2 py-0.5 rounded-full uppercase tracking-tighter">Live Preview</span>
+                </div>
+                <div className="rounded-xl overflow-hidden aspect-square relative bg-white border-2 border-primary shadow-lg">
+                  <img src={previewUrl} alt="Live Preview" className="w-full h-full object-contain" />
+                </div>
+                <div className="mt-2 flex gap-1">
+                  <Button variant="destructive" size="sm" className="flex-1 text-[9px] h-8" onClick={() => {
+                    const link = document.createElement('a');
+                    link.download = `preview.png`;
+                    link.href = previewUrl;
+                    link.click();
+                  }}>
+                    <Download className="h-3 w-3 mr-1" /> SAVE
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {autoRecords.map((record) => (
                 <div key={record.id} className="flex flex-col animate-fade-in-up group">
                   <div className="mb-2 px-1 flex items-start gap-2">
                     {record.url && record.url !== 'manual' && (
@@ -1546,8 +1572,7 @@ const Secret = () => {
               ))}
             </div>
           </div>
-        )}
-      </div>
+        </div>
 
       <footer className="mt-20 pb-8 text-center text-[10px] text-muted-foreground font-solaiman-regular">
         <p>© {new Date().getFullYear()} <a href="https://www.facebook.com/share/1Ai3WQCcqc/" target="_blank" rel="noopener noreferrer" className="hover:underline text-primary font-bold">Abdullah Bari Asif</a></p>
