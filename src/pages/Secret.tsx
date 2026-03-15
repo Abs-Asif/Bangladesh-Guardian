@@ -5,9 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { censorText, defaultMappings } from "@/lib/censor";
-import { Download, RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings2, X, ClipboardPaste, History, Clock, AlertCircle, List, Zap, Play, Square, Trash2, Volume2, Eye, EyeOff, Copy, Plus, ShieldAlert, ArrowRight, Facebook } from "lucide-react";
+import { Download, RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings2, X, ClipboardPaste, History, Clock, AlertCircle, List, Zap, Play, Square, Trash2, Volume2, Eye, EyeOff, Copy, Plus, ShieldAlert, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
-import puter from '@heyputer/puter.js';
 
 interface AutoRecord {
   id: string;
@@ -36,6 +35,16 @@ interface LogEntry {
 
 const DB_NAME = 'SecretBGDB';
 const STORE_NAME = 'photocards';
+
+const FacebookThinIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="currentColor"
+  >
+    <path d="M9 2.97973C9 2.43863 9.43863 2 9.97973 2H14.0203C14.5614 2 15 2.43863 15 2.97973V6.97973H19.0203C19.5614 6.97973 20 7.41836 20 7.95946V11.0203C20 11.5614 19.5614 12 19.0203 12H15V21.0203C15 21.5614 14.5614 22 14.0203 22H9.97973C9.43863 22 9 21.5614 9 21.0203V12H6.97973C6.43863 12 6 11.5614 6 11.0203V7.95946C6 7.41836 6.43863 6.97973 6.97973 6.97973H9V2.97973Z" />
+  </svg>
+);
 
 const ENC_PW = "MDE1MjIxMDUzNzM="; // btoa("01522105373")
 
@@ -267,7 +276,7 @@ const Secret = () => {
         const parsed = JSON.parse(savedUrls);
         if (Array.isArray(parsed)) {
           const map = new Map<string, number>();
-          parsed.forEach((item: any) => {
+          parsed.forEach((item: { url: string; timestamp?: number } | string) => {
             if (typeof item === 'string') {
               map.set(item, Date.now());
             } else if (item && typeof item === 'object' && item.url) {
@@ -344,9 +353,12 @@ const Secret = () => {
     setAutoLogs(prev => [newLog, ...prev]);
   };
 
-  const cleanOldCache = () => {
+  const cleanOldCache = async () => {
     const twoDaysAgo = Date.now() - (2 * 24 * 60 * 60 * 1000);
+    const oneHourAgo = Date.now() - (60 * 60 * 1000);
     let changed = false;
+
+    // Clean processed URLs cache
     const nextMap = new Map(processedUrls);
     for (const [url, timestamp] of nextMap.entries()) {
       if (timestamp < twoDaysAgo) {
@@ -357,6 +369,26 @@ const Secret = () => {
     if (changed) {
       setProcessedUrls(nextMap);
       addLog("Cleaned up old cached URLs.");
+    }
+
+    // Clean photocards IndexedDB cache (older than 1 hour as Flash Upload expires)
+    try {
+      const records = await getAllRecordsDB();
+      for (const record of records) {
+        const recordTime = new Date(record.timestamp).getTime();
+        if (recordTime < oneHourAgo) {
+          await deleteRecordDB(record.id);
+        }
+      }
+      const updatedRecords = await getAllRecordsDB();
+      setAutoRecords(updatedRecords.sort((a, b) => {
+        const aVal = a.contentId || new Date(a.timestamp).getTime();
+        const bVal = b.contentId || new Date(b.timestamp).getTime();
+        return bVal - aVal;
+      }));
+      addLog("Purged expired photocard records (older than 1h).");
+    } catch (e) {
+      console.error("Cache purge failed:", e);
     }
   };
 
@@ -617,7 +649,9 @@ const Secret = () => {
           const blob = await response.blob();
           return URL.createObjectURL(blob);
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn("Direct fetch failed:", e);
+      }
     }
 
     for (const proxy of proxies) {
@@ -628,7 +662,9 @@ const Secret = () => {
           const blob = await response.blob();
           return URL.createObjectURL(blob);
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn("Proxy fetch failed:", e);
+      }
     }
     throw new Error("Failed to load image.");
   };
@@ -770,7 +806,7 @@ const Secret = () => {
     }
   };
 
-  const generatePhotoCard = async (isLive = false) => {
+  const generatePhotoCard = React.useCallback(async (isLive = false) => {
     const finalImageUrl = uploadedImage || imageUrl;
     if (!title || !finalImageUrl) {
       if (!isLive) toast.error("Please provide both title and image");
@@ -828,7 +864,7 @@ const Secret = () => {
     } finally {
       if (!isLive) setIsGenerating(false);
     }
-  };
+  }, [uploadedImage, imageUrl, title, wordRestrictions, fontSize, titleLetterSpacing, lineHeightFactor, dateFontSize, dateXOffset, dateYOffset, postUrl]);
 
   useEffect(() => {
     const finalImageUrl = uploadedImage || imageUrl;
@@ -839,7 +875,7 @@ const Secret = () => {
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [title, imageUrl, uploadedImage, livePreview, fontSize, titleLetterSpacing, lineHeightFactor, dateFontSize, dateXOffset, dateYOffset]);
+  }, [title, imageUrl, uploadedImage, livePreview, fontSize, titleLetterSpacing, lineHeightFactor, dateFontSize, dateXOffset, dateYOffset, generatePhotoCard]);
 
   const scrapeLatestLinks = async (fetchLimit: number = 3) => {
     try {
@@ -958,7 +994,7 @@ const Secret = () => {
     }
   };
 
-  const checkAndGenerate = async () => {
+  const checkAndGenerate = React.useCallback(async () => {
     if (isAutoCheckingRef.current) return;
     isAutoCheckingRef.current = true;
     setIsAutoChecking(true);
@@ -1067,12 +1103,12 @@ const Secret = () => {
       setIsAutoChecking(false);
       isAutoCheckingRef.current = false;
     }
-  };
+  }, [processedUrls, automationFrequency, automationMode, wordRestrictions]);
 
   useEffect(() => {
     if (!autoModeActive) return;
 
-    let wakeLock: any = null;
+    let wakeLock: { release: () => Promise<void> } | null = null;
     let isMounted = true;
     const controller = new AbortController();
 
@@ -1101,13 +1137,15 @@ const Secret = () => {
     const init = async () => {
       try {
         if ('wakeLock' in navigator) {
-          wakeLock = await (navigator as any).wakeLock.request('screen');
+          wakeLock = await (navigator as unknown as { wakeLock: { request: (type: string) => Promise<{ release: () => Promise<void> }> } }).wakeLock.request('screen');
         }
-      } catch (err) {}
+      } catch (err) {
+        console.error("WakeLock error:", err);
+      }
 
       try {
         if ('locks' in navigator) {
-          navigator.locks.request('bg_photocard_automation', { signal: controller.signal }, async (lock) => {
+          navigator.locks.request('bg_photocard_automation', { signal: controller.signal }, async () => {
             if (!isMounted) return;
             setIsLeader(true);
             addLog("Took leadership of automation.", "success");
@@ -1145,7 +1183,7 @@ const Secret = () => {
         URL.revokeObjectURL(workerInstance.url);
       }
     };
-  }, [autoModeActive, automationFrequency.interval]);
+  }, [autoModeActive, automationFrequency.interval, checkAndGenerate]);
 
   const handleFacebookShare = async (id: string, dataUrl: string) => {
     setIsSharing(id);
@@ -1153,44 +1191,18 @@ const Secret = () => {
       // Convert data URL to Blob
       const res = await fetch(dataUrl);
       const blob = await res.blob();
-      // Facebook Sharer API ALWAYS requires a link.
-      // We host the image temporarily to provide that link.
 
-      // Check if we already have a subdomain for hosting
-      let subdomain = await puter.kv.get("bg_photocard_subdomain");
-      if (!subdomain) {
-        subdomain = "bg-card-" + Math.random().toString(36).substring(2, 9);
-        try {
-          await puter.hosting.create(subdomain, "photocards");
-          await puter.kv.set("bg_photocard_subdomain", subdomain);
-        } catch (e) {
-          console.warn("Hosting creation failed", e);
-        }
-      }
+      const formData = new FormData();
+      formData.append('file', blob, `${id}.png`);
 
-      try { await puter.fs.mkdir("photocards"); } catch (e) {}
+      const uploadRes = await fetch('https://flash-upload-api.lovable.app/upload', {
+        method: 'POST',
+        body: formData,
+      });
 
-      const filePath = `photocards/${id}.png`;
-      await puter.fs.write(filePath, blob);
-
-      let publicUrl = "";
-      if (subdomain) {
-        publicUrl = `https://${subdomain}.puter.site/${id}.png`;
-      } else {
-        publicUrl = await puter.fs.getReadURL(filePath);
-      }
-
-      // Auto-cleanup: Delete old files to stay under 500MB limit
-      // We'll delete files older than 6 hours
-      const sixHoursAgo = Date.now() - (6 * 60 * 60 * 1000);
-      try {
-        const items = await puter.fs.list("photocards");
-        for (const item of items) {
-          if (item.modified < sixHoursAgo) {
-            await puter.fs.delete(`photocards/${item.name}`);
-          }
-        }
-      } catch (e) {}
+      if (!uploadRes.ok) throw new Error("Upload failed");
+      const uploadData = await uploadRes.json();
+      const publicUrl = uploadData.url;
 
       const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(publicUrl)}`;
 
@@ -1429,11 +1441,16 @@ const Secret = () => {
             {previewUrl && (
               <div className="flex gap-2">
                 <Button
-                  className="bg-[#1877F2] hover:bg-[#1877F2]/90 text-white flex-shrink-0 h-10 w-10 p-0"
+                  className="bg-[#1877F2] hover:bg-[#1877F2]/90 text-white flex-grow font-bold"
                   onClick={() => handleFacebookShare('manual-preview', previewUrl)}
                   disabled={isSharing === 'manual-preview'}
                 >
-                  {isSharing === 'manual-preview' ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Facebook className="h-5 w-5" />}
+                  {isSharing === 'manual-preview' ? (
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <FacebookThinIcon className="mr-2 h-4 w-4" />
+                  )}
+                  Prepare to Post
                 </Button>
                 <Button variant="secondary" className="flex-grow" onClick={() => {
                   const link = document.createElement('a');
@@ -1604,11 +1621,16 @@ const Secret = () => {
                   </div>
                   <div className="mt-3 flex gap-2">
                     <Button
-                      className="bg-[#1877F2] hover:bg-[#1877F2]/90 text-white h-9 w-9 p-0 flex-shrink-0"
+                      className="bg-[#1877F2] hover:bg-[#1877F2]/90 text-white flex-grow font-bold h-9 text-[11px]"
                       onClick={() => handleFacebookShare(record.id, record.previewUrl)}
                       disabled={isSharing === record.id}
                     >
-                      {isSharing === record.id ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Facebook className="h-4 w-4" />}
+                      {isSharing === record.id ? (
+                        <RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <FacebookThinIcon className="mr-2 h-3.5 w-3.5" />
+                      )}
+                      Prepare to Post
                     </Button>
                     <Button variant="destructive" size="sm" className="flex-grow text-[10px] h-9" onClick={() => {
                       const link = document.createElement('a');
