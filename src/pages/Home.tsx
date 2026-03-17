@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { censorText } from "@/lib/censor";
-import { Download, RefreshCw, Image as ImageIcon, ChevronRight, ClipboardPaste, List, Zap, Play, Square, Trash2, Copy, Trash, X, Globe, PenTool } from "lucide-react";
+import { Download, RefreshCw, Image as ImageIcon, ChevronRight, ClipboardPaste, List, Zap, Play, Square, Trash2, Copy, Trash, X, PenTool, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
 interface AutoRecord {
@@ -220,7 +220,9 @@ const Home = () => {
           document.fonts.load('400 16px "Solaiman Lipi"'),
           document.fonts.load('700 16px "Solaiman Lipi"')
         ]);
-      } catch (e) {}
+      } catch (e) {
+        // Fallback
+      }
     };
     preloadFonts();
     const savedUrls = localStorage.getItem('bg_secret_processed_urls');
@@ -228,9 +230,11 @@ const Home = () => {
       try {
         const parsed = JSON.parse(savedUrls);
         const map = new Map<string, number>();
-        parsed.forEach((item: any) => map.set(item.url, item.timestamp || Date.now()));
+        parsed.forEach((item: { url: string; timestamp: number }) => map.set(item.url, item.timestamp || Date.now()));
         setProcessedUrls(map);
-      } catch (e) {}
+      } catch (e) {
+        // Fallback
+      }
     }
     if (localStorage.getItem('bg_secret_auto_active') === 'true') setAutoModeActive(true);
     getAllRecordsDB().then(records => {
@@ -293,13 +297,13 @@ const Home = () => {
     return diffDays < 7 ? `${diffDays} days ago` : diffDays === 7 ? 'A week ago' : `${Math.floor(diffDays/7)} weeks ago`;
   };
 
-  const formatSitemapTime = (isoStr: string) => {
+  const formatSitemapTime = useCallback((isoStr: string) => {
     try {
       const date = new Date(isoStr);
       const h = date.getHours(), m = date.getMinutes().toString().padStart(2, '0'), ampm = h >= 12 ? 'PM' : 'AM';
       return `[${h%12||12}:${m} ${ampm}] [${getRelativeDateStr(date)}]`;
     } catch (e) { return ''; }
-  };
+  }, []);
 
   const fetchImageWithProxy = async (url: string): Promise<string> => {
     const proxies = [
@@ -308,10 +312,14 @@ const Home = () => {
       (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
     ];
     if (!url.includes('bangladeshguardian.com')) {
-      try { const res = await fetch(url, { mode: 'cors' }); if (res.ok) return URL.createObjectURL(await res.blob()); } catch {}
+      try { const res = await fetch(url, { mode: 'cors' }); if (res.ok) return URL.createObjectURL(await res.blob()); } catch {
+        // Fallback
+      }
     }
     for (const p of proxies) {
-      try { const res = await fetch(p(url)); if (res.ok) return URL.createObjectURL(await res.blob()); } catch {}
+      try { const res = await fetch(p(url)); if (res.ok) return URL.createObjectURL(await res.blob()); } catch {
+        // Fallback
+      }
     }
     throw new Error("Failed to load image");
   };
@@ -335,13 +343,13 @@ const Home = () => {
     const template = new Image();
     template.crossOrigin = "anonymous";
     template.src = `/${templateName}`;
-    await new Promise(r => template.onload = r);
+    await new Promise(r => { template.onload = r; });
 
     let adImg: HTMLImageElement | null = null;
     const selectedAdId = localStorage.getItem('bg_selected_ad');
     if (selectedAdId) {
       const adData = await getSelectedAd(selectedAdId);
-      if (adData) { adImg = new Image(); adImg.src = adData.data; await new Promise(r => adImg!.onload = r); }
+      if (adData) { adImg = new Image(); adImg.src = adData.data; await new Promise(r => { adImg!.onload = r; }); }
     }
 
     const adHeight = adImg ? (CANVAS_WIDTH / adImg.width) * adImg.height : 0;
@@ -353,7 +361,7 @@ const Home = () => {
     const userImgBlobUrl = (targetImageUrl.startsWith('blob:') || targetImageUrl.startsWith('data:')) ? targetImageUrl : await fetchImageWithProxy(targetImageUrl);
     const userImg = new Image();
     userImg.src = userImgBlobUrl;
-    await new Promise(r => userImg.onload = r);
+    await new Promise(r => { userImg.onload = r; });
 
     const scale = Math.max(BOX.w / userImg.width, BOX.h / userImg.height);
     const drawW = userImg.width * scale, drawH = userImg.height * scale;
@@ -392,7 +400,7 @@ const Home = () => {
 
     if (userImgBlobUrl.startsWith('blob:') && userImgBlobUrl !== targetImageUrl) URL.revokeObjectURL(userImgBlobUrl);
     return canvas.toDataURL('image/png');
-  }, [dateFontSize, dateXOffset, dateYOffset, fontSize, lineHeightFactor, titleLetterSpacing]);
+  }, [dateFontSize, dateXOffset, dateYOffset, fontSize, lineHeightFactor, titleLetterSpacing, BOX.h, BOX.w, BOX.x, BOX.y, DATE_Y, TITLE_X]);
 
   const generatePhotoCard = useCallback(async (isLive = false) => {
     const finalImg = uploadedImage || imageUrl;
@@ -429,7 +437,9 @@ const Home = () => {
           html = proxy.type === 'json' ? (await response.json()).contents : await response.text();
           if (html && (html.includes('<title>') || html.includes('og:title'))) break;
         }
-      } catch (e) {}
+      } catch (e) {
+        // Fallback
+      }
     }
     if (!html) return null;
     const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -439,6 +449,38 @@ const Home = () => {
       publishDate: doc.querySelector('meta[property="article:published_time"]')?.getAttribute('content') || doc.querySelector('meta[name="publish-date"]')?.getAttribute('content') || ''
     };
   };
+
+  const scrapeLatestLinks = useCallback(async (fetchLimit: number = 3) => {
+    try {
+      const response = await fetch("https://backoffice.bangladeshguardian.com/api-en/archive", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ start_date: "", end_date: "", category_name: "", limit: fetchLimit, offset: 0 })
+      });
+      const data = await response.json();
+      return (data.archive_data || []).map((item: BGArchiveItem) => ({
+        url: `https://www.bangladeshguardian.com/${item.Slug}/${item.ContentID}`,
+        title: item.ContentHeading, image: `https://backoffice.bangladeshguardian.com/media/imgAll/${item.ImageBgPath}`,
+        postTime: item.create_date ? formatSitemapTime(item.create_date) : '', contentId: item.ContentID
+      }));
+    } catch (e) { return null; }
+  }, [formatSitemapTime]);
+
+  const scrapeSitemapLinks = useCallback(async () => {
+    const now = new Date();
+    const sitemapUrl = `https://www.bangladeshguardian.com/english-sitemap/sitemap-daily-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.xml`;
+    try {
+      const response = await fetch(sitemapUrl); if (!response.ok) return [];
+      const xmlDoc = new DOMParser().parseFromString(await response.text(), "text/xml");
+      return Array.from(xmlDoc.getElementsByTagName("url")).map(node => {
+        const loc = node.getElementsByTagName("loc")[0]?.textContent || '';
+        return {
+          url: loc.trim(), title: '', image: node.getElementsByTagName("image:loc")[0]?.textContent || '',
+          postTime: node.getElementsByTagName("lastmod")[0]?.textContent ? formatSitemapTime(node.getElementsByTagName("lastmod")[0].textContent!) : '',
+          contentId: parseInt(loc.replace(/\/$/, '').split('/').pop() || '0')
+        };
+      }).filter(i => i.url && i.image).reverse();
+    } catch (e) { return []; }
+  }, [formatSitemapTime]);
 
   const fetchPostData = async () => {
     const trimmedUrl = postUrl.trim().replace(/\/$/, '');
@@ -473,38 +515,6 @@ const Home = () => {
     } catch (error) { toast.error("Failed to fetch post data."); } finally { setIsFetching(false); }
   };
 
-  const scrapeLatestLinks = async (fetchLimit: number = 3) => {
-    try {
-      const response = await fetch("https://backoffice.bangladeshguardian.com/api-en/archive", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ start_date: "", end_date: "", category_name: "", limit: fetchLimit, offset: 0 })
-      });
-      const data = await response.json();
-      return (data.archive_data || []).map((item: BGArchiveItem) => ({
-        url: `https://www.bangladeshguardian.com/${item.Slug}/${item.ContentID}`,
-        title: item.ContentHeading, image: `https://backoffice.bangladeshguardian.com/media/imgAll/${item.ImageBgPath}`,
-        postTime: item.create_date ? formatSitemapTime(item.create_date) : '', contentId: item.ContentID
-      }));
-    } catch (e) { return null; }
-  };
-
-  const scrapeSitemapLinks = async () => {
-    const now = new Date();
-    const sitemapUrl = `https://www.bangladeshguardian.com/english-sitemap/sitemap-daily-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.xml`;
-    try {
-      const response = await fetch(sitemapUrl); if (!response.ok) return [];
-      const xmlDoc = new DOMParser().parseFromString(await response.text(), "text/xml");
-      return Array.from(xmlDoc.getElementsByTagName("url")).map(node => {
-        const loc = node.getElementsByTagName("loc")[0]?.textContent || '';
-        return {
-          url: loc.trim(), title: '', image: node.getElementsByTagName("image:loc")[0]?.textContent || '',
-          postTime: node.getElementsByTagName("lastmod")[0]?.textContent ? formatSitemapTime(node.getElementsByTagName("lastmod")[0].textContent!) : '',
-          contentId: parseInt(loc.replace(/\/$/, '').split('/').pop() || '0')
-        };
-      }).filter(i => i.url && i.image).reverse();
-    } catch (e) { return []; }
-  };
-
   const checkAndGenerate = useCallback(async () => {
     if (isAutoCheckingRef.current) return;
     isAutoCheckingRef.current = true; setIsAutoChecking(true);
@@ -516,7 +526,7 @@ const Home = () => {
         addLog("Initializing Backup mode...", "process");
         const articles = await scrapeSitemapLinks();
         const nextMap = new Map(processedUrlsRef.current);
-        articles.forEach(art => nextMap.set(art.url, Date.now()));
+        articles.forEach(art => { nextMap.set(art.url, Date.now()); });
         setProcessedUrls(nextMap);
         backupInitializedRef.current = true;
         addLog(`Backup mode initialized with ${articles.length} posts.`, "success");
@@ -524,8 +534,9 @@ const Home = () => {
       }
       const articles = automationMode === 'main' ? await scrapeLatestLinks(limit) : await scrapeSitemapLinks();
       const newArticles = (articles || []).filter(art => !processedUrlsRef.current.has(art.url)).slice(0, limit).reverse();
-      if (newArticles.length === 0) addLog("No new posts found.");
-      else {
+      if (newArticles.length === 0) {
+        addLog("No new posts found.");
+      } else {
         addLog(`Found ${newArticles.length} new post(s).`);
         for (const article of newArticles) {
           let artTitle = article.title, artImage = article.image;
@@ -545,11 +556,11 @@ const Home = () => {
         }
       }
     } catch (e) { addLog("Automation error.", "error"); } finally { setIsAutoChecking(false); isAutoCheckingRef.current = false; }
-  }, [addLog, generatePhotoCardInternal, playNotification, automationFrequency, automationMode, wordRestrictions]);
+  }, [addLog, generatePhotoCardInternal, playNotification, automationFrequency, automationMode, wordRestrictions, scrapeLatestLinks, scrapeSitemapLinks]);
 
   useEffect(() => {
     if (!autoModeActive) return;
-    let wakeLock: any = null, isMounted = true;
+    let wakeLock: { release: () => Promise<void> } | null = null, isMounted = true;
     const controller = new AbortController();
     const startAutomation = (intervalMs: number) => {
       const blob = new Blob([`let i; self.onmessage=e=>{if(e.data==='start'){self.postMessage('tick');i=setInterval(()=>self.postMessage('tick'),${intervalMs})}else if(e.data==='stop')clearInterval(i)}`], { type: 'application/javascript' });
@@ -559,164 +570,192 @@ const Home = () => {
       worker.postMessage('start');
       return { worker, url };
     };
-    let workerInstance: any = null;
+    let workerInstance: { worker: Worker; url: string } | null = null;
     const init = async () => {
-      try { if ('wakeLock' in navigator) wakeLock = await (navigator as any).wakeLock.request('screen'); } catch (err) {}
+      try {
+        if ('wakeLock' in navigator) {
+          const wl = await (navigator as unknown as { wakeLock: { request: (type: string) => Promise<{ release: () => Promise<void> }> } }).wakeLock.request('screen');
+          wakeLock = wl;
+        }
+      } catch (err) {
+        // Fallback
+      }
       try {
         if ('locks' in navigator) {
-          navigator.locks.request('bg_photocard_automation', { signal: controller.signal }, async () => {
-            if (!isMounted) return; setIsLeader(true); addLog("Took leadership of automation.", "success");
+          navigator.locks.request('bg_photocard_automation', { signal: controller.signal }, async (lock) => {
+            if (!lock || !isMounted) return;
+            setIsLeader(true); addLog("Took leadership of automation.", "success");
             workerInstance = startAutomation(automationFrequency.interval);
-            await new Promise(resolve => controller.signal.addEventListener('abort', resolve));
+            await new Promise(resolve => { controller.signal.addEventListener('abort', resolve); });
             setIsLeader(false);
           }).catch(err => { if (err.name !== 'AbortError') { setIsLeader(false); addLog("Automation standby", "info"); } });
         } else { setIsLeader(true); workerInstance = startAutomation(automationFrequency.interval); }
       } catch (err) { setIsLeader(true); workerInstance = startAutomation(automationFrequency.interval); }
     };
     init();
-    return () => { isMounted = false; controller.abort(); if (wakeLock) wakeLock.release().catch(() => {}); if (workerInstance) { workerInstance.worker.postMessage('stop'); workerInstance.worker.terminate(); URL.revokeObjectURL(workerInstance.url); } };
+    return () => {
+      isMounted = false;
+      controller.abort();
+      if (wakeLock) { (wakeLock as { release: () => Promise<void> }).release().catch(() => {}); }
+      if (workerInstance) { workerInstance.worker.postMessage('stop'); workerInstance.worker.terminate(); URL.revokeObjectURL(workerInstance.url); }
+    };
   }, [autoModeActive, automationFrequency, checkAndGenerate, addLog]);
 
   useEffect(() => {
     if (activeTab !== 'manual' || !livePreviewEnabled || !title || !(uploadedImage || imageUrl)) return;
-    const t = setTimeout(() => generatePhotoCard(true), 500);
-    return () => clearTimeout(t);
+    const t = setTimeout(() => { generatePhotoCard(true); }, 500);
+    return () => { clearTimeout(t); };
   }, [title, imageUrl, uploadedImage, livePreviewEnabled, activeTab, generatePhotoCard]);
 
   const showPreview = activeTab === 'manual' && livePreviewEnabled;
 
   return (
-    <div className="space-y-10 animate-fade-in-up">
-      <div className="flex flex-col lg:flex-row gap-10">
+    <div className="space-y-12 animate-fade-in-up pb-20">
+      <div className="flex flex-col lg:flex-row gap-12">
         <div className="flex-1 space-y-8">
-          <div className="bg-card border p-1 rounded-2xl flex shadow-sm max-w-md">
+          <div className="flex bg-zinc-100 p-1 border border-zinc-200 max-w-sm">
             <button
               onClick={() => setActiveTab('url')}
-              className={cn("flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2", activeTab === 'url' ? "bg-primary text-white shadow-md" : "text-zinc-500 hover:text-foreground")}
+              className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all", activeTab === 'url' ? "bg-white text-primary shadow-sm" : "text-zinc-500 hover:text-zinc-900")}
             >
-              <Globe className="w-4 h-4" /> Post URL
+              Post URL
             </button>
             <button
               onClick={() => setActiveTab('manual')}
-              className={cn("flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2", activeTab === 'manual' ? "bg-primary text-white shadow-md" : "text-zinc-500 hover:text-foreground")}
+              className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all", activeTab === 'manual' ? "bg-white text-primary shadow-sm" : "text-zinc-500 hover:text-zinc-900")}
             >
-              <PenTool className="w-4 h-4" /> Manual Entry
+              Manual Entry
             </button>
           </div>
 
-          <div className="bg-card p-8 rounded-3xl border shadow-lg space-y-6">
+          <div className="bg-white p-8 border border-zinc-200 space-y-6">
             {activeTab === 'url' ? (
-              <div className="space-y-2 animate-in fade-in slide-in-from-left-2 duration-300">
-                <Label className="text-xs uppercase tracking-widest text-zinc-500 font-bold">News post URL</Label>
-                <div className="flex gap-3">
-                  <Textarea value={postUrl} onChange={e => setPostUrl(e.target.value)} placeholder="https://www.bangladeshguardian.com/..." className="bg-surface-1 border-zinc-200 min-h-[100px] text-base leading-relaxed" />
-                  <div className="flex flex-col gap-3">
-                    <Button variant="outline" size="icon" className="h-12 w-12" onClick={() => navigator.clipboard.readText().then(setPostUrl)}><ClipboardPaste className="w-5 h-5" /></Button>
-                    <Button variant="destructive" size="icon" className="h-12 w-12" onClick={fetchPostData} disabled={isFetching || !postUrl}>{isFetching ? <RefreshCw className="w-5 h-5 animate-spin" /> : <ChevronRight className="w-6 h-6" />}</Button>
-                  </div>
+              <div className="space-y-4 animate-in fade-in duration-300">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[10px] uppercase tracking-widest text-zinc-400 font-black">Source URL</Label>
+                  <Button variant="ghost" size="sm" className="h-6 text-[9px] font-black text-primary p-0 hover:bg-transparent" onClick={() => { navigator.clipboard.readText().then(setPostUrl); }}>PASTE FROM CLIPBOARD</Button>
+                </div>
+                <div className="flex gap-4">
+                  <Input value={postUrl} onChange={e => setPostUrl(e.target.value)} placeholder="https://www.bangladeshguardian.com/..." className="bg-zinc-50 border-zinc-200 h-12 text-sm" />
+                  <Button variant="default" className="h-12 w-12 shrink-0" onClick={fetchPostData} disabled={isFetching || !postUrl}>{isFetching ? <RefreshCw className="w-5 h-5 animate-spin" /> : <ChevronRight className="w-6 h-6" />}</Button>
                 </div>
               </div>
             ) : (
-              <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-widest text-zinc-500 font-bold">Title Text</Label>
-                  <div className="flex gap-3">
-                    <Textarea value={title} onChange={e => setTitle(e.target.value)} placeholder="Enter photocard headline..." className="bg-surface-1 border-zinc-200 min-h-[100px] text-base leading-relaxed" />
-                    <Button variant="outline" size="icon" className="h-12 w-12" onClick={() => navigator.clipboard.readText().then(setTitle)}><ClipboardPaste className="w-5 h-5" /></Button>
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] uppercase tracking-widest text-zinc-400 font-black">Headline Text</Label>
+                    <Button variant="ghost" size="sm" className="h-6 text-[9px] font-black text-primary p-0 hover:bg-transparent" onClick={() => { navigator.clipboard.readText().then(setTitle); }}>PASTE TEXT</Button>
                   </div>
+                  <Textarea value={title} onChange={e => setTitle(e.target.value)} placeholder="Enter headline..." className="bg-zinc-50 border-zinc-200 min-h-[100px] text-sm leading-relaxed" />
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-widest text-zinc-500 font-bold">Background Image</Label>
-                  <div className="flex gap-3">
-                    <Input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="Paste image URL..." className="bg-surface-1 border-zinc-200 h-12" disabled={!!uploadedImage} />
-                    <div className="flex gap-3">
-                      <Button variant="outline" size="icon" className="h-12 w-12" onClick={() => fileInputRef.current?.click()}><ImageIcon className="w-5 h-5" /></Button>
-                      <Button variant="outline" size="icon" className="h-12 w-12 text-zinc-400" onClick={() => { setTitle(''); setImageUrl(''); clearUploadedImage(); }}><Trash2 className="w-5 h-5" /></Button>
-                    </div>
+                <div className="space-y-4">
+                  <Label className="text-[10px] uppercase tracking-widest text-zinc-400 font-black">Media Source</Label>
+                  <div className="flex gap-4">
+                    <Input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="Paste image URL..." className="bg-zinc-50 border-zinc-200 h-12 text-sm" disabled={!!uploadedImage} />
+                    <Button variant="outline" className="h-12 gap-2 text-[10px] font-black uppercase px-6" onClick={() => { fileInputRef.current?.click(); }}><ImageIcon className="w-4 h-4" /> UPLOAD</Button>
+                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
                   </div>
-                  <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
                 </div>
                 {uploadedImage && (
-                  <div className="flex items-center gap-4 p-3 bg-zinc-50 rounded-2xl border border-dashed border-zinc-200">
-                    <div className="w-16 h-16 rounded-xl overflow-hidden bg-black shadow-inner"><img src={uploadedImage} className="w-full h-full object-cover" /></div>
-                    <div className="flex-1"><p className="text-xs font-bold">Image ready for generation</p><p className="text-[10px] text-zinc-500 uppercase tracking-widest">Precedence over URL</p></div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-destructive" onClick={clearUploadedImage}><X className="w-4 h-4" /></Button>
+                  <div className="flex items-center gap-4 p-4 bg-zinc-50 border border-dashed border-zinc-200">
+                    <div className="w-12 h-12 bg-black shrink-0"><img src={uploadedImage} className="w-full h-full object-cover" alt="Uploaded Preview" /></div>
+                    <div className="flex-1"><p className="text-[10px] font-black uppercase tracking-wider">Local Image Loaded</p><p className="text-[9px] text-zinc-400 font-bold uppercase">Ready for generation</p></div>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-300 hover:text-red-500" onClick={clearUploadedImage}><X className="w-4 h-4" /></Button>
                   </div>
                 )}
-                <Button className="w-full h-14 rounded-2xl font-bold text-lg" onClick={() => generatePhotoCard()} disabled={isGenerating}>{isGenerating ? <RefreshCw className="animate-spin mr-2" /> : <PenTool className="mr-2" />} Generate PhotoCard</Button>
+                <Button className="w-full h-14 font-black text-xs uppercase tracking-[0.2em] gap-3" onClick={() => { generatePhotoCard(); }} disabled={isGenerating}>{isGenerating ? <RefreshCw className="animate-spin w-4 h-4" /> : <PenTool className="w-4 h-4" />} Create PhotoCard</Button>
               </div>
             )}
           </div>
         </div>
 
-        <div className="w-full lg:w-[420px] space-y-8">
+        <div className="w-full lg:w-[400px] space-y-8">
           {showPreview && (
-            <div className="animate-in zoom-in-95 duration-300">
-              <Label className="text-[10px] uppercase tracking-widest text-zinc-500 font-extrabold mb-2 block">Live Preview</Label>
-              <div className="aspect-square bg-zinc-950 rounded-3xl border border-zinc-800 overflow-hidden flex items-center justify-center shadow-2xl relative">
-                {previewUrl ? <img src={previewUrl} className="w-full h-full object-contain" /> : <div className="text-zinc-600 flex flex-col items-center gap-4"><ImageIcon className="w-16 h-16 opacity-20" /><span className="text-xs font-bold uppercase tracking-widest opacity-40">Rendering...</span></div>}
+            <div className="animate-in slide-in-from-top-4 duration-500">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                <Label className="text-[10px] uppercase tracking-[0.2em] text-zinc-400 font-black">Live Preview</Label>
+              </div>
+              <div className="aspect-square bg-zinc-100 border border-zinc-200 overflow-hidden flex items-center justify-center relative">
+                {previewUrl ? <img src={previewUrl} className="w-full h-full object-contain" alt="Live Preview" /> : <div className="text-zinc-300 flex flex-col items-center gap-3"><ImageIcon className="w-12 h-12 opacity-20" /><span className="text-[9px] font-black uppercase tracking-widest">Rendering...</span></div>}
               </div>
             </div>
           )}
           <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} className="hidden" />
 
-          <div className="bg-card p-8 rounded-3xl border shadow-lg space-y-6">
-            <div className="flex items-center justify-between border-b pb-6">
-              <h3 className="text-sm font-bold flex items-center gap-2 text-primary"><Zap className="w-4 h-4" /> AUTOMATION</h3>
+          <div className="bg-white p-8 border border-zinc-200 space-y-6">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-6">
+              <div className="flex items-center gap-3">
+                <Zap className="w-4 h-4 text-primary" />
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em]">Automation</h3>
+              </div>
               <div className="flex items-center gap-2">
-                <div className={cn("w-2.5 h-2.5 rounded-full", !autoModeActive ? 'bg-zinc-300' : isLeader ? 'bg-green-500 animate-pulse' : 'bg-amber-500')} />
-                <span className="text-[10px] uppercase font-extrabold">{!autoModeActive ? 'Idle' : isLeader ? 'Active' : 'Standby'}</span>
+                <div className={cn("w-2 h-2 rounded-full", !autoModeActive ? 'bg-zinc-200' : isLeader ? 'bg-green-500 animate-pulse' : 'bg-amber-500')} />
+                <span className="text-[9px] uppercase font-black tracking-widest text-zinc-400">{!autoModeActive ? 'Idle' : isLeader ? 'Active' : 'Standby'}</span>
               </div>
             </div>
-            <div className="flex gap-3">
-              <Button variant={autoModeActive ? "destructive" : "default"} className="flex-1 h-12 rounded-2xl font-bold" onClick={() => setAutoModeActive(!autoModeActive)}>
-                {autoModeActive ? <><Square className="w-4 h-4 mr-2"/> STOP SYSTEM</> : <><Play className="w-4 h-4 mr-2"/> START SYSTEM</>}
+            <div className="flex gap-4">
+              <Button variant={autoModeActive ? "destructive" : "default"} className="flex-1 h-12 text-[10px] font-black uppercase tracking-widest" onClick={() => { setAutoModeActive(!autoModeActive); }}>
+                {autoModeActive ? "Stop Engine" : "Start Engine"}
               </Button>
-              <Button variant="outline" className="px-6 h-12 rounded-2xl font-bold" onClick={() => { nextFetchLimitRef.current = 30; if(!autoModeActive) setAutoModeActive(true); else checkAndGenerate(); }}>+ 30</Button>
-              <Button variant="outline" size="icon" className="h-12 w-12 rounded-2xl" onClick={() => setShowLogs(!showLogs)}><List className="w-5 h-5" /></Button>
+              <Button variant="outline" className="h-12 w-12 px-0 text-[10px] font-black" onClick={() => { nextFetchLimitRef.current = 30; if(!autoModeActive) setAutoModeActive(true); else checkAndGenerate(); }}>+30</Button>
+              <Button variant="outline" size="icon" className="h-12 w-12" onClick={() => { setShowLogs(!showLogs); }}><List className="w-4 h-4" /></Button>
             </div>
             {showLogs && (
-              <div className="bg-zinc-50 rounded-2xl p-5 h-48 overflow-y-auto font-mono text-[11px] space-y-1.5 border border-dashed border-zinc-200">
-                {autoLogs.length ? autoLogs.map((l, i) => <div key={i} className={cn(l.type==='success'?'text-green-600':l.type==='error'?'text-red-600':l.type==='process'?'text-primary':'text-zinc-500')}>[{new Date(l.timestamp).toLocaleTimeString()}] {l.message}</div>) : <div className="italic text-zinc-400 text-center py-10 uppercase tracking-widest text-[9px]">No system logs</div>}
+              <div className="bg-zinc-50 p-5 h-48 overflow-y-auto font-mono text-[10px] space-y-2 border border-zinc-100">
+                {autoLogs.length ? autoLogs.map((l, i) => <div key={i} className={cn(l.type==='success'?'text-green-600':l.type==='error'?'text-red-600':l.type==='process'?'text-primary':'text-zinc-400')}>[{new Date(l.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}] {l.message}</div>) : <div className="italic text-zinc-300 text-center py-10 uppercase tracking-widest text-[9px]">No logs</div>}
               </div>
             )}
           </div>
         </div>
       </div>
 
-      <div className="space-y-10 pt-12">
-        <div className="flex items-center justify-between border-b pb-8">
-          <h2 className="text-3xl font-bold flex items-center gap-4">
-            <div className="p-2.5 bg-primary/10 rounded-2xl"><List className="w-8 h-8 text-primary" /></div>
-            Recent Generations
-          </h2>
-          <Button variant="ghost" size="sm" className="rounded-xl px-4 text-zinc-400 hover:text-destructive" onClick={() => { if(confirm('Clear all history?')) { clearRecordsDB(); setAutoRecords([]); } }}><Trash className="w-4 h-4 mr-2" /> CLEAR ALL</Button>
+      <div className="space-y-10 pt-12 border-t border-zinc-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-1.5 h-12 bg-primary" />
+            <div>
+              <h2 className="text-2xl font-black uppercase tracking-tighter">Recent Generations</h2>
+              <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">Session History ({autoRecords.length}/50)</p>
+            </div>
+          </div>
+          <Button variant="ghost" size="sm" className="text-[9px] font-black text-zinc-400 hover:text-red-500 tracking-widest p-0" onClick={() => { if(confirm('Clear all history?')) { clearRecordsDB(); setAutoRecords([]); } }}>CLEAR HISTORY</Button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
           {autoRecords.map(r => (
-            <div key={r.id} className="group flex flex-col space-y-4">
-              <div className="flex items-start gap-4">
-                {r.url && r.url !== 'manual' && (
-                  <button onClick={() => { navigator.clipboard.writeText(r.url); toast.success("URL copied"); }} className="p-2.5 rounded-xl bg-zinc-100 text-zinc-400 hover:bg-primary hover:text-white transition-all"><Copy className="w-4 h-4" /></button>
-                )}
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-bold leading-tight line-clamp-2">
-                    {r.url && r.url !== 'manual' ? (
-                      <a href={r.url} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">{r.title}</a>
-                    ) : r.title}
-                  </h3>
-                  <p className="text-[11px] text-zinc-400 uppercase tracking-widest mt-1.5 font-bold">{r.postTime}</p>
+            <div key={r.id} className="group bg-white border border-zinc-200 overflow-hidden hover:border-primary transition-colors">
+              <div className="aspect-square bg-zinc-50 overflow-hidden relative">
+                <img src={r.previewUrl} className="w-full h-full object-contain" alt={r.title} />
+                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                   <Button variant="secondary" size="icon" className="h-8 w-8 bg-white/90 backdrop-blur shadow-sm hover:text-primary" onClick={() => { const a=document.createElement('a'); a.download=`${r.title}.png`; a.href=r.previewUrl; a.click(); }}><Download className="w-4 h-4" /></Button>
+                   <Button variant="secondary" size="icon" className="h-8 w-8 bg-white/90 backdrop-blur shadow-sm hover:text-red-500" onClick={() => { if(confirm('Delete generation?')) { deleteRecordDB(r.id); setAutoRecords(prev => prev.filter(x => x.id !== r.id)); } }}><Trash2 className="w-4 h-4" /></Button>
                 </div>
               </div>
-              <div className="aspect-square rounded-[2rem] overflow-hidden bg-zinc-100 shadow-xl group-hover:scale-[1.02] transition-transform duration-500">
-                <img src={r.previewUrl} className="w-full h-full object-contain" />
-              </div>
-              <div className="flex gap-3 px-2">
-                <Button variant="default" className="flex-1 h-11 rounded-xl text-xs font-bold" onClick={() => { const a=document.createElement('a'); a.download=`${r.title}.png`; a.href=r.previewUrl; a.click(); }}><Download className="w-4 h-4 mr-2" /> DOWNLOAD PNG</Button>
-                <Button variant="ghost" size="icon" className="h-11 w-11 rounded-xl text-zinc-300 hover:text-destructive hover:bg-destructive/5" onClick={() => { if(confirm('Delete generation?')) { deleteRecordDB(r.id); setAutoRecords(prev => prev.filter(x => x.id !== r.id)); } }}><Trash2 className="w-5 h-5" /></Button>
+              <div className="p-5 space-y-3">
+                <div className="flex items-start justify-between gap-4">
+                   <h3 className="text-xs font-black leading-tight line-clamp-2 uppercase tracking-wide">
+                    {r.url && r.url !== 'manual' ? (
+                      <a href={r.url} target="_blank" rel="noopener noreferrer" className="hover:text-primary flex items-center gap-2">{r.title} <ExternalLink className="w-3 h-3 shrink-0" /></a>
+                    ) : r.title}
+                  </h3>
+                  {r.url && r.url !== 'manual' && (
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-300 hover:text-primary shrink-0" onClick={() => { navigator.clipboard.writeText(r.url); toast.success("URL copied"); }}><Copy className="w-3.5 h-3.5" /></Button>
+                  )}
+                </div>
+                <div className="flex items-center justify-between border-t border-zinc-50 pt-3">
+                   <span className="text-[9px] text-zinc-400 font-black uppercase tracking-widest">{r.postTime || 'Manual Entry'}</span>
+                </div>
               </div>
             </div>
           ))}
+          {autoRecords.length === 0 && (
+            <div className="col-span-full py-20 border border-dashed border-zinc-200 flex flex-col items-center justify-center text-zinc-300">
+               <ImageIcon className="w-12 h-12 mb-4 opacity-10" />
+               <p className="text-[10px] font-black uppercase tracking-[0.2em]">No generations yet</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

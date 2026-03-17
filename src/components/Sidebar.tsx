@@ -27,7 +27,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
 
   return (
     <>
-      {/* Mobile Header - Always Black */}
+      {/* Mobile Header - Always Black as requested */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-20 bg-black border-b border-zinc-800 flex items-center justify-between px-6 z-50">
         <div className="flex items-center">
           <img src="/logo.png" alt="Logo" className="h-12 object-contain" />
@@ -45,7 +45,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
         />
       )}
 
-      {/* Sidebar Content */}
+      {/* Sidebar Content - Black Background as requested */}
       <aside className={cn(
         "fixed inset-y-0 left-0 w-64 bg-black border-r border-zinc-800 flex flex-col h-screen z-50 transition-transform duration-300 lg:translate-x-0 lg:static lg:w-24 xl:w-64",
         isOpen ? "translate-x-0" : "-translate-x-full"
@@ -60,9 +60,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
               key={item.id}
               onClick={() => handlePageChange(item.id)}
               className={cn(
-                "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-200 group",
+                "w-full flex items-center gap-3 px-4 py-3.5 transition-all duration-200 group relative",
                 currentPage === item.id
-                  ? "bg-primary text-white shadow-lg shadow-primary/20"
+                  ? "bg-primary text-white"
                   : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
               )}
             >
@@ -70,13 +70,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
                 "w-6 h-6 shrink-0",
                 currentPage === item.id ? "text-white" : "group-hover:scale-110 transition-transform"
               )} />
-              <span className="lg:hidden xl:block font-bold text-sm tracking-wide">{item.label}</span>
+              <span className="lg:hidden xl:block font-bold text-sm uppercase tracking-widest">{item.label}</span>
             </button>
           ))}
         </nav>
 
-        <div className="p-6 border-t border-zinc-900">
-          <div className="hidden xl:block p-4 bg-zinc-900/50 rounded-2xl border border-zinc-800/50">
+        <div className="p-6 border-t border-zinc-900 bg-zinc-950/50">
+          <div className="hidden xl:block p-4 bg-black border border-zinc-800">
             <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-extrabold mb-1.5">Status</p>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
