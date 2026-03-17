@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Image as ImageIcon, Plus, Trash2, Check, Upload } from "lucide-react";
+import { Image as ImageIcon, Trash2, Check, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -96,30 +96,32 @@ const Ads = () => {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in-up">
+    <div className="space-y-10 animate-fade-in-up">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold flex items-center gap-3">
-          <ImageIcon className="w-8 h-8 text-primary" />
-          Advertisement Management
+        <h1 className="text-4xl font-extrabold flex items-center gap-4">
+          <div className="p-2.5 bg-primary/10 rounded-2xl">
+            <ImageIcon className="w-10 h-10 text-primary" />
+          </div>
+          Ad Management
         </h1>
-        <p className="text-zinc-400">Add ad images to be automatically attached to the bottom of generated photocards. One ad can be active at a time.</p>
+        <p className="text-zinc-500 max-w-2xl text-lg">Upload promotional banners to be attached to your generated photocards. One active ad at a time.</p>
       </div>
 
-      <div className="bg-zinc-900/50 p-8 rounded-3xl border border-zinc-800 shadow-xl max-w-2xl">
-        <div className="space-y-4">
-          <Label>Upload New Ad</Label>
-          <div className="flex gap-4">
+      <div className="bg-card p-10 rounded-[2.5rem] border shadow-xl max-w-3xl">
+        <div className="space-y-6">
+          <Label className="text-xs uppercase tracking-[0.2em] text-zinc-400 font-black">Upload New Campaign</Label>
+          <div className="flex flex-col sm:flex-row gap-4">
             <Input
-              placeholder="Ad Name (e.g. Summer Promo)"
+              placeholder="Campaign Name (e.g. Winter Sale)"
               value={newAdName}
               onChange={e => setNewAdName(e.target.value)}
-              className="bg-zinc-800 border-zinc-700 h-12"
+              className="bg-zinc-50 border-zinc-200 h-14 text-lg px-6 rounded-2xl"
             />
             <Button
-              className="h-12 px-6 rounded-xl shrink-0"
+              className="h-14 px-8 rounded-2xl shrink-0 font-bold text-lg"
               onClick={() => fileInputRef.current?.click()}
             >
-              <Upload className="w-4 h-4 mr-2" />
+              <Upload className="w-5 h-5 mr-3" />
               Upload Image
             </Button>
             <input
@@ -130,49 +132,46 @@ const Ads = () => {
               onChange={handleUpload}
             />
           </div>
-          <p className="text-[10px] text-zinc-500 uppercase tracking-widest italic">Images will be zoomed to fit the photocard width.</p>
+          <p className="text-xs text-zinc-400 italic">Recommended: Horizontal aspect ratio. Images will scale to fit card width.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="columns-1 md:columns-2 lg:columns-3 gap-8 space-y-8">
         {ads.map((ad) => (
           <div
             key={ad.id}
             className={cn(
-              "group relative flex flex-col bg-zinc-900/40 rounded-3xl border p-4 transition-all duration-300",
-              selectedAdId === ad.id ? "border-primary bg-zinc-900 shadow-2xl shadow-primary/10" : "border-zinc-800 hover:bg-zinc-900/60"
+              "break-inside-avoid group relative flex flex-col bg-card rounded-[2rem] border overflow-hidden transition-all duration-500",
+              selectedAdId === ad.id ? "border-primary shadow-2xl ring-4 ring-primary/5" : "hover:border-zinc-300 hover:shadow-xl"
             )}
           >
-            <div className="aspect-[16/9] rounded-2xl overflow-hidden bg-black border border-zinc-800 mb-4 relative">
-              <img src={ad.data} alt={ad.name} className="w-full h-full object-contain" />
+            <div className="relative group/img cursor-pointer" onClick={() => toggleSelect(ad.id)}>
+              <img src={ad.data} alt={ad.name} className="w-full h-auto block" />
               {selectedAdId === ad.id && (
-                <div className="absolute inset-0 bg-primary/20 flex items-center justify-center backdrop-blur-[2px]">
-                  <Check className="w-12 h-12 text-white" />
+                <div className="absolute inset-0 bg-primary/20 flex items-center justify-center backdrop-blur-[2px] transition-all">
+                  <div className="bg-primary text-white p-4 rounded-full shadow-2xl scale-110">
+                    <Check className="w-8 h-8" />
+                  </div>
                 </div>
               )}
+              <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/5 transition-colors" />
             </div>
 
-            <div className="flex items-center justify-between px-2">
+            <div className="p-6 bg-white flex items-center justify-between border-t">
               <div className="min-w-0">
-                <h3 className="font-bold text-white truncate group-hover:text-primary transition-colors">{ad.name}</h3>
-                <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Ready for use</p>
+                <h3 className="font-black text-zinc-900 truncate text-lg uppercase tracking-tight">{ad.name}</h3>
+                <p className={cn("text-[10px] font-black uppercase tracking-widest mt-1", selectedAdId === ad.id ? "text-primary" : "text-zinc-400")}>
+                  {selectedAdId === ad.id ? "Currently Active" : "Click to select"}
+                </p>
               </div>
               <div className="flex gap-2">
                 <Button
-                  variant={selectedAdId === ad.id ? "default" : "outline"}
-                  size="sm"
-                  className="rounded-xl h-9 text-xs"
-                  onClick={() => toggleSelect(ad.id)}
-                >
-                  {selectedAdId === ad.id ? "ACTIVE" : "SELECT"}
-                </Button>
-                <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9 text-zinc-500 hover:text-destructive rounded-xl"
+                  className="h-12 w-12 text-zinc-300 hover:text-destructive hover:bg-destructive/5 rounded-2xl"
                   onClick={() => deleteAd(ad.id)}
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-6 h-6" />
                 </Button>
               </div>
             </div>
@@ -180,9 +179,11 @@ const Ads = () => {
         ))}
 
         {ads.length === 0 && (
-          <div className="col-span-full py-20 flex flex-col items-center justify-center border-2 border-dashed border-zinc-800 rounded-3xl bg-zinc-900/20">
-            <ImageIcon className="w-16 h-16 text-zinc-800 mb-4" />
-            <p className="text-zinc-600 font-medium">No ad images uploaded yet</p>
+          <div className="col-span-full py-32 flex flex-col items-center justify-center border-4 border-dashed border-zinc-100 rounded-[3rem] bg-zinc-50/50">
+            <div className="p-6 bg-zinc-100 rounded-full mb-6">
+              <ImageIcon className="w-16 h-16 text-zinc-300" />
+            </div>
+            <p className="text-zinc-400 font-black uppercase tracking-widest text-sm">No advertising campaigns found</p>
           </div>
         )}
       </div>
