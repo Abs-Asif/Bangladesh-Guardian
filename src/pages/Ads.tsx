@@ -96,13 +96,13 @@ const Ads = () => {
   };
 
   return (
-    <div className="space-y-12 animate-fade-in-up pb-20">
+    <div className="space-y-8 lg:space-y-12 animate-fade-in-up pb-20">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-black uppercase tracking-tighter">Advertising Manager</h1>
-        <p className="text-xs font-bold text-zinc-400 uppercase tracking-[0.2em]">Manage banners for photocard generation</p>
+        <h1 className="text-2xl lg:text-3xl font-black uppercase tracking-tighter">Advertising Manager</h1>
+        <p className="text-[10px] lg:text-xs font-bold text-zinc-400 uppercase tracking-[0.2em]">Manage banners for photocard generation</p>
       </div>
 
-      <div className="bg-white p-8 border border-zinc-200 max-w-4xl space-y-8">
+      <div className="bg-white p-6 lg:p-8 border border-zinc-200 max-w-4xl space-y-6 lg:space-y-8 rounded-2xl">
         <div className="space-y-4">
           <Label className="text-[10px] uppercase tracking-widest text-zinc-400 font-black">Register New Campaign</Label>
           <div className="flex flex-col sm:flex-row gap-4">
@@ -131,17 +131,17 @@ const Ads = () => {
         </div>
       </div>
 
-      <div className="flex flex-col gap-6 max-w-5xl">
+      <div className="flex flex-col gap-4 lg:gap-6 max-w-5xl">
         {ads.map((ad) => (
           <div
             key={ad.id}
             onClick={() => toggleSelect(ad.id)}
             className={cn(
-              "group bg-white border flex flex-col sm:flex-row items-stretch cursor-pointer transition-all duration-300",
+              "group bg-white border flex flex-col sm:flex-row items-stretch cursor-pointer transition-all duration-300 rounded-2xl overflow-hidden",
               selectedAdId === ad.id ? "border-primary shadow-md ring-1 ring-primary/20" : "border-zinc-200 hover:border-zinc-400"
             )}
           >
-            <div className="p-6 flex-1 flex flex-col justify-center border-b sm:border-b-0 sm:border-r border-zinc-100">
+            <div className="p-5 lg:p-6 flex-1 flex flex-col justify-center border-b sm:border-b-0 sm:border-r border-zinc-100">
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0">
                   <h3 className={cn(
@@ -168,9 +168,9 @@ const Ads = () => {
               </div>
             </div>
 
-            <div className="sm:w-2/3 bg-zinc-50 flex items-center justify-center p-2">
+            <div className="sm:w-2/3 bg-zinc-50 flex items-center justify-center p-4">
               <div className="relative w-full h-full">
-                <img src={ad.data} alt={ad.name} className="w-full h-auto max-h-[300px] object-contain shadow-sm" />
+                <img src={ad.data} alt={ad.name} className="w-full h-auto max-h-[300px] object-contain shadow-sm rounded-lg" />
                 {selectedAdId === ad.id && (
                   <div className="absolute -top-2 -right-2 bg-primary text-white p-1.5 shadow-lg border border-white">
                     <Check className="w-3 h-3" />

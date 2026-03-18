@@ -57,13 +57,13 @@ const Settings = () => {
   };
 
   return (
-    <div className="max-w-7xl space-y-12 animate-fade-in-up pb-20">
+    <div className="max-w-7xl space-y-8 lg:space-y-12 animate-fade-in-up pb-20">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-black uppercase tracking-tighter">System Configuration</h1>
-        <p className="text-xs font-bold text-zinc-400 uppercase tracking-[0.2em]">Engine fine-tuning & global parameters</p>
+        <h1 className="text-2xl lg:text-3xl font-black uppercase tracking-tighter">System Configuration</h1>
+        <p className="text-[10px] lg:text-xs font-bold text-zinc-400 uppercase tracking-[0.2em]">Engine fine-tuning & global parameters</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
         {/* Left Side: General Settings List */}
         <div className="space-y-6">
           <div className="flex items-center gap-3 border-b border-zinc-100 pb-4">
@@ -71,9 +71,9 @@ const Settings = () => {
             <h2 className="text-[10px] font-black uppercase tracking-[0.2em]">General Settings</h2>
           </div>
 
-          <div className="bg-white border border-zinc-200 divide-y divide-zinc-100">
+          <div className="bg-white border border-zinc-200 divide-y divide-zinc-100 rounded-2xl overflow-hidden">
             {/* Live Preview */}
-            <div className="flex items-center justify-between p-6">
+            <div className="flex items-center justify-between p-5 lg:p-6">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest">Live Preview</p>
                 <p className="text-[9px] text-zinc-400 font-bold uppercase mt-1">Real-time manual rendering</p>
@@ -88,7 +88,7 @@ const Settings = () => {
             </div>
 
             {/* Processing Mode */}
-            <div className="p-6 space-y-4">
+            <div className="p-5 lg:p-6 space-y-4">
               <Label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Processing Mode</Label>
               <div className="flex bg-zinc-100 p-1 border border-zinc-200">
                 <button
@@ -139,7 +139,7 @@ const Settings = () => {
             </div>
 
             {/* Typography */}
-            <div className="p-6 space-y-8">
+            <div className="p-5 lg:p-6 space-y-8">
               <div className="flex items-center justify-between">
                 <Label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Typography Engine</Label>
                 <Button variant="ghost" size="sm" className="h-6 text-[9px] font-black text-zinc-400 hover:text-red-500 tracking-widest p-0" onClick={resetTypography}>RESET</Button>
@@ -188,7 +188,7 @@ const Settings = () => {
             <Button variant="ghost" size="sm" className="h-6 text-[9px] font-black text-zinc-400 hover:text-red-500 tracking-widest p-0" onClick={() => { if(confirm('Reset all restrictions?')) setWordRestrictions(defaultMappings); }}>DEFAULT</Button>
           </div>
 
-          <div className="bg-white border border-zinc-200 p-8 space-y-8">
+          <div className="bg-white border border-zinc-200 p-5 lg:p-8 space-y-6 lg:space-y-8 rounded-2xl">
             <div className="flex flex-col sm:flex-row gap-4">
               <Input placeholder="Restricted" value={newWord} onChange={e => setNewWord(e.target.value)} className="bg-zinc-50 border-zinc-200 h-11 text-[11px] font-bold uppercase tracking-wider" />
               <div className="flex items-center justify-center"><ArrowRight className="w-4 h-4 text-zinc-300 rotate-90 sm:rotate-0" /></div>
@@ -198,7 +198,7 @@ const Settings = () => {
 
             <div className="flex flex-col gap-3 max-h-[600px] overflow-y-auto pr-2 scrollbar-hide">
               {Object.entries(wordRestrictions).map(([word, rep]) => (
-                <div key={word} className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 bg-zinc-50 border border-zinc-100 group">
+                <div key={word} className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 bg-zinc-50 border border-zinc-100 group rounded-xl">
                   <div className="flex-1 flex items-center gap-4">
                     <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900 w-24 truncate shrink-0">{word}</span>
                     <ArrowRight className="w-3.5 h-3.5 text-zinc-300" />
