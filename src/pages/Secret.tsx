@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import Sidebar, { PageId } from "@/components/Sidebar";
@@ -78,16 +79,6 @@ const Secret = () => {
     );
   }
 
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'home': return <Home />;
-      case 'templates': return <Templates />;
-      case 'ads': return <Ads />;
-      case 'settings': return <Settings />;
-      default: return <Home />;
-    }
-  };
-
   return (
     <div className="flex flex-col lg:flex-row h-screen bg-background text-foreground overflow-hidden">
       <div className="hidden lg:block lg:w-24 xl:w-64 shrink-0">
@@ -98,7 +89,18 @@ const Secret = () => {
       </div>
       <main className="flex-1 overflow-y-auto relative pt-20 lg:pt-0 h-full scrollbar-hide">
         <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
-          {renderPage()}
+          <div className={cn(currentPage !== 'home' && "hidden")}>
+            <Home />
+          </div>
+          <div className={cn(currentPage !== 'templates' && "hidden")}>
+            <Templates />
+          </div>
+          <div className={cn(currentPage !== 'ads' && "hidden")}>
+            <Ads />
+          </div>
+          <div className={cn(currentPage !== 'settings' && "hidden")}>
+            <Settings />
+          </div>
         </div>
       </main>
     </div>
