@@ -102,18 +102,18 @@ const Ads = () => {
         <p className="text-[10px] lg:text-xs font-bold text-zinc-400 uppercase tracking-[0.2em]">Manage banners for photocard generation</p>
       </div>
 
-      <div className="bg-white p-5 lg:p-6 border border-zinc-200 max-w-4xl space-y-4 lg:space-y-6 rounded-xl">
+      <div className="max-w-4xl space-y-4 lg:space-y-6">
         <div className="space-y-4">
           <Label className="text-[10px] uppercase tracking-widest text-zinc-400 font-black">Register New Campaign</Label>
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-3">
             <Input
               placeholder="Campaign Name..."
               value={newAdName}
               onChange={e => setNewAdName(e.target.value)}
-              className="bg-zinc-50 border-zinc-200 h-12 text-sm font-bold uppercase tracking-wider"
+              className="bg-white border-zinc-200 h-11 text-xs font-bold uppercase tracking-wider rounded-lg"
             />
             <Button
-              className="h-12 px-8 shrink-0 text-[10px] font-black uppercase tracking-[0.2em] gap-3"
+              className="h-11 px-8 shrink-0 text-[10px] font-black uppercase tracking-[0.2em] gap-3 rounded-lg"
               onClick={() => fileInputRef.current?.click()}
             >
               <Upload className="w-4 h-4" />

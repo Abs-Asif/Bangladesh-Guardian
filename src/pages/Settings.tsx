@@ -8,9 +8,9 @@ import { toast } from "sonner";
 import { defaultMappings } from "@/lib/censor";
 
 const FREQ_OPTIONS = [
-  { id: '1m3p', label: '1m 3p' },
-  { id: '2m6p', label: '2m 6p' },
-  { id: '3m6p', label: '3m 6p' }
+  { id: '1m3p', label: '1 Minute 3 Posts' },
+  { id: '2m6p', label: '2 Minutes 6 Posts' },
+  { id: '3m6p', label: '3 Minutes 6 Posts' }
 ];
 
 const Settings = () => {
@@ -192,17 +192,19 @@ const Settings = () => {
               <Button className="h-10 w-full sm:w-10 shrink-0 rounded-lg" onClick={() => { if(!newWord || !newReplacement) return; setWordRestrictions({...wordRestrictions, [newWord]: newReplacement}); setNewWord(''); setNewReplacement(''); }}><Plus className="w-4 h-4" /></Button>
             </div>
 
-            {/* Flat List (Full height) */}
+            {/* Dynamic Flat List */}
             <div className="flex flex-col gap-2">
               {Object.entries(wordRestrictions).map(([word, rep]) => (
-                <div key={word} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-zinc-50 border border-zinc-100 group rounded-lg">
-                  <div className="flex-1 flex items-center gap-3">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900 w-24 truncate shrink-0">{word}</span>
-                    <ArrowRight className="w-3 h-3 text-zinc-300" />
+                <div key={word} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-zinc-50 border border-zinc-100 group rounded-lg transition-all duration-200">
+                  <div className="flex-1 flex items-center gap-3 min-w-0">
+                    <div className="shrink-0 flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900 whitespace-nowrap">{word}</span>
+                      <ArrowRight className="w-3 h-3 text-zinc-300 shrink-0" />
+                    </div>
                     <Input
                       value={rep}
                       onChange={e => setWordRestrictions({...wordRestrictions, [word]: e.target.value})}
-                      className="h-8 text-[10px] bg-white border-zinc-200 flex-1 font-bold uppercase tracking-widest rounded-md"
+                      className="h-8 text-[10px] bg-white border-zinc-200 flex-1 font-bold uppercase tracking-widest rounded-md min-w-[80px]"
                     />
                   </div>
                   <Button

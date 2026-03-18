@@ -742,35 +742,34 @@ const Home = () => {
               <div className="aspect-square bg-zinc-50 overflow-hidden relative">
                 <img src={r.previewUrl} className="w-full h-full object-contain" alt={r.title} />
               </div>
-              <div className="p-5 space-y-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-xs font-black leading-tight line-clamp-2 uppercase tracking-wide">
-                      {r.url && r.url !== 'manual' ? (
-                        <a href={r.url} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
-                          {r.title}
-                        </a>
-                      ) : r.title}
-                      <span className="text-[9px] text-zinc-400 font-black uppercase tracking-widest ml-2 whitespace-nowrap">
-                        {r.postTime || 'Manual Entry'}
-                      </span>
-                    </h3>
-                  </div>
+              <div className="p-4 space-y-3">
+                <div className="min-w-0">
+                  <h3 className="text-xs font-black leading-snug uppercase tracking-wide">
+                    {r.url && r.url !== 'manual' ? (
+                      <a href={r.url} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors inline">
+                        {r.title}
+                      </a>
+                    ) : <span className="inline">{r.title}</span>}
+                    <span className="text-[9px] text-zinc-400 font-black uppercase tracking-widest ml-1.5 whitespace-nowrap inline-block">
+                      {r.postTime || '• Manual Entry'}
+                    </span>
+                  </h3>
                 </div>
 
-                <div className="flex items-center gap-2 pt-2 border-t border-zinc-50">
+                <div className="flex flex-col gap-2 pt-2 border-t border-zinc-100">
+                  {/* Line 1: Download */}
                   <Button
-                    variant="secondary"
-                    className="flex-1 h-9 gap-2 text-[9px] font-black uppercase tracking-widest bg-zinc-100 hover:bg-zinc-200 text-zinc-900"
+                    className="w-full h-9 gap-2 text-[9px] font-black uppercase tracking-widest bg-green-600 hover:bg-green-700 text-white rounded-md"
                     onClick={() => { const a=document.createElement('a'); a.download=`${r.title}.png`; a.href=r.previewUrl; a.click(); }}
                   >
                     <Download className="w-3.5 h-3.5" />
                     DOWNLOAD
                   </Button>
 
+                  {/* Line 2: Share */}
                   <Button
-                    variant="secondary"
-                    className="flex-1 h-9 gap-2 text-[9px] font-black uppercase tracking-widest bg-blue-50 hover:bg-blue-100 text-blue-600"
+                    variant="outline"
+                    className="w-full h-9 gap-2 text-[9px] font-black uppercase tracking-widest border-zinc-200 hover:bg-zinc-50 text-zinc-600 rounded-md"
                     onClick={() => {
                       if (navigator.share) {
                         fetch(r.previewUrl).then(res => res.blob()).then(blob => {
@@ -787,25 +786,33 @@ const Home = () => {
                     SHARE
                   </Button>
 
-                  <Button
-                    variant="secondary"
-                    className="flex-1 h-9 gap-2 text-[9px] font-black uppercase tracking-widest bg-red-50 hover:bg-red-100 text-red-600"
-                    onClick={() => { if(confirm('Delete generation?')) { deleteRecordDB(r.id); setAutoRecords(prev => prev.filter(x => x.id !== r.id)); } }}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    DELETE
-                  </Button>
-
-                  {r.url && r.url !== 'manual' && (
+                  {/* Line 3: Copy Link & Delete */}
+                  <div className="flex gap-2">
                     <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 text-blue-500 hover:text-blue-600 hover:bg-blue-50 shrink-0"
-                      onClick={() => { navigator.clipboard.writeText(r.url); toast.success("URL copied"); }}
+                      variant="outline"
+                      className="flex-1 h-9 gap-2 text-[9px] font-black uppercase tracking-widest border-zinc-200 hover:bg-zinc-50 text-blue-600 rounded-md"
+                      onClick={() => {
+                        if (r.url && r.url !== 'manual') {
+                          navigator.clipboard.writeText(r.url);
+                          toast.success("Post URL copied");
+                        } else {
+                          navigator.clipboard.writeText(r.previewUrl);
+                          toast.success("Image link copied");
+                        }
+                      }}
                     >
-                      <Copy className="w-4 h-4" />
+                      <Copy className="w-3.5 h-3.5" />
+                      COPY LINK
                     </Button>
-                  )}
+                    <Button
+                      variant="outline"
+                      className="flex-1 h-9 gap-2 text-[9px] font-black uppercase tracking-widest border-red-100 bg-red-50/30 hover:bg-red-50 text-red-600 rounded-md"
+                      onClick={() => { if(confirm('Delete generation?')) { deleteRecordDB(r.id); setAutoRecords(prev => prev.filter(x => x.id !== r.id)); } }}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      DELETE
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
