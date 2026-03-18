@@ -122,8 +122,8 @@
     @apply bg-primary text-white font-bold transition-all active:scale-95 disabled:opacity-50;
   }
 
-  .card-premium {
-    @apply bg-white border border-zinc-200 shadow-sm transition-all;
+  .card-flat {
+    @apply bg-white border border-zinc-200 transition-all;
   }
 
   .scrollbar-hide::-webkit-scrollbar {

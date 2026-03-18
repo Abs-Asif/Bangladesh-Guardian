@@ -617,12 +617,12 @@ const Home = () => {
   const showPreview = activeTab === 'manual' && livePreviewEnabled;
 
   return (
-    <div className="space-y-8 lg:space-y-12 animate-fade-in-up pb-20">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+    <div className="space-y-6 lg:space-y-8 animate-fade-in-up pb-20">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         {/* Automation Section (Moved to Left) */}
-        <div className="space-y-6 lg:space-y-8 h-full">
-          <div className="bg-white p-6 lg:p-8 border border-zinc-200 h-full flex flex-col space-y-6 rounded-2xl">
-            <div className="flex items-center justify-between border-b border-zinc-100 pb-6">
+        <div className="space-y-4 lg:space-y-6 h-full">
+          <div className="bg-white p-5 lg:p-6 border border-zinc-200 h-full flex flex-col space-y-4 rounded-xl">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-4">
               <div className="flex items-center gap-3">
                 <Zap className="w-4 h-4 text-primary" />
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em]">Automation Engine</h3>
@@ -652,18 +652,18 @@ const Home = () => {
         </div>
 
         {/* Manual Section (Moved to Right) */}
-        <div className="space-y-6 lg:space-y-8">
-          <div className="bg-white p-6 lg:p-8 border border-zinc-200 space-y-6 rounded-2xl">
-            <div className="flex bg-zinc-100 p-1 border border-zinc-200 mb-2 rounded-xl overflow-hidden">
+        <div className="space-y-4 lg:space-y-6">
+          <div className="bg-white p-5 lg:p-6 border border-zinc-200 space-y-4 rounded-xl">
+            <div className="flex bg-zinc-100 p-1 border border-zinc-200 mb-1 rounded-lg overflow-hidden">
               <button
                 onClick={() => setActiveTab('url')}
-                className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all", activeTab === 'url' ? "bg-white text-primary shadow-sm" : "text-zinc-500 hover:text-zinc-900")}
+                className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all", activeTab === 'url' ? "bg-white text-primary border border-zinc-200" : "text-zinc-500 hover:text-zinc-900")}
               >
                 Post URL
               </button>
               <button
                 onClick={() => setActiveTab('manual')}
-                className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all", activeTab === 'manual' ? "bg-white text-primary shadow-sm" : "text-zinc-500 hover:text-zinc-900")}
+                className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all", activeTab === 'manual' ? "bg-white text-primary border border-zinc-200" : "text-zinc-500 hover:text-zinc-900")}
               >
                 Manual Entry
               </button>
@@ -724,10 +724,10 @@ const Home = () => {
       </div>
       <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} className="hidden" />
 
-      <div className="space-y-8 lg:space-y-10 pt-8 lg:pt-12 border-t border-zinc-100">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-1.5 h-10 lg:h-12 bg-primary" />
+      <div className="space-y-6 lg:space-y-8 pt-6 lg:pt-8 border-t border-zinc-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-1 h-8 lg:h-10 bg-primary" />
             <div>
               <h2 className="text-xl lg:text-2xl font-black uppercase tracking-tighter">Recent Generations</h2>
               <p className="text-[9px] lg:text-[10px] text-zinc-400 uppercase tracking-widest font-bold">Session History ({autoRecords.length}/50)</p>
@@ -736,9 +736,9 @@ const Home = () => {
           <Button variant="ghost" size="sm" className="text-[9px] font-black text-zinc-400 hover:text-red-500 tracking-widest p-0 self-end sm:self-auto" onClick={() => { if(confirm('Clear all history?')) { clearRecordsDB(); setAutoRecords([]); } }}>CLEAR HISTORY</Button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
           {autoRecords.map(r => (
-            <div key={r.id} className="group bg-white border border-zinc-200 overflow-hidden hover:border-primary transition-all duration-300 rounded-2xl">
+            <div key={r.id} className="group bg-white border border-zinc-200 overflow-hidden hover:border-primary transition-all duration-300 rounded-xl">
               <div className="aspect-square bg-zinc-50 overflow-hidden relative">
                 <img src={r.previewUrl} className="w-full h-full object-contain" alt={r.title} />
               </div>
