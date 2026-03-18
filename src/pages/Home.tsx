@@ -657,13 +657,13 @@ const Home = () => {
             <div className="flex bg-zinc-100 p-1 border border-zinc-200 mb-1 rounded-lg overflow-hidden">
               <button
                 onClick={() => setActiveTab('url')}
-                className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all", activeTab === 'url' ? "bg-white text-primary border border-zinc-200" : "text-zinc-500 hover:text-zinc-900")}
+                className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all rounded-md", activeTab === 'url' ? "bg-white text-primary border border-zinc-200" : "text-zinc-500 hover:text-zinc-900")}
               >
                 Post URL
               </button>
               <button
                 onClick={() => setActiveTab('manual')}
-                className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all", activeTab === 'manual' ? "bg-white text-primary border border-zinc-200" : "text-zinc-500 hover:text-zinc-900")}
+                className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all rounded-md", activeTab === 'manual' ? "bg-white text-primary border border-zinc-200" : "text-zinc-500 hover:text-zinc-900")}
               >
                 Manual Entry
               </button>
@@ -743,33 +743,33 @@ const Home = () => {
                 <img src={r.previewUrl} className="w-full h-full object-contain" alt={r.title} />
               </div>
               <div className="p-4 space-y-3">
-                <div className="min-w-0">
+                <div className="min-w-0 space-y-1">
                   <h3 className="text-xs font-black leading-snug uppercase tracking-wide">
                     {r.url && r.url !== 'manual' ? (
                       <a href={r.url} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors inline">
                         {r.title}
                       </a>
                     ) : <span className="inline">{r.title}</span>}
-                    <span className="text-[9px] text-zinc-400 font-black uppercase tracking-widest ml-1.5 whitespace-nowrap inline-block">
-                      {r.postTime || '• Manual Entry'}
-                    </span>
                   </h3>
+                  <p className="text-[9px] text-zinc-400 font-black uppercase tracking-widest whitespace-nowrap">
+                    {r.postTime || '• Manual Entry'}
+                  </p>
                 </div>
 
-                <div className="flex flex-col gap-2 pt-2 border-t border-zinc-100">
-                  {/* Line 1: Download */}
-                  <Button
-                    className="w-full h-9 gap-2 text-[9px] font-black uppercase tracking-widest bg-green-600 hover:bg-green-700 text-white rounded-md"
-                    onClick={() => { const a=document.createElement('a'); a.download=`${r.title}.png`; a.href=r.previewUrl; a.click(); }}
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    DOWNLOAD
-                  </Button>
-
-                  {/* Line 2: Share */}
+                <div className="flex gap-2 pt-2 border-t border-zinc-100">
                   <Button
                     variant="outline"
-                    className="w-full h-9 gap-2 text-[9px] font-black uppercase tracking-widest border-zinc-200 hover:bg-zinc-50 text-zinc-600 rounded-md"
+                    size="icon"
+                    className="flex-1 h-10 border-zinc-200 hover:bg-zinc-50 text-green-600 rounded-md"
+                    onClick={() => { const a=document.createElement('a'); a.download=`${r.title}.png`; a.href=r.previewUrl; a.click(); }}
+                  >
+                    <Download className="w-4 h-4" />
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="flex-1 h-10 border-zinc-200 hover:bg-zinc-50 text-zinc-600 rounded-md"
                     onClick={() => {
                       if (navigator.share) {
                         fetch(r.previewUrl).then(res => res.blob()).then(blob => {
@@ -782,37 +782,34 @@ const Home = () => {
                       }
                     }}
                   >
-                    <Share2 className="w-3.5 h-3.5" />
-                    SHARE
+                    <Share2 className="w-4 h-4" />
                   </Button>
 
-                  {/* Line 3: Copy Link & Delete */}
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      className="flex-1 h-9 gap-2 text-[9px] font-black uppercase tracking-widest border-zinc-200 hover:bg-zinc-50 text-blue-600 rounded-md"
-                      onClick={() => {
-                        if (r.url && r.url !== 'manual') {
-                          navigator.clipboard.writeText(r.url);
-                          toast.success("Post URL copied");
-                        } else {
-                          navigator.clipboard.writeText(r.previewUrl);
-                          toast.success("Image link copied");
-                        }
-                      }}
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                      COPY LINK
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="flex-1 h-9 gap-2 text-[9px] font-black uppercase tracking-widest border-red-100 bg-red-50/30 hover:bg-red-50 text-red-600 rounded-md"
-                      onClick={() => { if(confirm('Delete generation?')) { deleteRecordDB(r.id); setAutoRecords(prev => prev.filter(x => x.id !== r.id)); } }}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      DELETE
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="flex-1 h-10 border-zinc-200 hover:bg-zinc-50 text-blue-600 rounded-md"
+                    onClick={() => {
+                      if (r.url && r.url !== 'manual') {
+                        navigator.clipboard.writeText(r.url);
+                        toast.success("Post URL copied");
+                      } else {
+                        navigator.clipboard.writeText(r.previewUrl);
+                        toast.success("Image link copied");
+                      }
+                    }}
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="flex-1 h-10 border-red-100 bg-red-50/30 hover:bg-red-50 text-red-600 rounded-md"
+                    onClick={() => { if(confirm('Delete generation?')) { deleteRecordDB(r.id); setAutoRecords(prev => prev.filter(x => x.id !== r.id)); } }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
             </div>

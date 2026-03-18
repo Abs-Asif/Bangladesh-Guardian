@@ -33,6 +33,7 @@ const Ads = () => {
   const [ads, setAds] = useState<AdImage[]>([]);
   const [selectedAdId, setSelectedAdId] = useState(() => localStorage.getItem('bg_selected_ad') || '');
   const [newAdName, setNewAdName] = useState('');
+  const [previewData, setPreviewData] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -47,29 +48,35 @@ const Ads = () => {
     request.onsuccess = () => setAds(request.result);
   };
 
-  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !newAdName.trim()) {
-      if (file && !newAdName.trim()) toast.error("Please enter a name first");
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setPreviewData(event.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAddCampaign = async () => {
+    if (!newAdName.trim() || !previewData) {
+      toast.error("Please enter a name and upload an image");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const data = event.target?.result as string;
-      const newAd = { id: Math.random().toString(36).substr(2, 9), name: newAdName, data };
+    const newAd = { id: Math.random().toString(36).substr(2, 9), name: newAdName, data: previewData };
 
-      const db = await initDB();
-      const tx = db.transaction(STORE_NAME, 'readwrite');
-      tx.objectStore(STORE_NAME).add(newAd);
-      tx.oncomplete = () => {
-        setAds([...ads, newAd]);
-        setNewAdName('');
-        if (fileInputRef.current) fileInputRef.current.value = '';
-        toast.success("Ad uploaded");
-      };
+    const db = await initDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).add(newAd);
+    tx.oncomplete = () => {
+      setAds([...ads, newAd]);
+      setNewAdName('');
+      setPreviewData(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      toast.success("Ad campaign added");
     };
-    reader.readAsDataURL(file);
   };
 
   const deleteAd = async (id: string) => {
@@ -105,26 +112,52 @@ const Ads = () => {
       <div className="max-w-4xl space-y-4 lg:space-y-6">
         <div className="space-y-4">
           <Label className="text-[10px] uppercase tracking-widest text-zinc-400 font-black">Register New Campaign</Label>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Input
-              placeholder="Campaign Name..."
-              value={newAdName}
-              onChange={e => setNewAdName(e.target.value)}
-              className="bg-white border-zinc-200 h-11 text-xs font-bold uppercase tracking-wider rounded-lg"
-            />
-            <Button
-              className="h-11 px-8 shrink-0 text-[10px] font-black uppercase tracking-[0.2em] gap-3 rounded-lg"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload className="w-4 h-4" />
-              Upload Source
-            </Button>
+          <div className="space-y-4 bg-white border border-zinc-200 p-6 rounded-xl">
+            {!previewData ? (
+              <Button
+                variant="outline"
+                className="w-full h-24 border-dashed border-2 flex flex-col gap-2 text-[10px] font-black uppercase tracking-[0.2em] rounded-lg"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="w-6 h-6" />
+                Upload Image Source
+              </Button>
+            ) : (
+              <div className="space-y-4 animate-in fade-in zoom-in duration-300">
+                <div className="relative aspect-[3/1] bg-zinc-50 border border-zinc-100 rounded-lg overflow-hidden flex items-center justify-center">
+                  <img src={previewData} className="w-full h-full object-contain" alt="Preview" />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-2 right-2 h-8 w-8 bg-black/50 text-white hover:bg-black/70 backdrop-blur-sm rounded-full"
+                    onClick={() => { setPreviewData(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Input
+                    placeholder="Campaign Name..."
+                    value={newAdName}
+                    onChange={e => setNewAdName(e.target.value)}
+                    className="bg-zinc-50 border-zinc-200 h-12 text-xs font-bold uppercase tracking-wider rounded-lg"
+                  />
+                  <Button
+                    className="h-12 px-8 shrink-0 text-[10px] font-black uppercase tracking-[0.2em] gap-3 rounded-lg"
+                    onClick={handleAddCampaign}
+                  >
+                    <Check className="w-4 h-4" />
+                    Confirm & Add
+                  </Button>
+                </div>
+              </div>
+            )}
             <input
               type="file"
               ref={fileInputRef}
               className="hidden"
               accept="image/*"
-              onChange={handleUpload}
+              onChange={handleFileSelect}
             />
           </div>
           <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest italic">Images will be scaled to match photocard width. Optimal: Horizontal banners.</p>
