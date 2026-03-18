@@ -756,20 +756,20 @@ const Home = () => {
                   </p>
                 </div>
 
-                <div className="flex gap-2 pt-2 border-t border-zinc-100">
+                <div className="flex gap-1.5 sm:gap-2 pt-2 border-t border-zinc-100">
                   <Button
                     variant="outline"
                     size="icon"
-                    className="flex-1 h-10 border-zinc-200 hover:bg-zinc-50 text-green-600 rounded-md"
+                    className="flex-1 h-11 sm:h-10 border-zinc-200 hover:bg-zinc-50 text-green-600 rounded-md"
                     onClick={() => { const a=document.createElement('a'); a.download=`${r.title}.png`; a.href=r.previewUrl; a.click(); }}
                   >
-                    <Download className="w-4 h-4" />
+                    <Download className="w-4 h-4 sm:w-4 sm:h-4" />
                   </Button>
 
                   <Button
                     variant="outline"
                     size="icon"
-                    className="flex-1 h-10 border-zinc-200 hover:bg-zinc-50 text-zinc-600 rounded-md"
+                    className="flex-1 h-11 sm:h-10 border-zinc-200 hover:bg-zinc-50 text-zinc-600 rounded-md"
                     onClick={() => {
                       if (navigator.share) {
                         fetch(r.previewUrl).then(res => res.blob()).then(blob => {
@@ -782,13 +782,13 @@ const Home = () => {
                       }
                     }}
                   >
-                    <Share2 className="w-4 h-4" />
+                    <Share2 className="w-4 h-4 sm:w-4 sm:h-4" />
                   </Button>
 
                   <Button
                     variant="outline"
                     size="icon"
-                    className="flex-1 h-10 border-zinc-200 hover:bg-zinc-50 text-blue-600 rounded-md"
+                    className="flex-1 h-11 sm:h-10 border-zinc-200 hover:bg-zinc-50 text-blue-600 rounded-md"
                     onClick={() => {
                       if (r.url && r.url !== 'manual') {
                         navigator.clipboard.writeText(r.url);
@@ -805,10 +805,10 @@ const Home = () => {
                   <Button
                     variant="outline"
                     size="icon"
-                    className="flex-1 h-10 border-red-100 bg-red-50/30 hover:bg-red-50 text-red-600 rounded-md"
+                    className="flex-1 h-11 sm:h-10 border-red-100 bg-red-50/30 hover:bg-red-50 text-red-600 rounded-md"
                     onClick={() => { if(confirm('Delete generation?')) { deleteRecordDB(r.id); setAutoRecords(prev => prev.filter(x => x.id !== r.id)); } }}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-4 h-4 sm:w-4 sm:h-4" />
                   </Button>
                 </div>
               </div>
