@@ -96,24 +96,24 @@ const Ads = () => {
   };
 
   return (
-    <div className="space-y-12 animate-fade-in-up pb-20">
+    <div className="space-y-6 lg:space-y-8 animate-fade-in-up pb-20">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-black uppercase tracking-tighter">Advertising Manager</h1>
-        <p className="text-xs font-bold text-zinc-400 uppercase tracking-[0.2em]">Manage banners for photocard generation</p>
+        <h1 className="text-2xl lg:text-3xl font-black uppercase tracking-tighter">Advertising Manager</h1>
+        <p className="text-[10px] lg:text-xs font-bold text-zinc-400 uppercase tracking-[0.2em]">Manage banners for photocard generation</p>
       </div>
 
-      <div className="bg-white p-8 border border-zinc-200 max-w-4xl space-y-8">
+      <div className="max-w-4xl space-y-4 lg:space-y-6">
         <div className="space-y-4">
           <Label className="text-[10px] uppercase tracking-widest text-zinc-400 font-black">Register New Campaign</Label>
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-3">
             <Input
               placeholder="Campaign Name..."
               value={newAdName}
               onChange={e => setNewAdName(e.target.value)}
-              className="bg-zinc-50 border-zinc-200 h-12 text-sm font-bold uppercase tracking-wider"
+              className="bg-white border-zinc-200 h-11 text-xs font-bold uppercase tracking-wider rounded-lg"
             />
             <Button
-              className="h-12 px-8 shrink-0 text-[10px] font-black uppercase tracking-[0.2em] gap-3"
+              className="h-11 px-8 shrink-0 text-[10px] font-black uppercase tracking-[0.2em] gap-3 rounded-lg"
               onClick={() => fileInputRef.current?.click()}
             >
               <Upload className="w-4 h-4" />
@@ -131,45 +131,52 @@ const Ads = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+      <div className="flex flex-col gap-3 lg:gap-4 max-w-5xl">
         {ads.map((ad) => (
           <div
             key={ad.id}
+            onClick={() => toggleSelect(ad.id)}
             className={cn(
-              "group bg-white border transition-colors duration-300",
-              selectedAdId === ad.id ? "border-primary shadow-lg" : "border-zinc-200 hover:border-zinc-400"
+              "group bg-white border flex flex-col sm:flex-row items-stretch cursor-pointer transition-all duration-300 rounded-xl overflow-hidden",
+              selectedAdId === ad.id ? "border-primary ring-1 ring-primary/20" : "border-zinc-200 hover:border-zinc-400"
             )}
           >
-            <div className="aspect-[21/9] bg-zinc-50 overflow-hidden relative cursor-pointer" onClick={() => toggleSelect(ad.id)}>
-              <img src={ad.data} alt={ad.name} className="w-full h-full object-cover" />
-              {selectedAdId === ad.id && (
-                <div className="absolute top-4 right-4 bg-primary text-white p-2 shadow-lg">
-                  <Check className="w-4 h-4" />
+            <div className="p-4 lg:p-5 flex-1 flex flex-col justify-center border-b sm:border-b-0 sm:border-r border-zinc-100">
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <h3 className={cn(
+                    "text-sm font-black uppercase tracking-wider truncate",
+                    selectedAdId === ad.id ? "text-primary" : "text-zinc-900"
+                  )}>
+                    {ad.name}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-2">
+                    <div className={cn("w-1.5 h-1.5 rounded-full", selectedAdId === ad.id ? "bg-primary animate-pulse" : "bg-zinc-300")} />
+                    <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest">
+                      {selectedAdId === ad.id ? "ACTIVE CAMPAIGN" : "STANDBY"}
+                    </p>
+                  </div>
                 </div>
-              )}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-zinc-300 hover:text-red-500 shrink-0"
+                  onClick={(e) => { e.stopPropagation(); deleteAd(ad.id); }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
 
-            <div className="p-5 flex items-center justify-between border-t border-zinc-100">
-              <div className="min-w-0">
-                <h3 className={cn(
-                  "text-xs font-black uppercase tracking-wider truncate",
-                  selectedAdId === ad.id ? "text-primary" : "text-zinc-900"
-                )}>
-                  {ad.name}
-                </h3>
-                <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest mt-1">
-                  {selectedAdId === ad.id ? "ACTIVE CAMPAIGN" : "STANDBY"}
-                </p>
+            <div className="sm:w-2/3 bg-zinc-50 flex items-center justify-center p-4">
+              <div className="relative w-full h-full">
+                <img src={ad.data} alt={ad.name} className="w-full h-auto max-h-[300px] object-contain rounded-lg" />
+                {selectedAdId === ad.id && (
+                  <div className="absolute -top-2 -right-2 bg-primary text-white p-1.5 border border-white">
+                    <Check className="w-3 h-3" />
+                  </div>
+                )}
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-zinc-300 hover:text-red-500"
-                onClick={(e) => { e.stopPropagation(); deleteAd(ad.id); }}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
             </div>
           </div>
         ))}

@@ -27,21 +27,21 @@ const Templates = () => {
   };
 
   return (
-    <div className="space-y-12 animate-fade-in-up pb-20">
+    <div className="space-y-6 lg:space-y-8 animate-fade-in-up pb-20">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-black uppercase tracking-tighter">Visual Templates</h1>
         <p className="text-xs font-bold text-zinc-400 uppercase tracking-[0.2em]">Select background style for all generations</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
         {templates.map((template) => (
           <div
             key={template.id}
             onClick={() => handleSelect(template.file)}
             className={cn(
-              "group bg-white border cursor-pointer overflow-hidden transition-all duration-300",
+              "group bg-white border cursor-pointer overflow-hidden transition-all duration-300 rounded-xl",
               selectedTemplate === template.file
-                ? "border-primary shadow-lg ring-1 ring-primary/20"
+                ? "border-primary ring-1 ring-primary/20"
                 : "border-zinc-200 hover:border-zinc-400"
             )}
           >
@@ -52,7 +52,7 @@ const Templates = () => {
                 className="w-full h-full object-contain"
               />
               {selectedTemplate === template.file && (
-                <div className="absolute top-4 right-4 bg-primary text-white p-2 shadow-lg">
+                <div className="absolute top-4 right-4 bg-primary text-white p-2">
                   <Check className="w-4 h-4" />
                 </div>
               )}

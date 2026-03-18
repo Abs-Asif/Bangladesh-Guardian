@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { censorText } from "@/lib/censor";
-import { Download, RefreshCw, Image as ImageIcon, ChevronRight, ClipboardPaste, List, Zap, Play, Square, Trash2, Copy, Trash, X, PenTool, ExternalLink } from "lucide-react";
+import { Download, RefreshCw, Image as ImageIcon, ChevronRight, ClipboardPaste, List, Zap, Play, Square, Trash2, Copy, Trash, X, PenTool, ExternalLink, Share2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface AutoRecord {
@@ -186,7 +186,8 @@ const Home = () => {
   const [lineHeightFactor, setLineHeightFactor] = useState(0.9);
 
   useEffect(() => {
-    const loadSettings = () => {
+    const loadSettings = (e?: StorageEvent) => {
+      if (e && e.key === 'bg_automation_status') return; // Ignore status updates
       const sw = localStorage.getItem('bg_secret_word_restrictions');
       if (sw) setWordRestrictions(JSON.parse(sw));
       const sf = localStorage.getItem('bg_secret_automation_frequency');
@@ -248,7 +249,13 @@ const Home = () => {
 
   useEffect(() => {
     localStorage.setItem('bg_secret_auto_active', String(autoModeActive));
-  }, [autoModeActive]);
+    const status = !autoModeActive ? 'IDLE' : isLeader ? 'ACTIVE' : 'STANDBY';
+    const oldStatus = localStorage.getItem('bg_automation_status');
+    if (status !== oldStatus) {
+      localStorage.setItem('bg_automation_status', status);
+      window.dispatchEvent(new StorageEvent('storage', { key: 'bg_automation_status', newValue: status }));
+    }
+  }, [autoModeActive, isLeader]);
 
   const addLog = useCallback((message: string, type: LogEntry['type'] = 'info') => {
     setAutoLogs(prev => [{ message, timestamp: Date.now(), type }, ...prev.slice(0, 99)]);
@@ -610,25 +617,58 @@ const Home = () => {
   const showPreview = activeTab === 'manual' && livePreviewEnabled;
 
   return (
-    <div className="space-y-12 animate-fade-in-up pb-20">
-      <div className="flex flex-col lg:flex-row gap-12">
-        <div className="flex-1 space-y-8">
-          <div className="flex bg-zinc-100 p-1 border border-zinc-200 max-w-sm">
-            <button
-              onClick={() => setActiveTab('url')}
-              className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all", activeTab === 'url' ? "bg-white text-primary shadow-sm" : "text-zinc-500 hover:text-zinc-900")}
-            >
-              Post URL
-            </button>
-            <button
-              onClick={() => setActiveTab('manual')}
-              className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all", activeTab === 'manual' ? "bg-white text-primary shadow-sm" : "text-zinc-500 hover:text-zinc-900")}
-            >
-              Manual Entry
-            </button>
+    <div className="space-y-6 lg:space-y-8 animate-fade-in-up pb-20">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+        {/* Automation Section (Moved to Left) */}
+        <div className="space-y-4 lg:space-y-6 h-full">
+          <div className="bg-white p-5 lg:p-6 border border-zinc-200 h-full flex flex-col space-y-4 rounded-xl">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-4">
+              <div className="flex items-center gap-3">
+                <Zap className="w-4 h-4 text-primary" />
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em]">Automation Engine</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className={cn("w-2 h-2 rounded-full", !autoModeActive ? 'bg-zinc-200' : isLeader ? 'bg-green-500 animate-pulse' : 'bg-amber-500')} />
+                <span className="text-[9px] uppercase font-black tracking-widest text-zinc-400">{!autoModeActive ? 'Idle' : isLeader ? 'Active' : 'Standby'}</span>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <Button variant={autoModeActive ? "destructive" : "default"} className="flex-1 h-12 text-[10px] font-black uppercase tracking-widest" onClick={() => { setAutoModeActive(!autoModeActive); }}>
+                {autoModeActive ? "Stop Engine" : "Start Engine"}
+              </Button>
+              <Button variant="outline" className="h-12 w-12 px-0 text-[10px] font-black" onClick={() => { nextFetchLimitRef.current = 30; if(!autoModeActive) setAutoModeActive(true); else checkAndGenerate(); }}>+30</Button>
+              <Button variant="outline" size="icon" className="h-12 w-12" onClick={() => { setShowLogs(!showLogs); }}><List className="w-4 h-4" /></Button>
+            </div>
+            {showLogs ? (
+              <div className="bg-zinc-50 p-5 flex-1 min-h-[200px] overflow-y-auto font-mono text-[10px] space-y-2 border border-zinc-100">
+                {autoLogs.length ? autoLogs.map((l, i) => <div key={i} className={cn(l.type==='success'?'text-green-600':l.type==='error'?'text-red-600':l.type==='process'?'text-primary':'text-zinc-400')}>[{new Date(l.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}] {l.message}</div>) : <div className="italic text-zinc-300 text-center py-10 uppercase tracking-widest text-[9px]">No logs</div>}
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center border border-dashed border-zinc-100 text-zinc-300">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em]">Logs Hidden</p>
+              </div>
+            )}
           </div>
+        </div>
 
-          <div className="bg-white p-8 border border-zinc-200 space-y-6">
+        {/* Manual Section (Moved to Right) */}
+        <div className="space-y-4 lg:space-y-6">
+          <div className="bg-white p-5 lg:p-6 border border-zinc-200 space-y-4 rounded-xl">
+            <div className="flex bg-zinc-100 p-1 border border-zinc-200 mb-1 rounded-lg overflow-hidden">
+              <button
+                onClick={() => setActiveTab('url')}
+                className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all", activeTab === 'url' ? "bg-white text-primary border border-zinc-200" : "text-zinc-500 hover:text-zinc-900")}
+              >
+                Post URL
+              </button>
+              <button
+                onClick={() => setActiveTab('manual')}
+                className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all", activeTab === 'manual' ? "bg-white text-primary border border-zinc-200" : "text-zinc-500 hover:text-zinc-900")}
+              >
+                Manual Entry
+              </button>
+            </div>
+
             {activeTab === 'url' ? (
               <div className="space-y-4 animate-in fade-in duration-300">
                 <div className="flex items-center justify-between">
@@ -636,8 +676,8 @@ const Home = () => {
                   <Button variant="ghost" size="sm" className="h-6 text-[9px] font-black text-primary p-0 hover:bg-transparent" onClick={() => { navigator.clipboard.readText().then(setPostUrl); }}>PASTE FROM CLIPBOARD</Button>
                 </div>
                 <div className="flex gap-4">
-                  <Input value={postUrl} onChange={e => setPostUrl(e.target.value)} placeholder="https://www.bangladeshguardian.com/..." className="bg-zinc-50 border-zinc-200 h-12 text-sm" />
-                  <Button variant="default" className="h-12 w-12 shrink-0" onClick={fetchPostData} disabled={isFetching || !postUrl}>{isFetching ? <RefreshCw className="w-5 h-5 animate-spin" /> : <ChevronRight className="w-6 h-6" />}</Button>
+                  <Input value={postUrl} onChange={e => setPostUrl(e.target.value)} placeholder="https://www.bangladeshguardian.com/..." className="bg-zinc-50 border-zinc-200 h-12 text-sm rounded-xl" />
+                  <Button variant="destructive" className="h-12 w-12 shrink-0 rounded-xl" onClick={fetchPostData} disabled={isFetching || !postUrl}>{isFetching ? <RefreshCw className="w-5 h-5 animate-spin" /> : <ChevronRight className="w-6 h-6" />}</Button>
                 </div>
               </div>
             ) : (
@@ -658,94 +698,121 @@ const Home = () => {
                   </div>
                 </div>
                 {uploadedImage && (
-                  <div className="flex items-center gap-4 p-4 bg-zinc-50 border border-dashed border-zinc-200">
-                    <div className="w-12 h-12 bg-black shrink-0"><img src={uploadedImage} className="w-full h-full object-cover" alt="Uploaded Preview" /></div>
+                  <div className="flex items-center gap-4 p-4 bg-zinc-50 border border-dashed border-zinc-200 rounded-xl">
+                    <div className="w-12 h-12 bg-black shrink-0 rounded-lg overflow-hidden"><img src={uploadedImage} className="w-full h-full object-cover" alt="Uploaded Preview" /></div>
                     <div className="flex-1"><p className="text-[10px] font-black uppercase tracking-wider">Local Image Loaded</p><p className="text-[9px] text-zinc-400 font-bold uppercase">Ready for generation</p></div>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-300 hover:text-red-500" onClick={clearUploadedImage}><X className="w-4 h-4" /></Button>
                   </div>
                 )}
-                <Button className="w-full h-14 font-black text-xs uppercase tracking-[0.2em] gap-3" onClick={() => { generatePhotoCard(); }} disabled={isGenerating}>{isGenerating ? <RefreshCw className="animate-spin w-4 h-4" /> : <PenTool className="w-4 h-4" />} Create PhotoCard</Button>
+                <Button className="w-full h-14 font-black text-xs uppercase tracking-[0.2em] gap-3 rounded-xl" onClick={() => { generatePhotoCard(); }} disabled={isGenerating}>{isGenerating ? <RefreshCw className="animate-spin w-4 h-4" /> : <PenTool className="w-4 h-4" />} Create PhotoCard</Button>
               </div>
             )}
           </div>
-        </div>
 
-        <div className="w-full lg:w-[400px] space-y-8">
           {showPreview && (
-            <div className="animate-in slide-in-from-top-4 duration-500">
-              <div className="flex items-center gap-3 mb-4">
+            <div className="animate-in slide-in-from-top-4 duration-500 space-y-4">
+              <div className="flex items-center gap-3">
                 <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                 <Label className="text-[10px] uppercase tracking-[0.2em] text-zinc-400 font-black">Live Preview</Label>
               </div>
-              <div className="aspect-square bg-zinc-100 border border-zinc-200 overflow-hidden flex items-center justify-center relative">
+              <div className="aspect-square bg-zinc-100 border border-zinc-200 overflow-hidden flex items-center justify-center relative rounded-2xl">
                 {previewUrl ? <img src={previewUrl} className="w-full h-full object-contain" alt="Live Preview" /> : <div className="text-zinc-300 flex flex-col items-center gap-3"><ImageIcon className="w-12 h-12 opacity-20" /><span className="text-[9px] font-black uppercase tracking-widest">Rendering...</span></div>}
               </div>
             </div>
           )}
-          <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} className="hidden" />
-
-          <div className="bg-white p-8 border border-zinc-200 space-y-6">
-            <div className="flex items-center justify-between border-b border-zinc-100 pb-6">
-              <div className="flex items-center gap-3">
-                <Zap className="w-4 h-4 text-primary" />
-                <h3 className="text-[10px] font-black uppercase tracking-[0.2em]">Automation</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className={cn("w-2 h-2 rounded-full", !autoModeActive ? 'bg-zinc-200' : isLeader ? 'bg-green-500 animate-pulse' : 'bg-amber-500')} />
-                <span className="text-[9px] uppercase font-black tracking-widest text-zinc-400">{!autoModeActive ? 'Idle' : isLeader ? 'Active' : 'Standby'}</span>
-              </div>
-            </div>
-            <div className="flex gap-4">
-              <Button variant={autoModeActive ? "destructive" : "default"} className="flex-1 h-12 text-[10px] font-black uppercase tracking-widest" onClick={() => { setAutoModeActive(!autoModeActive); }}>
-                {autoModeActive ? "Stop Engine" : "Start Engine"}
-              </Button>
-              <Button variant="outline" className="h-12 w-12 px-0 text-[10px] font-black" onClick={() => { nextFetchLimitRef.current = 30; if(!autoModeActive) setAutoModeActive(true); else checkAndGenerate(); }}>+30</Button>
-              <Button variant="outline" size="icon" className="h-12 w-12" onClick={() => { setShowLogs(!showLogs); }}><List className="w-4 h-4" /></Button>
-            </div>
-            {showLogs && (
-              <div className="bg-zinc-50 p-5 h-48 overflow-y-auto font-mono text-[10px] space-y-2 border border-zinc-100">
-                {autoLogs.length ? autoLogs.map((l, i) => <div key={i} className={cn(l.type==='success'?'text-green-600':l.type==='error'?'text-red-600':l.type==='process'?'text-primary':'text-zinc-400')}>[{new Date(l.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}] {l.message}</div>) : <div className="italic text-zinc-300 text-center py-10 uppercase tracking-widest text-[9px]">No logs</div>}
-              </div>
-            )}
-          </div>
         </div>
       </div>
+      <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} className="hidden" />
 
-      <div className="space-y-10 pt-12 border-t border-zinc-100">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-1.5 h-12 bg-primary" />
+      <div className="space-y-6 lg:space-y-8 pt-6 lg:pt-8 border-t border-zinc-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-1 h-8 lg:h-10 bg-primary" />
             <div>
-              <h2 className="text-2xl font-black uppercase tracking-tighter">Recent Generations</h2>
-              <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">Session History ({autoRecords.length}/50)</p>
+              <h2 className="text-xl lg:text-2xl font-black uppercase tracking-tighter">Recent Generations</h2>
+              <p className="text-[9px] lg:text-[10px] text-zinc-400 uppercase tracking-widest font-bold">Session History ({autoRecords.length}/50)</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" className="text-[9px] font-black text-zinc-400 hover:text-red-500 tracking-widest p-0" onClick={() => { if(confirm('Clear all history?')) { clearRecordsDB(); setAutoRecords([]); } }}>CLEAR HISTORY</Button>
+          <Button variant="ghost" size="sm" className="text-[9px] font-black text-zinc-400 hover:text-red-500 tracking-widest p-0 self-end sm:self-auto" onClick={() => { if(confirm('Clear all history?')) { clearRecordsDB(); setAutoRecords([]); } }}>CLEAR HISTORY</Button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
           {autoRecords.map(r => (
-            <div key={r.id} className="group bg-white border border-zinc-200 overflow-hidden hover:border-primary transition-colors">
+            <div key={r.id} className="group bg-white border border-zinc-200 overflow-hidden hover:border-primary transition-all duration-300 rounded-xl">
               <div className="aspect-square bg-zinc-50 overflow-hidden relative">
                 <img src={r.previewUrl} className="w-full h-full object-contain" alt={r.title} />
-                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                   <Button variant="secondary" size="icon" className="h-8 w-8 bg-white/90 backdrop-blur shadow-sm hover:text-primary" onClick={() => { const a=document.createElement('a'); a.download=`${r.title}.png`; a.href=r.previewUrl; a.click(); }}><Download className="w-4 h-4" /></Button>
-                   <Button variant="secondary" size="icon" className="h-8 w-8 bg-white/90 backdrop-blur shadow-sm hover:text-red-500" onClick={() => { if(confirm('Delete generation?')) { deleteRecordDB(r.id); setAutoRecords(prev => prev.filter(x => x.id !== r.id)); } }}><Trash2 className="w-4 h-4" /></Button>
-                </div>
               </div>
-              <div className="p-5 space-y-3">
-                <div className="flex items-start justify-between gap-4">
-                   <h3 className="text-xs font-black leading-tight line-clamp-2 uppercase tracking-wide">
+              <div className="p-4 space-y-3">
+                <div className="min-w-0">
+                  <h3 className="text-xs font-black leading-snug uppercase tracking-wide">
                     {r.url && r.url !== 'manual' ? (
-                      <a href={r.url} target="_blank" rel="noopener noreferrer" className="hover:text-primary flex items-center gap-2">{r.title} <ExternalLink className="w-3 h-3 shrink-0" /></a>
-                    ) : r.title}
+                      <a href={r.url} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors inline">
+                        {r.title}
+                      </a>
+                    ) : <span className="inline">{r.title}</span>}
+                    <span className="text-[9px] text-zinc-400 font-black uppercase tracking-widest ml-1.5 whitespace-nowrap inline-block">
+                      {r.postTime || '• Manual Entry'}
+                    </span>
                   </h3>
-                  {r.url && r.url !== 'manual' && (
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-300 hover:text-primary shrink-0" onClick={() => { navigator.clipboard.writeText(r.url); toast.success("URL copied"); }}><Copy className="w-3.5 h-3.5" /></Button>
-                  )}
                 </div>
-                <div className="flex items-center justify-between border-t border-zinc-50 pt-3">
-                   <span className="text-[9px] text-zinc-400 font-black uppercase tracking-widest">{r.postTime || 'Manual Entry'}</span>
+
+                <div className="flex flex-col gap-2 pt-2 border-t border-zinc-100">
+                  {/* Line 1: Download */}
+                  <Button
+                    className="w-full h-9 gap-2 text-[9px] font-black uppercase tracking-widest bg-green-600 hover:bg-green-700 text-white rounded-md"
+                    onClick={() => { const a=document.createElement('a'); a.download=`${r.title}.png`; a.href=r.previewUrl; a.click(); }}
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    DOWNLOAD
+                  </Button>
+
+                  {/* Line 2: Share */}
+                  <Button
+                    variant="outline"
+                    className="w-full h-9 gap-2 text-[9px] font-black uppercase tracking-widest border-zinc-200 hover:bg-zinc-50 text-zinc-600 rounded-md"
+                    onClick={() => {
+                      if (navigator.share) {
+                        fetch(r.previewUrl).then(res => res.blob()).then(blob => {
+                          const file = new File([blob], `${r.title}.png`, { type: 'image/png' });
+                          navigator.share({ files: [file], title: r.title }).catch(() => {});
+                        });
+                      } else {
+                        navigator.clipboard.writeText(r.previewUrl);
+                        toast.success("Image link copied");
+                      }
+                    }}
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    SHARE
+                  </Button>
+
+                  {/* Line 3: Copy Link & Delete */}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1 h-9 gap-2 text-[9px] font-black uppercase tracking-widest border-zinc-200 hover:bg-zinc-50 text-blue-600 rounded-md"
+                      onClick={() => {
+                        if (r.url && r.url !== 'manual') {
+                          navigator.clipboard.writeText(r.url);
+                          toast.success("Post URL copied");
+                        } else {
+                          navigator.clipboard.writeText(r.previewUrl);
+                          toast.success("Image link copied");
+                        }
+                      }}
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      COPY LINK
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex-1 h-9 gap-2 text-[9px] font-black uppercase tracking-widest border-red-100 bg-red-50/30 hover:bg-red-50 text-red-600 rounded-md"
+                      onClick={() => { if(confirm('Delete generation?')) { deleteRecordDB(r.id); setAutoRecords(prev => prev.filter(x => x.id !== r.id)); } }}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      DELETE
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>

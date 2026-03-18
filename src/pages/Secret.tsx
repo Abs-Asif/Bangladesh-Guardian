@@ -89,10 +89,15 @@ const Secret = () => {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-background text-foreground">
-      <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
-      <main className="flex-1 overflow-y-auto relative pt-20 lg:pt-0">
-        <div className="max-w-7xl mx-auto p-6 md:p-10 lg:p-12">
+    <div className="flex flex-col lg:flex-row h-screen bg-background text-foreground overflow-hidden">
+      <div className="hidden lg:block lg:w-24 xl:w-64 shrink-0">
+        <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
+      </div>
+      <div className="lg:hidden">
+        <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
+      </div>
+      <main className="flex-1 overflow-y-auto relative pt-20 lg:pt-0 h-full scrollbar-hide">
+        <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
           {renderPage()}
         </div>
       </main>
