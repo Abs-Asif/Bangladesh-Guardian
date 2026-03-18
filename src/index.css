@@ -75,7 +75,7 @@
     --input: 240 5.9% 90%;
     --ring: 0 72% 51%;
 
-    --radius: 0px;
+    --radius: 0.25rem;
 
     --surface-1: 0 0% 98%;
     --surface-2: 0 0% 96%;
@@ -145,7 +145,3 @@
   animation: fade-in-up 0.5s ease-out forwards;
 }
 
-/* Remove all border radius globally to enforce sharp look */
-* {
-  border-radius: 0 !important;
-}

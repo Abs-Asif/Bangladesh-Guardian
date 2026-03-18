@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { censorText } from "@/lib/censor";
-import { Download, RefreshCw, Image as ImageIcon, ChevronRight, ClipboardPaste, List, Zap, Play, Square, Trash2, Copy, Trash, X, PenTool, ExternalLink } from "lucide-react";
+import { Download, RefreshCw, Image as ImageIcon, ChevronRight, ClipboardPaste, List, Zap, Play, Square, Trash2, Copy, Trash, X, PenTool, ExternalLink, Share2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface AutoRecord {
@@ -248,7 +248,10 @@ const Home = () => {
 
   useEffect(() => {
     localStorage.setItem('bg_secret_auto_active', String(autoModeActive));
-  }, [autoModeActive]);
+    const status = !autoModeActive ? 'IDLE' : isLeader ? 'ACTIVE' : 'STANDBY';
+    localStorage.setItem('bg_automation_status', status);
+    window.dispatchEvent(new Event('storage'));
+  }, [autoModeActive, isLeader]);
 
   const addLog = useCallback((message: string, type: LogEntry['type'] = 'info') => {
     setAutoLogs(prev => [{ message, timestamp: Date.now(), type }, ...prev.slice(0, 99)]);
@@ -611,24 +614,57 @@ const Home = () => {
 
   return (
     <div className="space-y-12 animate-fade-in-up pb-20">
-      <div className="flex flex-col lg:flex-row gap-12">
-        <div className="flex-1 space-y-8">
-          <div className="flex bg-zinc-100 p-1 border border-zinc-200 max-w-sm">
-            <button
-              onClick={() => setActiveTab('url')}
-              className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all", activeTab === 'url' ? "bg-white text-primary shadow-sm" : "text-zinc-500 hover:text-zinc-900")}
-            >
-              Post URL
-            </button>
-            <button
-              onClick={() => setActiveTab('manual')}
-              className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all", activeTab === 'manual' ? "bg-white text-primary shadow-sm" : "text-zinc-500 hover:text-zinc-900")}
-            >
-              Manual Entry
-            </button>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        {/* Automation Section (Moved to Left) */}
+        <div className="space-y-8 h-full">
+          <div className="bg-white p-8 border border-zinc-200 h-full flex flex-col space-y-6">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-6">
+              <div className="flex items-center gap-3">
+                <Zap className="w-4 h-4 text-primary" />
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em]">Automation Engine</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className={cn("w-2 h-2 rounded-full", !autoModeActive ? 'bg-zinc-200' : isLeader ? 'bg-green-500 animate-pulse' : 'bg-amber-500')} />
+                <span className="text-[9px] uppercase font-black tracking-widest text-zinc-400">{!autoModeActive ? 'Idle' : isLeader ? 'Active' : 'Standby'}</span>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <Button variant={autoModeActive ? "destructive" : "default"} className="flex-1 h-12 text-[10px] font-black uppercase tracking-widest" onClick={() => { setAutoModeActive(!autoModeActive); }}>
+                {autoModeActive ? "Stop Engine" : "Start Engine"}
+              </Button>
+              <Button variant="outline" className="h-12 w-12 px-0 text-[10px] font-black" onClick={() => { nextFetchLimitRef.current = 30; if(!autoModeActive) setAutoModeActive(true); else checkAndGenerate(); }}>+30</Button>
+              <Button variant="outline" size="icon" className="h-12 w-12" onClick={() => { setShowLogs(!showLogs); }}><List className="w-4 h-4" /></Button>
+            </div>
+            {showLogs ? (
+              <div className="bg-zinc-50 p-5 flex-1 min-h-[200px] overflow-y-auto font-mono text-[10px] space-y-2 border border-zinc-100">
+                {autoLogs.length ? autoLogs.map((l, i) => <div key={i} className={cn(l.type==='success'?'text-green-600':l.type==='error'?'text-red-600':l.type==='process'?'text-primary':'text-zinc-400')}>[{new Date(l.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}] {l.message}</div>) : <div className="italic text-zinc-300 text-center py-10 uppercase tracking-widest text-[9px]">No logs</div>}
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center border border-dashed border-zinc-100 text-zinc-300">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em]">Logs Hidden</p>
+              </div>
+            )}
           </div>
+        </div>
 
+        {/* Manual Section (Moved to Right) */}
+        <div className="space-y-8">
           <div className="bg-white p-8 border border-zinc-200 space-y-6">
+            <div className="flex bg-zinc-100 p-1 border border-zinc-200 mb-2">
+              <button
+                onClick={() => setActiveTab('url')}
+                className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all", activeTab === 'url' ? "bg-white text-primary shadow-sm" : "text-zinc-500 hover:text-zinc-900")}
+              >
+                Post URL
+              </button>
+              <button
+                onClick={() => setActiveTab('manual')}
+                className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all", activeTab === 'manual' ? "bg-white text-primary shadow-sm" : "text-zinc-500 hover:text-zinc-900")}
+              >
+                Manual Entry
+              </button>
+            </div>
+
             {activeTab === 'url' ? (
               <div className="space-y-4 animate-in fade-in duration-300">
                 <div className="flex items-center justify-between">
@@ -637,7 +673,7 @@ const Home = () => {
                 </div>
                 <div className="flex gap-4">
                   <Input value={postUrl} onChange={e => setPostUrl(e.target.value)} placeholder="https://www.bangladeshguardian.com/..." className="bg-zinc-50 border-zinc-200 h-12 text-sm" />
-                  <Button variant="default" className="h-12 w-12 shrink-0" onClick={fetchPostData} disabled={isFetching || !postUrl}>{isFetching ? <RefreshCw className="w-5 h-5 animate-spin" /> : <ChevronRight className="w-6 h-6" />}</Button>
+                  <Button variant="destructive" className="h-12 w-12 shrink-0" onClick={fetchPostData} disabled={isFetching || !postUrl}>{isFetching ? <RefreshCw className="w-5 h-5 animate-spin" /> : <ChevronRight className="w-6 h-6" />}</Button>
                 </div>
               </div>
             ) : (
@@ -668,12 +704,10 @@ const Home = () => {
               </div>
             )}
           </div>
-        </div>
 
-        <div className="w-full lg:w-[400px] space-y-8">
           {showPreview && (
-            <div className="animate-in slide-in-from-top-4 duration-500">
-              <div className="flex items-center gap-3 mb-4">
+            <div className="animate-in slide-in-from-top-4 duration-500 space-y-4">
+              <div className="flex items-center gap-3">
                 <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                 <Label className="text-[10px] uppercase tracking-[0.2em] text-zinc-400 font-black">Live Preview</Label>
               </div>
@@ -682,34 +716,9 @@ const Home = () => {
               </div>
             </div>
           )}
-          <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} className="hidden" />
-
-          <div className="bg-white p-8 border border-zinc-200 space-y-6">
-            <div className="flex items-center justify-between border-b border-zinc-100 pb-6">
-              <div className="flex items-center gap-3">
-                <Zap className="w-4 h-4 text-primary" />
-                <h3 className="text-[10px] font-black uppercase tracking-[0.2em]">Automation</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className={cn("w-2 h-2 rounded-full", !autoModeActive ? 'bg-zinc-200' : isLeader ? 'bg-green-500 animate-pulse' : 'bg-amber-500')} />
-                <span className="text-[9px] uppercase font-black tracking-widest text-zinc-400">{!autoModeActive ? 'Idle' : isLeader ? 'Active' : 'Standby'}</span>
-              </div>
-            </div>
-            <div className="flex gap-4">
-              <Button variant={autoModeActive ? "destructive" : "default"} className="flex-1 h-12 text-[10px] font-black uppercase tracking-widest" onClick={() => { setAutoModeActive(!autoModeActive); }}>
-                {autoModeActive ? "Stop Engine" : "Start Engine"}
-              </Button>
-              <Button variant="outline" className="h-12 w-12 px-0 text-[10px] font-black" onClick={() => { nextFetchLimitRef.current = 30; if(!autoModeActive) setAutoModeActive(true); else checkAndGenerate(); }}>+30</Button>
-              <Button variant="outline" size="icon" className="h-12 w-12" onClick={() => { setShowLogs(!showLogs); }}><List className="w-4 h-4" /></Button>
-            </div>
-            {showLogs && (
-              <div className="bg-zinc-50 p-5 h-48 overflow-y-auto font-mono text-[10px] space-y-2 border border-zinc-100">
-                {autoLogs.length ? autoLogs.map((l, i) => <div key={i} className={cn(l.type==='success'?'text-green-600':l.type==='error'?'text-red-600':l.type==='process'?'text-primary':'text-zinc-400')}>[{new Date(l.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}] {l.message}</div>) : <div className="italic text-zinc-300 text-center py-10 uppercase tracking-widest text-[9px]">No logs</div>}
-              </div>
-            )}
-          </div>
         </div>
       </div>
+      <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} className="hidden" />
 
       <div className="space-y-10 pt-12 border-t border-zinc-100">
         <div className="flex items-center justify-between">
@@ -725,27 +734,74 @@ const Home = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
           {autoRecords.map(r => (
-            <div key={r.id} className="group bg-white border border-zinc-200 overflow-hidden hover:border-primary transition-colors">
+            <div key={r.id} className="group bg-white border border-zinc-200 overflow-hidden hover:border-primary transition-all duration-300">
               <div className="aspect-square bg-zinc-50 overflow-hidden relative">
                 <img src={r.previewUrl} className="w-full h-full object-contain" alt={r.title} />
-                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                   <Button variant="secondary" size="icon" className="h-8 w-8 bg-white/90 backdrop-blur shadow-sm hover:text-primary" onClick={() => { const a=document.createElement('a'); a.download=`${r.title}.png`; a.href=r.previewUrl; a.click(); }}><Download className="w-4 h-4" /></Button>
-                   <Button variant="secondary" size="icon" className="h-8 w-8 bg-white/90 backdrop-blur shadow-sm hover:text-red-500" onClick={() => { if(confirm('Delete generation?')) { deleteRecordDB(r.id); setAutoRecords(prev => prev.filter(x => x.id !== r.id)); } }}><Trash2 className="w-4 h-4" /></Button>
-                </div>
               </div>
-              <div className="p-5 space-y-3">
+              <div className="p-5 space-y-4">
                 <div className="flex items-start justify-between gap-4">
-                   <h3 className="text-xs font-black leading-tight line-clamp-2 uppercase tracking-wide">
-                    {r.url && r.url !== 'manual' ? (
-                      <a href={r.url} target="_blank" rel="noopener noreferrer" className="hover:text-primary flex items-center gap-2">{r.title} <ExternalLink className="w-3 h-3 shrink-0" /></a>
-                    ) : r.title}
-                  </h3>
-                  {r.url && r.url !== 'manual' && (
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-300 hover:text-primary shrink-0" onClick={() => { navigator.clipboard.writeText(r.url); toast.success("URL copied"); }}><Copy className="w-3.5 h-3.5" /></Button>
-                  )}
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-xs font-black leading-tight line-clamp-2 uppercase tracking-wide">
+                      {r.url && r.url !== 'manual' ? (
+                        <a href={r.url} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
+                          {r.title}
+                        </a>
+                      ) : r.title}
+                      <span className="text-[9px] text-zinc-400 font-black uppercase tracking-widest ml-2 whitespace-nowrap">
+                        {r.postTime || 'Manual Entry'}
+                      </span>
+                    </h3>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between border-t border-zinc-50 pt-3">
-                   <span className="text-[9px] text-zinc-400 font-black uppercase tracking-widest">{r.postTime || 'Manual Entry'}</span>
+
+                <div className="flex items-center gap-2 pt-2 border-t border-zinc-50">
+                  <Button
+                    variant="secondary"
+                    className="flex-1 h-9 gap-2 text-[9px] font-black uppercase tracking-widest bg-zinc-100 hover:bg-zinc-200 text-zinc-900"
+                    onClick={() => { const a=document.createElement('a'); a.download=`${r.title}.png`; a.href=r.previewUrl; a.click(); }}
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    DOWNLOAD
+                  </Button>
+
+                  <Button
+                    variant="secondary"
+                    className="flex-1 h-9 gap-2 text-[9px] font-black uppercase tracking-widest bg-blue-50 hover:bg-blue-100 text-blue-600"
+                    onClick={() => {
+                      if (navigator.share) {
+                        fetch(r.previewUrl).then(res => res.blob()).then(blob => {
+                          const file = new File([blob], `${r.title}.png`, { type: 'image/png' });
+                          navigator.share({ files: [file], title: r.title }).catch(() => {});
+                        });
+                      } else {
+                        navigator.clipboard.writeText(r.previewUrl);
+                        toast.success("Image link copied");
+                      }
+                    }}
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    SHARE
+                  </Button>
+
+                  <Button
+                    variant="secondary"
+                    className="flex-1 h-9 gap-2 text-[9px] font-black uppercase tracking-widest bg-red-50 hover:bg-red-100 text-red-600"
+                    onClick={() => { if(confirm('Delete generation?')) { deleteRecordDB(r.id); setAutoRecords(prev => prev.filter(x => x.id !== r.id)); } }}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    DELETE
+                  </Button>
+
+                  {r.url && r.url !== 'manual' && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 text-blue-500 hover:text-blue-600 hover:bg-blue-50 shrink-0"
+                      onClick={() => { navigator.clipboard.writeText(r.url); toast.success("URL copied"); }}
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { cn } from "@/lib/utils";
 import { Home, Image as ImageIcon, Layout, Settings2, Menu, X } from "lucide-react";
 import { Button } from "./ui/button";
+import { useEffect } from "react";
 
 export type PageId = 'home' | 'templates' | 'ads' | 'settings';
 
@@ -12,6 +13,15 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [automationStatus, setAutomationStatus] = useState(() => localStorage.getItem('bg_automation_status') || 'IDLE');
+
+  useEffect(() => {
+    const handleStorage = () => {
+      setAutomationStatus(localStorage.getItem('bg_automation_status') || 'IDLE');
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
   const navItems = [
     { id: 'home', label: 'Home', icon: Home },
@@ -47,7 +57,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
 
       {/* Sidebar Content - Black Background as requested */}
       <aside className={cn(
-        "fixed inset-y-0 left-0 w-64 bg-black border-r border-zinc-800 flex flex-col h-screen z-50 transition-transform duration-300 lg:translate-x-0 lg:static lg:w-24 xl:w-64",
+        "fixed inset-y-0 left-0 w-64 bg-black border-r border-zinc-800 flex flex-col h-screen z-50 transition-transform duration-300 lg:translate-x-0 lg:w-24 xl:w-64",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="p-8 hidden lg:flex items-center justify-center xl:justify-start">
@@ -77,14 +87,20 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
 
         <div className="p-6 border-t border-zinc-900 bg-zinc-950/50">
           <div className="hidden xl:block p-4 bg-black border border-zinc-800">
-            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-extrabold mb-1.5">Status</p>
+            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-extrabold mb-1.5">Automation Status</p>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-xs font-bold text-zinc-300">SYSTEM ONLINE</span>
+              <div className={cn(
+                "w-2 h-2 rounded-full animate-pulse",
+                automationStatus === 'ACTIVE' ? "bg-green-500" : automationStatus === 'STANDBY' ? "bg-amber-500" : "bg-zinc-500"
+              )} />
+              <span className="text-xs font-bold text-zinc-300">{automationStatus}</span>
             </div>
           </div>
           <div className="xl:hidden flex justify-center">
-            <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
+            <div className={cn(
+              "w-2.5 h-2.5 rounded-full animate-pulse",
+              automationStatus === 'ACTIVE' ? "bg-green-500" : automationStatus === 'STANDBY' ? "bg-amber-500" : "bg-zinc-500"
+            )} />
           </div>
         </div>
       </aside>

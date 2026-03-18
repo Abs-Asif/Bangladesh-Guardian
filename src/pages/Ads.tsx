@@ -131,45 +131,52 @@ const Ads = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+      <div className="flex flex-col gap-6 max-w-5xl">
         {ads.map((ad) => (
           <div
             key={ad.id}
+            onClick={() => toggleSelect(ad.id)}
             className={cn(
-              "group bg-white border transition-colors duration-300",
-              selectedAdId === ad.id ? "border-primary shadow-lg" : "border-zinc-200 hover:border-zinc-400"
+              "group bg-white border flex flex-col sm:flex-row items-stretch cursor-pointer transition-all duration-300",
+              selectedAdId === ad.id ? "border-primary shadow-md ring-1 ring-primary/20" : "border-zinc-200 hover:border-zinc-400"
             )}
           >
-            <div className="aspect-[21/9] bg-zinc-50 overflow-hidden relative cursor-pointer" onClick={() => toggleSelect(ad.id)}>
-              <img src={ad.data} alt={ad.name} className="w-full h-full object-cover" />
-              {selectedAdId === ad.id && (
-                <div className="absolute top-4 right-4 bg-primary text-white p-2 shadow-lg">
-                  <Check className="w-4 h-4" />
+            <div className="p-6 flex-1 flex flex-col justify-center border-b sm:border-b-0 sm:border-r border-zinc-100">
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <h3 className={cn(
+                    "text-sm font-black uppercase tracking-wider truncate",
+                    selectedAdId === ad.id ? "text-primary" : "text-zinc-900"
+                  )}>
+                    {ad.name}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-2">
+                    <div className={cn("w-1.5 h-1.5 rounded-full", selectedAdId === ad.id ? "bg-primary animate-pulse" : "bg-zinc-300")} />
+                    <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest">
+                      {selectedAdId === ad.id ? "ACTIVE CAMPAIGN" : "STANDBY"}
+                    </p>
+                  </div>
                 </div>
-              )}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-zinc-300 hover:text-red-500 shrink-0"
+                  onClick={(e) => { e.stopPropagation(); deleteAd(ad.id); }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
 
-            <div className="p-5 flex items-center justify-between border-t border-zinc-100">
-              <div className="min-w-0">
-                <h3 className={cn(
-                  "text-xs font-black uppercase tracking-wider truncate",
-                  selectedAdId === ad.id ? "text-primary" : "text-zinc-900"
-                )}>
-                  {ad.name}
-                </h3>
-                <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest mt-1">
-                  {selectedAdId === ad.id ? "ACTIVE CAMPAIGN" : "STANDBY"}
-                </p>
+            <div className="sm:w-2/3 bg-zinc-50 flex items-center justify-center p-2">
+              <div className="relative w-full h-full">
+                <img src={ad.data} alt={ad.name} className="w-full h-auto max-h-[300px] object-contain shadow-sm" />
+                {selectedAdId === ad.id && (
+                  <div className="absolute -top-2 -right-2 bg-primary text-white p-1.5 shadow-lg border border-white">
+                    <Check className="w-3 h-3" />
+                  </div>
+                )}
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-zinc-300 hover:text-red-500"
-                onClick={(e) => { e.stopPropagation(); deleteAd(ad.id); }}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
             </div>
           </div>
         ))}
