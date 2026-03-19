@@ -22,7 +22,10 @@ export default defineConfig(({ mode }) => ({
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
           const url = req.url?.split('?')[0] || '';
-          if (url === '/' || url === '/index.html' || url === '/404.html' || url.includes('.') || url.startsWith('/@') || url.startsWith('/src') || url.startsWith('/node_modules')) {
+          if (url === '/robots.txt') {
+            res.writeHead(302, { Location: 'https://m.youtube.com/watch?v=dQw4w9WgXcQ' });
+            res.end();
+          } else if (url === '/' || url === '/index.html' || url === '/404.html' || url.includes('.') || url.startsWith('/@') || url.startsWith('/src') || url.startsWith('/node_modules')) {
             next();
           } else {
             req.url = '/404.html';

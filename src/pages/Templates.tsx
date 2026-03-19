@@ -24,7 +24,7 @@ const Templates = () => {
     <div className="space-y-6 lg:space-y-8 animate-fade-in-up pb-20">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold   text-foreground">Visual Templates</h1>
-        <p className="text-xs font-bold text-muted-foreground  ">Select background style for all generations</p>
+        <p className="text-xs text-muted-foreground  ">Select background style for all generations</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
