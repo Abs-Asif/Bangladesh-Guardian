@@ -249,7 +249,7 @@ const Home = () => {
 
   useEffect(() => {
     localStorage.setItem('bg_secret_auto_active', String(autoModeActive));
-    const status = !autoModeActive ? 'Idle' : isLeader ? 'Active' : 'Standby';
+    const status = !autoModeActive ? 'IDLE' : isLeader ? 'ACTIVE' : 'STANDBY';
     const oldStatus = localStorage.getItem('bg_automation_status');
     if (status !== oldStatus) {
       localStorage.setItem('bg_automation_status', status);
@@ -635,27 +635,28 @@ const Home = () => {
             <div className="flex items-center justify-between border-b border-border pb-4">
               <div className="flex items-center gap-3">
                 <Zap className="w-4 h-4 text-primary" />
-                <h3 className="text-[10px] font-black   text-foreground">Automation Engine</h3>
+                <h3 className="text-sm font-bold   text-foreground">Automation Engine</h3>
               </div>
               <div className="flex items-center gap-2">
                 <div className={cn("w-2 h-2 rounded-full", !autoModeActive ? 'bg-muted' : isLeader ? 'bg-green-500 animate-pulse' : 'bg-amber-500')} />
-                <span className="text-[9px]  font-black  text-muted-foreground">{!autoModeActive ? 'Idle' : isLeader ? 'Active' : 'Standby'}</span>
+                <span className="text-xs  font-bold  text-muted-foreground uppercase tracking-widest">{!autoModeActive ? 'IDLE' : isLeader ? 'ACTIVE' : 'STANDBY'}</span>
               </div>
             </div>
             <div className="flex gap-4">
-              <Button variant={autoModeActive ? "destructive" : "default"} className="flex-1 h-12 text-[10px] font-black  " onClick={() => { setAutoModeActive(!autoModeActive); }}>
+              <Button variant={autoModeActive ? "destructive" : "default"} className="flex-1 h-12 text-sm font-bold   gap-2" onClick={() => { setAutoModeActive(!autoModeActive); }}>
+                {autoModeActive ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                 {autoModeActive ? "Stop Engine" : "Start Engine"}
               </Button>
-              <Button variant="outline" className="h-12 w-12 px-0 text-[10px] font-black" onClick={() => { nextFetchLimitRef.current = 30; if(!autoModeActive) setAutoModeActive(true); else checkAndGenerate(); }}>+30</Button>
+              <Button variant="outline" className="h-12 w-12 px-0 text-sm font-bold" onClick={() => { nextFetchLimitRef.current = 30; if(!autoModeActive) setAutoModeActive(true); else checkAndGenerate(); }}>+30</Button>
               <Button variant="outline" size="icon" className="h-12 w-12" onClick={() => { setShowLogs(!showLogs); }}><List className="w-4 h-4" /></Button>
             </div>
             {showLogs ? (
-              <div className="bg-muted/50 p-5 flex-1 min-h-[200px] overflow-y-auto font-mono text-[10px] space-y-2 border border-border">
-                {autoLogs.length ? autoLogs.map((l, i) => <div key={i} className={cn(l.type==='success'?'text-green-500':l.type==='error'?'text-red-500':l.type==='process'?'text-primary':'text-muted-foreground')}>[{new Date(l.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}] {l.message}</div>) : <div className="italic text-muted-foreground text-center py-10   text-[9px]">No logs</div>}
+              <div className="bg-muted/50 p-5 flex-1 min-h-[200px] overflow-y-auto font-mono text-sm space-y-2 border border-border">
+                {autoLogs.length ? autoLogs.map((l, i) => <div key={i} className={cn(l.type==='success'?'text-green-500':l.type==='error'?'text-red-500':l.type==='process'?'text-primary':'text-muted-foreground')}>[{new Date(l.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}] {l.message}</div>) : <div className="italic text-muted-foreground text-center py-10   text-xs">No logs</div>}
               </div>
             ) : (
               <div className="flex-1 flex items-center justify-center border border-dashed border-border text-muted-foreground">
-                <p className="text-[9px] font-black  ">Logs Hidden</p>
+                <p className="text-xs font-bold  ">Logs Hidden</p>
               </div>
             )}
           </div>
@@ -667,13 +668,13 @@ const Home = () => {
             <div className="flex bg-muted p-1 border border-border mb-1 rounded-lg overflow-hidden">
               <button
                 onClick={() => setActiveTab('url')}
-                className={cn("flex-1 py-2 text-[10px] font-black   transition-all rounded-md", activeTab === 'url' ? "bg-card text-primary border border-border" : "text-muted-foreground hover:text-foreground")}
+                className={cn("flex-1 py-2 text-sm font-bold   transition-all rounded-md", activeTab === 'url' ? "bg-card text-primary border border-border" : "text-muted-foreground hover:text-foreground")}
               >
                 Post URL
               </button>
               <button
                 onClick={() => setActiveTab('manual')}
-                className={cn("flex-1 py-2 text-[10px] font-black   transition-all rounded-md", activeTab === 'manual' ? "bg-card text-primary border border-border" : "text-muted-foreground hover:text-foreground")}
+                className={cn("flex-1 py-2 text-sm font-bold   transition-all rounded-md", activeTab === 'manual' ? "bg-card text-primary border border-border" : "text-muted-foreground hover:text-foreground")}
               >
                 Manual Entry
               </button>
@@ -682,8 +683,8 @@ const Home = () => {
             {activeTab === 'url' ? (
               <div className="space-y-4 animate-in fade-in duration-300">
                 <div className="flex items-center justify-between">
-                  <Label className="text-[10px]   text-muted-foreground font-black">Source URL</Label>
-                  <Button variant="ghost" size="sm" className="h-6 text-[9px] font-black text-primary p-0 hover:bg-transparent" onClick={() => { navigator.clipboard.readText().then(setPostUrl); }}>Paste from Clipboard</Button>
+                  <Label className="text-sm   text-muted-foreground font-bold">Source URL</Label>
+                  <Button variant="ghost" size="sm" className="h-6 text-xs font-bold text-primary p-0 hover:bg-transparent" onClick={() => { navigator.clipboard.readText().then(setPostUrl); }}>Paste from Clipboard</Button>
                 </div>
                 <div className="flex gap-4">
                   <Input value={postUrl} onChange={e => setPostUrl(e.target.value)} placeholder="https://www.bangladeshguardian.com/..." className="bg-muted/50 border-border h-12 text-sm rounded-xl" />
@@ -694,27 +695,27 @@ const Home = () => {
               <div className="space-y-6 animate-in fade-in duration-300">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <Label className="text-[10px]   text-muted-foreground font-black">Headline Text</Label>
-                    <Button variant="ghost" size="sm" className="h-6 text-[9px] font-black text-primary p-0 hover:bg-transparent" onClick={() => { navigator.clipboard.readText().then(setTitle); }}>Paste Text</Button>
+                    <Label className="text-sm   text-muted-foreground font-bold">Headline Text</Label>
+                    <Button variant="ghost" size="sm" className="h-6 text-xs font-bold text-primary p-0 hover:bg-transparent" onClick={() => { navigator.clipboard.readText().then(setTitle); }}>Paste Text</Button>
                   </div>
                   <Textarea value={title} onChange={e => setTitle(e.target.value)} placeholder="Enter headline..." className="bg-muted/50 border-border min-h-[100px] text-sm leading-relaxed" />
                 </div>
                 <div className="space-y-4">
-                  <Label className="text-[10px]   text-muted-foreground font-black">Media Source</Label>
+                  <Label className="text-sm   text-muted-foreground font-bold">Media Source</Label>
                   <div className="flex gap-4">
                     <Input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="Paste image URL..." className="bg-muted/50 border-border h-12 text-sm" disabled={!!uploadedImage} />
-                    <Button variant="outline" className="h-12 gap-2 text-[10px] font-black  px-6" onClick={() => { fileInputRef.current?.click(); }}><ImageIcon className="w-4 h-4" /> UPLOAD</Button>
+                    <Button variant="outline" className="h-12 gap-2 text-sm font-bold  px-6" onClick={() => { fileInputRef.current?.click(); }}><ImageIcon className="w-4 h-4" /> Upload</Button>
                     <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
                   </div>
                 </div>
                 {uploadedImage && (
                   <div className="flex items-center gap-4 p-4 bg-muted/50 border border-dashed border-border rounded-xl">
                     <div className="w-12 h-12 bg-black shrink-0 rounded-lg overflow-hidden"><img src={uploadedImage} className="w-full h-full object-cover" alt="Uploaded Preview" /></div>
-                    <div className="flex-1"><p className="text-[10px] font-black   text-foreground">Local Image Loaded</p><p className="text-[9px] text-muted-foreground font-bold ">Ready for generation</p></div>
+                    <div className="flex-1"><p className="text-sm font-bold   text-foreground">Local Image Loaded</p><p className="text-xs text-muted-foreground font-bold ">Ready for generation</p></div>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={clearUploadedImage}><X className="w-4 h-4" /></Button>
                   </div>
                 )}
-                <Button className="w-full h-14 font-black text-xs   gap-3 rounded-xl" onClick={() => { generatePhotoCard(); }} disabled={isGenerating}>{isGenerating ? <RefreshCw className="animate-spin w-4 h-4" /> : <PenTool className="w-4 h-4" />} Create PhotoCard</Button>
+                <Button className="w-full h-14 font-bold text-xs   gap-3 rounded-xl" onClick={() => { generatePhotoCard(); }} disabled={isGenerating}>{isGenerating ? <RefreshCw className="animate-spin w-4 h-4" /> : <PenTool className="w-4 h-4" />} Create PhotoCard</Button>
               </div>
             )}
           </div>
@@ -723,10 +724,10 @@ const Home = () => {
             <div className="animate-in slide-in-from-top-4 duration-500 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                <Label className="text-[10px]   text-muted-foreground font-black">Live Preview</Label>
+                <Label className="text-sm   text-muted-foreground font-bold">Live Preview</Label>
               </div>
               <div className="aspect-square bg-muted border border-border overflow-hidden flex items-center justify-center relative rounded-2xl">
-                {previewUrl ? <img src={previewUrl} className="w-full h-full object-contain" alt="Live Preview" /> : <div className="text-muted-foreground flex flex-col items-center gap-3"><ImageIcon className="w-12 h-12 opacity-20" /><span className="text-[9px] font-black  ">Rendering...</span></div>}
+                {previewUrl ? <img src={previewUrl} className="w-full h-full object-contain" alt="Live Preview" /> : <div className="text-muted-foreground flex flex-col items-center gap-3"><ImageIcon className="w-12 h-12 opacity-20" /><span className="text-xs font-bold  ">Rendering...</span></div>}
               </div>
             </div>
           )}
@@ -739,29 +740,29 @@ const Home = () => {
           <div className="flex items-center gap-3">
             <div className="w-1 h-8 lg:h-10 bg-primary" />
             <div>
-              <h2 className="text-xl lg:text-2xl font-black   text-foreground">Recent Generations</h2>
-              <p className="text-[9px] lg:text-[10px] text-muted-foreground   font-bold">Session History ({autoRecords.length}/50)</p>
+              <h2 className="text-xl lg:text-2xl font-bold   text-foreground">Recent Generations</h2>
+              <p className="text-xs lg:text-sm text-muted-foreground   font-bold">Session History ({autoRecords.length}/50)</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" className="text-[9px] font-black text-muted-foreground hover:text-destructive  p-0 self-end sm:self-auto" onClick={() => { if(confirm('Clear all history?')) { clearRecordsDB(); setAutoRecords([]); } }}>Clear History</Button>
+          <Button variant="ghost" size="sm" className="text-xs font-bold text-muted-foreground hover:text-destructive  p-0 self-end sm:self-auto" onClick={() => { if(confirm('Clear all history?')) { clearRecordsDB(); setAutoRecords([]); } }}>CLEAR HISTORY</Button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
           {autoRecords.map(r => (
             <div key={r.id} className="group bg-card border border-border overflow-hidden hover:border-primary transition-all duration-300 rounded-xl">
-              <div className="aspect-square bg-muted overflow-hidden relative">
+              <div className="aspect-square bg-muted overflow-hidden relative border-b border-border">
                 <img src={r.previewUrl} className="w-full h-full object-contain" alt={r.title} />
               </div>
               <div className="p-4 space-y-3">
                 <div className="min-w-0 space-y-1">
-                  <h3 className="text-xs font-black leading-snug  tracking-wide text-foreground">
+                  <h3 className="text-sm font-semibold leading-snug  tracking-wide text-foreground">
                     {r.url && r.url !== 'manual' ? (
                       <a href={r.url} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors inline">
                         {r.title}
                       </a>
                     ) : <span className="inline">{r.title}</span>}
                   </h3>
-                  <p className="text-[9px] text-muted-foreground font-black   whitespace-nowrap">
+                  <p className="text-xs text-muted-foreground font-medium   whitespace-nowrap">
                     {r.postTime || '• Manual Entry'}
                   </p>
                 </div>
@@ -773,7 +774,7 @@ const Home = () => {
                     className="flex-1 h-11 sm:h-10 border-border hover:bg-muted text-green-600 rounded-md"
                     onClick={() => { const a=document.createElement('a'); a.download=`${r.title}.png`; a.href=r.previewUrl; a.click(); }}
                   >
-                    <Download className="w-4 h-4 sm:w-4 sm:h-4" />
+                    <Download className="w-4 h-4 sm:w-4 sm:h-4" strokeWidth={2.5} />
                   </Button>
 
                   <Button
@@ -792,7 +793,7 @@ const Home = () => {
                       }
                     }}
                   >
-                    <Share2 className="w-4 h-4 sm:w-4 sm:h-4" />
+                    <Share2 className="w-4 h-4 sm:w-4 sm:h-4" strokeWidth={2.5} />
                   </Button>
 
                   <Button
@@ -809,7 +810,7 @@ const Home = () => {
                       }
                     }}
                   >
-                    <Copy className="w-4 h-4" />
+                    <Copy className="w-4 h-4" strokeWidth={2.5} />
                   </Button>
 
                   <Button
@@ -818,7 +819,7 @@ const Home = () => {
                     className="flex-1 h-11 sm:h-10 border-destructive/10 bg-destructive/5 hover:bg-destructive/10 text-destructive rounded-md"
                     onClick={() => { if(confirm('Delete generation?')) { deleteRecordDB(r.id); setAutoRecords(prev => prev.filter(x => x.id !== r.id)); } }}
                   >
-                    <Trash2 className="w-4 h-4 sm:w-4 sm:h-4" />
+                    <Trash2 className="w-4 h-4 sm:w-4 sm:h-4" strokeWidth={2.5} />
                   </Button>
                 </div>
               </div>
@@ -827,7 +828,7 @@ const Home = () => {
           {autoRecords.length === 0 && (
             <div className="col-span-full py-20 border border-dashed border-border flex flex-col items-center justify-center text-muted-foreground">
                <ImageIcon className="w-12 h-12 mb-4 opacity-10" />
-               <p className="text-[10px] font-black  ">No generations yet</p>
+               <p className="text-sm font-bold  ">No generations yet</p>
             </div>
           )}
         </div>

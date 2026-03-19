@@ -105,18 +105,18 @@ const Ads = () => {
   return (
     <div className="space-y-6 lg:space-y-8 animate-fade-in-up pb-20">
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl lg:text-3xl font-black   text-foreground">Advertising Manager</h1>
-        <p className="text-[10px] lg:text-xs font-bold text-muted-foreground  ">Manage banners for photocard generation</p>
+        <h1 className="text-2xl lg:text-3xl font-bold   text-foreground">Advertising Manager</h1>
+        <p className="text-sm lg:text-xs font-bold text-muted-foreground  ">Manage banners for photocard generation</p>
       </div>
 
       <div className="max-w-4xl space-y-4 lg:space-y-6">
         <div className="space-y-4">
-          <Label className="text-[10px]   text-muted-foreground font-black">Register New Campaign</Label>
+          <Label className="text-sm   text-muted-foreground font-bold">Register New Campaign</Label>
           <div className="space-y-4 bg-card border border-border p-6 rounded-xl">
             {!previewData ? (
               <Button
                 variant="outline"
-                className="w-full h-24 border-dashed border-2 flex flex-col gap-2 text-[10px] font-black   rounded-lg"
+                className="w-full h-24 border-dashed border-2 flex flex-col gap-2 text-sm font-bold   rounded-lg"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Upload className="w-6 h-6" />
@@ -143,7 +143,7 @@ const Ads = () => {
                     className="bg-muted border-border h-12 text-xs font-bold   rounded-lg"
                   />
                   <Button
-                    className="h-12 px-8 shrink-0 text-[10px] font-black   gap-3 rounded-lg"
+                    className="h-12 px-8 shrink-0 text-sm font-bold   gap-3 rounded-lg"
                     onClick={handleAddCampaign}
                   >
                     <Check className="w-4 h-4" />
@@ -160,7 +160,7 @@ const Ads = () => {
               onChange={handleFileSelect}
             />
           </div>
-          <p className="text-[9px] text-muted-foreground font-bold   italic">Images will be scaled to match photocard width. Optimal: Horizontal banners.</p>
+          <p className="text-xs text-muted-foreground font-bold   italic">Images will be scaled to match photocard width. Optimal: Horizontal banners.</p>
         </div>
       </div>
 
@@ -178,14 +178,14 @@ const Ads = () => {
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0">
                   <h3 className={cn(
-                    "text-sm font-black   truncate",
+                    "text-sm font-bold   truncate",
                     selectedAdId === ad.id ? "text-primary" : "text-foreground"
                   )}>
                     {ad.name}
                   </h3>
                   <div className="flex items-center gap-2 mt-2">
                     <div className={cn("w-1.5 h-1.5 rounded-full", selectedAdId === ad.id ? "bg-primary animate-pulse" : "bg-muted")} />
-                    <p className="text-[9px] text-muted-foreground font-bold  ">
+                    <p className="text-xs text-muted-foreground font-bold  ">
                       {selectedAdId === ad.id ? "Active Campaign" : "Standby"}
                     </p>
                   </div>
@@ -217,7 +217,7 @@ const Ads = () => {
         {ads.length === 0 && (
           <div className="col-span-full py-20 border border-dashed border-border flex flex-col items-center justify-center text-muted-foreground">
              <ImageIcon className="w-12 h-12 mb-4 opacity-10" />
-             <p className="text-[10px] font-black  ">No campaigns registered</p>
+             <p className="text-sm font-bold  ">No campaigns registered</p>
           </div>
         )}
       </div>
