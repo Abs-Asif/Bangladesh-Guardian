@@ -312,13 +312,13 @@ const Home = () => {
     } catch (e) { return ''; }
   }, []);
 
-  const fetchImageWithProxy = async (url: string): Promise<string> => {
+  const fetchImageWithProxy = async (url: string, forceProxy: boolean = false): Promise<string> => {
     const proxies = [
       (u: string) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
       (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
       (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
     ];
-    if (!url.includes('bangladeshguardian.com')) {
+    if (!forceProxy) {
       try { const res = await fetch(url, { mode: 'cors' }); if (res.ok) return URL.createObjectURL(await res.blob()); } catch {
         // Fallback
       }
@@ -343,7 +343,7 @@ const Home = () => {
     return lines;
   };
 
-  const generatePhotoCardInternal = useCallback(async (targetTitle: string, targetImageUrl: string): Promise<string> => {
+  const generatePhotoCardInternal = useCallback(async (targetTitle: string, targetImageUrl: string, forceProxy: boolean = false): Promise<string> => {
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
     const templateName = localStorage.getItem('bg_selected_template') || 'PhotocardTemplate.png';
@@ -365,7 +365,7 @@ const Home = () => {
     ctx.drawImage(template, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     if (adImg) ctx.drawImage(adImg, 0, CANVAS_HEIGHT, CANVAS_WIDTH, adHeight);
 
-    const userImgBlobUrl = (targetImageUrl.startsWith('blob:') || targetImageUrl.startsWith('data:')) ? targetImageUrl : await fetchImageWithProxy(targetImageUrl);
+    const userImgBlobUrl = (targetImageUrl.startsWith('blob:') || targetImageUrl.startsWith('data:')) ? targetImageUrl : await fetchImageWithProxy(targetImageUrl, forceProxy);
     const userImg = new Image();
     userImg.src = userImgBlobUrl;
     await new Promise(r => { userImg.onload = r; });
@@ -415,7 +415,7 @@ const Home = () => {
     if (!isLive) setIsGenerating(true);
     try {
       const censored = censorText(title, wordRestrictions);
-      const dataUrl = await generatePhotoCardInternal(censored, finalImg);
+      const dataUrl = await generatePhotoCardInternal(censored, finalImg, false);
       setPreviewUrl(dataUrl);
       if (!isLive) {
         const now = new Date();
@@ -429,23 +429,33 @@ const Home = () => {
     finally { if (!isLive) setIsGenerating(false); }
   }, [uploadedImage, imageUrl, title, wordRestrictions, playNotification, generatePhotoCardInternal]);
 
-  const getMetadata = async (targetUrl: string) => {
+  const getMetadata = async (targetUrl: string, forceProxy: boolean = false) => {
     let html = '';
-    const proxies = [
-      { url: (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`, type: 'text' },
-      { url: (u: string) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`, type: 'text' },
-      { url: (u: string) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`, type: 'json' },
-      { url: (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`, type: 'text' }
-    ];
-    for (const proxy of proxies) {
+    if (!forceProxy) {
       try {
-        const response = await fetch(proxy.url(targetUrl));
-        if (response.ok) {
-          html = proxy.type === 'json' ? (await response.json()).contents : await response.text();
-          if (html && (html.includes('<title>') || html.includes('og:title'))) break;
-        }
+        const response = await fetch(targetUrl);
+        if (response.ok) html = await response.text();
       } catch (e) {
         // Fallback
+      }
+    }
+    if (!html) {
+      const proxies = [
+        { url: (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`, type: 'text' },
+        { url: (u: string) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`, type: 'text' },
+        { url: (u: string) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`, type: 'json' },
+        { url: (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`, type: 'text' }
+      ];
+      for (const proxy of proxies) {
+        try {
+          const response = await fetch(proxy.url(targetUrl));
+          if (response.ok) {
+            html = proxy.type === 'json' ? (await response.json()).contents : await response.text();
+            if (html && (html.includes('<title>') || html.includes('og:title'))) break;
+          }
+        } catch (e) {
+          // Fallback
+        }
       }
     }
     if (!html) return null;
@@ -513,7 +523,7 @@ const Home = () => {
         } else { toast.error("Post not found."); return; }
       }
       const censored = censorText(eTitle, wordRestrictions);
-      const dataUrl = await generatePhotoCardInternal(censored, eImage);
+      const dataUrl = await generatePhotoCardInternal(censored, eImage, false);
       const record = { id: Math.random().toString(36).substr(2, 9), url: trimmedUrl, title: censored, imageUrl: eImage, previewUrl: dataUrl, timestamp: new Date().toISOString(), postTime, contentId: parseInt(contentId || '0') };
       await saveRecordDB(record);
       setAutoRecords(prev => [record, ...prev].slice(0, 50));
@@ -548,12 +558,12 @@ const Home = () => {
         for (const article of newArticles) {
           let artTitle = article.title, artImage = article.image;
           if (!artTitle || !artImage) {
-            const meta = await getMetadata(article.url);
+            const meta = await getMetadata(article.url, automationMode === 'backup');
             if (meta) { artTitle = artTitle || meta.title; artImage = artImage || meta.image; }
           }
           if (artTitle && artImage) {
             const censored = censorText(artTitle, wordRestrictions);
-            const dataUrl = await generatePhotoCardInternal(censored, artImage);
+            const dataUrl = await generatePhotoCardInternal(censored, artImage, automationMode === 'backup');
             const record = { id: Math.random().toString(36).substr(2, 9), url: article.url, title: censored, imageUrl: artImage, previewUrl: dataUrl, timestamp: new Date().toISOString(), postTime: article.postTime, contentId: article.contentId };
             await saveRecordDB(record);
             setAutoRecords(prev => [record, ...prev].slice(0, 50));
