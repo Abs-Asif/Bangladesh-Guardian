@@ -249,7 +249,7 @@ const Home = () => {
 
   useEffect(() => {
     localStorage.setItem('bg_secret_auto_active', String(autoModeActive));
-    const status = !autoModeActive ? 'IDLE' : isLeader ? 'ACTIVE' : 'STANDBY';
+    const status = !autoModeActive ? 'Idle' : isLeader ? 'Active' : 'Standby';
     const oldStatus = localStorage.getItem('bg_automation_status');
     if (status !== oldStatus) {
       localStorage.setItem('bg_automation_status', status);
@@ -635,15 +635,15 @@ const Home = () => {
             <div className="flex items-center justify-between border-b border-border pb-4">
               <div className="flex items-center gap-3">
                 <Zap className="w-4 h-4 text-primary" />
-                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground">Automation Engine</h3>
+                <h3 className="text-[10px] font-black   text-foreground">Automation Engine</h3>
               </div>
               <div className="flex items-center gap-2">
                 <div className={cn("w-2 h-2 rounded-full", !autoModeActive ? 'bg-muted' : isLeader ? 'bg-green-500 animate-pulse' : 'bg-amber-500')} />
-                <span className="text-[9px] uppercase font-black tracking-widest text-muted-foreground">{!autoModeActive ? 'Idle' : isLeader ? 'Active' : 'Standby'}</span>
+                <span className="text-[9px]  font-black  text-muted-foreground">{!autoModeActive ? 'Idle' : isLeader ? 'Active' : 'Standby'}</span>
               </div>
             </div>
             <div className="flex gap-4">
-              <Button variant={autoModeActive ? "destructive" : "default"} className="flex-1 h-12 text-[10px] font-black uppercase tracking-widest" onClick={() => { setAutoModeActive(!autoModeActive); }}>
+              <Button variant={autoModeActive ? "destructive" : "default"} className="flex-1 h-12 text-[10px] font-black  " onClick={() => { setAutoModeActive(!autoModeActive); }}>
                 {autoModeActive ? "Stop Engine" : "Start Engine"}
               </Button>
               <Button variant="outline" className="h-12 w-12 px-0 text-[10px] font-black" onClick={() => { nextFetchLimitRef.current = 30; if(!autoModeActive) setAutoModeActive(true); else checkAndGenerate(); }}>+30</Button>
@@ -651,11 +651,11 @@ const Home = () => {
             </div>
             {showLogs ? (
               <div className="bg-muted/50 p-5 flex-1 min-h-[200px] overflow-y-auto font-mono text-[10px] space-y-2 border border-border">
-                {autoLogs.length ? autoLogs.map((l, i) => <div key={i} className={cn(l.type==='success'?'text-green-500':l.type==='error'?'text-red-500':l.type==='process'?'text-primary':'text-muted-foreground')}>[{new Date(l.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}] {l.message}</div>) : <div className="italic text-muted-foreground text-center py-10 uppercase tracking-widest text-[9px]">No logs</div>}
+                {autoLogs.length ? autoLogs.map((l, i) => <div key={i} className={cn(l.type==='success'?'text-green-500':l.type==='error'?'text-red-500':l.type==='process'?'text-primary':'text-muted-foreground')}>[{new Date(l.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}] {l.message}</div>) : <div className="italic text-muted-foreground text-center py-10   text-[9px]">No logs</div>}
               </div>
             ) : (
               <div className="flex-1 flex items-center justify-center border border-dashed border-border text-muted-foreground">
-                <p className="text-[9px] font-black uppercase tracking-[0.2em]">Logs Hidden</p>
+                <p className="text-[9px] font-black  ">Logs Hidden</p>
               </div>
             )}
           </div>
@@ -667,13 +667,13 @@ const Home = () => {
             <div className="flex bg-muted p-1 border border-border mb-1 rounded-lg overflow-hidden">
               <button
                 onClick={() => setActiveTab('url')}
-                className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all rounded-md", activeTab === 'url' ? "bg-card text-primary border border-border" : "text-muted-foreground hover:text-foreground")}
+                className={cn("flex-1 py-2 text-[10px] font-black   transition-all rounded-md", activeTab === 'url' ? "bg-card text-primary border border-border" : "text-muted-foreground hover:text-foreground")}
               >
                 Post URL
               </button>
               <button
                 onClick={() => setActiveTab('manual')}
-                className={cn("flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all rounded-md", activeTab === 'manual' ? "bg-card text-primary border border-border" : "text-muted-foreground hover:text-foreground")}
+                className={cn("flex-1 py-2 text-[10px] font-black   transition-all rounded-md", activeTab === 'manual' ? "bg-card text-primary border border-border" : "text-muted-foreground hover:text-foreground")}
               >
                 Manual Entry
               </button>
@@ -682,8 +682,8 @@ const Home = () => {
             {activeTab === 'url' ? (
               <div className="space-y-4 animate-in fade-in duration-300">
                 <div className="flex items-center justify-between">
-                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-black">Source URL</Label>
-                  <Button variant="ghost" size="sm" className="h-6 text-[9px] font-black text-primary p-0 hover:bg-transparent" onClick={() => { navigator.clipboard.readText().then(setPostUrl); }}>PASTE FROM CLIPBOARD</Button>
+                  <Label className="text-[10px]   text-muted-foreground font-black">Source URL</Label>
+                  <Button variant="ghost" size="sm" className="h-6 text-[9px] font-black text-primary p-0 hover:bg-transparent" onClick={() => { navigator.clipboard.readText().then(setPostUrl); }}>Paste from Clipboard</Button>
                 </div>
                 <div className="flex gap-4">
                   <Input value={postUrl} onChange={e => setPostUrl(e.target.value)} placeholder="https://www.bangladeshguardian.com/..." className="bg-muted/50 border-border h-12 text-sm rounded-xl" />
@@ -694,27 +694,27 @@ const Home = () => {
               <div className="space-y-6 animate-in fade-in duration-300">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-black">Headline Text</Label>
-                    <Button variant="ghost" size="sm" className="h-6 text-[9px] font-black text-primary p-0 hover:bg-transparent" onClick={() => { navigator.clipboard.readText().then(setTitle); }}>PASTE TEXT</Button>
+                    <Label className="text-[10px]   text-muted-foreground font-black">Headline Text</Label>
+                    <Button variant="ghost" size="sm" className="h-6 text-[9px] font-black text-primary p-0 hover:bg-transparent" onClick={() => { navigator.clipboard.readText().then(setTitle); }}>Paste Text</Button>
                   </div>
                   <Textarea value={title} onChange={e => setTitle(e.target.value)} placeholder="Enter headline..." className="bg-muted/50 border-border min-h-[100px] text-sm leading-relaxed" />
                 </div>
                 <div className="space-y-4">
-                  <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-black">Media Source</Label>
+                  <Label className="text-[10px]   text-muted-foreground font-black">Media Source</Label>
                   <div className="flex gap-4">
                     <Input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="Paste image URL..." className="bg-muted/50 border-border h-12 text-sm" disabled={!!uploadedImage} />
-                    <Button variant="outline" className="h-12 gap-2 text-[10px] font-black uppercase px-6" onClick={() => { fileInputRef.current?.click(); }}><ImageIcon className="w-4 h-4" /> UPLOAD</Button>
+                    <Button variant="outline" className="h-12 gap-2 text-[10px] font-black  px-6" onClick={() => { fileInputRef.current?.click(); }}><ImageIcon className="w-4 h-4" /> UPLOAD</Button>
                     <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
                   </div>
                 </div>
                 {uploadedImage && (
                   <div className="flex items-center gap-4 p-4 bg-muted/50 border border-dashed border-border rounded-xl">
                     <div className="w-12 h-12 bg-black shrink-0 rounded-lg overflow-hidden"><img src={uploadedImage} className="w-full h-full object-cover" alt="Uploaded Preview" /></div>
-                    <div className="flex-1"><p className="text-[10px] font-black uppercase tracking-wider text-foreground">Local Image Loaded</p><p className="text-[9px] text-muted-foreground font-bold uppercase">Ready for generation</p></div>
+                    <div className="flex-1"><p className="text-[10px] font-black   text-foreground">Local Image Loaded</p><p className="text-[9px] text-muted-foreground font-bold ">Ready for generation</p></div>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={clearUploadedImage}><X className="w-4 h-4" /></Button>
                   </div>
                 )}
-                <Button className="w-full h-14 font-black text-xs uppercase tracking-[0.2em] gap-3 rounded-xl" onClick={() => { generatePhotoCard(); }} disabled={isGenerating}>{isGenerating ? <RefreshCw className="animate-spin w-4 h-4" /> : <PenTool className="w-4 h-4" />} Create PhotoCard</Button>
+                <Button className="w-full h-14 font-black text-xs   gap-3 rounded-xl" onClick={() => { generatePhotoCard(); }} disabled={isGenerating}>{isGenerating ? <RefreshCw className="animate-spin w-4 h-4" /> : <PenTool className="w-4 h-4" />} Create PhotoCard</Button>
               </div>
             )}
           </div>
@@ -723,10 +723,10 @@ const Home = () => {
             <div className="animate-in slide-in-from-top-4 duration-500 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                <Label className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-black">Live Preview</Label>
+                <Label className="text-[10px]   text-muted-foreground font-black">Live Preview</Label>
               </div>
               <div className="aspect-square bg-muted border border-border overflow-hidden flex items-center justify-center relative rounded-2xl">
-                {previewUrl ? <img src={previewUrl} className="w-full h-full object-contain" alt="Live Preview" /> : <div className="text-muted-foreground flex flex-col items-center gap-3"><ImageIcon className="w-12 h-12 opacity-20" /><span className="text-[9px] font-black uppercase tracking-widest">Rendering...</span></div>}
+                {previewUrl ? <img src={previewUrl} className="w-full h-full object-contain" alt="Live Preview" /> : <div className="text-muted-foreground flex flex-col items-center gap-3"><ImageIcon className="w-12 h-12 opacity-20" /><span className="text-[9px] font-black  ">Rendering...</span></div>}
               </div>
             </div>
           )}
@@ -739,11 +739,11 @@ const Home = () => {
           <div className="flex items-center gap-3">
             <div className="w-1 h-8 lg:h-10 bg-primary" />
             <div>
-              <h2 className="text-xl lg:text-2xl font-black uppercase tracking-tighter text-foreground">Recent Generations</h2>
-              <p className="text-[9px] lg:text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Session History ({autoRecords.length}/50)</p>
+              <h2 className="text-xl lg:text-2xl font-black   text-foreground">Recent Generations</h2>
+              <p className="text-[9px] lg:text-[10px] text-muted-foreground   font-bold">Session History ({autoRecords.length}/50)</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" className="text-[9px] font-black text-muted-foreground hover:text-destructive tracking-widest p-0 self-end sm:self-auto" onClick={() => { if(confirm('Clear all history?')) { clearRecordsDB(); setAutoRecords([]); } }}>CLEAR HISTORY</Button>
+          <Button variant="ghost" size="sm" className="text-[9px] font-black text-muted-foreground hover:text-destructive  p-0 self-end sm:self-auto" onClick={() => { if(confirm('Clear all history?')) { clearRecordsDB(); setAutoRecords([]); } }}>Clear History</Button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
@@ -754,14 +754,14 @@ const Home = () => {
               </div>
               <div className="p-4 space-y-3">
                 <div className="min-w-0 space-y-1">
-                  <h3 className="text-xs font-black leading-snug uppercase tracking-wide text-foreground">
+                  <h3 className="text-xs font-black leading-snug  tracking-wide text-foreground">
                     {r.url && r.url !== 'manual' ? (
                       <a href={r.url} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors inline">
                         {r.title}
                       </a>
                     ) : <span className="inline">{r.title}</span>}
                   </h3>
-                  <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest whitespace-nowrap">
+                  <p className="text-[9px] text-muted-foreground font-black   whitespace-nowrap">
                     {r.postTime || '• Manual Entry'}
                   </p>
                 </div>
@@ -827,7 +827,7 @@ const Home = () => {
           {autoRecords.length === 0 && (
             <div className="col-span-full py-20 border border-dashed border-border flex flex-col items-center justify-center text-muted-foreground">
                <ImageIcon className="w-12 h-12 mb-4 opacity-10" />
-               <p className="text-[10px] font-black uppercase tracking-[0.2em]">No generations yet</p>
+               <p className="text-[10px] font-black  ">No generations yet</p>
             </div>
           )}
         </div>

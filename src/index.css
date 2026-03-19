@@ -4,47 +4,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Fonts Configuration */
-@font-face {
-  font-family: 'Solaiman Lipi';
-  src: url('/fonts/SolaimanLipi-Thin.ttf') format('truetype');
-  font-weight: 100;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Solaiman Lipi';
-  src: url('/fonts/SolaimanLipi-Regular.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Solaiman Lipi';
-  src: url('/fonts/SolaimanLipi-Bold.ttf') format('truetype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Cambria';
-  src: url('/fonts/Cambria.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Cambria';
-  src: url('/fonts/cambriab.ttf') format('truetype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -83,37 +42,37 @@
   }
 
   .dark {
-    --background: 240 10% 3.9%;
+    --background: 240 10% 10%;
     --foreground: 0 0% 98%;
 
-    --card: 240 10% 3.9%;
+    --card: 240 10% 12%;
     --card-foreground: 0 0% 98%;
 
-    --popover: 240 10% 3.9%;
+    --popover: 240 10% 12%;
     --popover-foreground: 0 0% 98%;
 
     --primary: 0 72% 51%;
     --primary-foreground: 0 0% 98%;
 
-    --secondary: 240 3.7% 15.9%;
+    --secondary: 240 3.7% 18%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 240 3.7% 15.9%;
+    --muted: 240 3.7% 18%;
     --muted-foreground: 240 5% 64.9%;
 
-    --accent: 240 3.7% 15.9%;
+    --accent: 240 3.7% 18%;
     --accent-foreground: 0 0% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
+    --border: 240 3.7% 20%;
+    --input: 240 3.7% 20%;
     --ring: 0 72% 51%;
 
-    --surface-1: 240 10% 5%;
-    --surface-2: 240 10% 7%;
-    --surface-3: 240 10% 9%;
+    --surface-1: 240 10% 13%;
+    --surface-2: 240 10% 15%;
+    --surface-3: 240 10% 17%;
   }
 }
 
@@ -128,26 +87,11 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Solaiman Lipi', 'Manrope', sans-serif;
+    font-family: 'Google Sans', 'Manrope', sans-serif;
   }
 
   .font-mono {
     font-family: 'JetBrains Mono', monospace;
-  }
-
-  .font-solaiman-thin {
-    font-family: 'Solaiman Lipi', sans-serif;
-    font-weight: 100;
-  }
-
-  .font-solaiman-regular {
-    font-family: 'Solaiman Lipi', sans-serif;
-    font-weight: 400;
-  }
-
-  .font-solaiman-bold {
-    font-family: 'Solaiman Lipi', sans-serif;
-    font-weight: 700;
   }
 }
 
@@ -178,4 +122,3 @@
 .animate-fade-in-up {
   animation: fade-in-up 0.5s ease-out forwards;
 }
-
