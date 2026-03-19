@@ -164,6 +164,7 @@ const Home = () => {
   const [autoRecords, setAutoRecords] = useState<AutoRecord[]>([]);
   const [autoLogs, setAutoLogs] = useState<LogEntry[]>([]);
   const [showLogs, setShowLogs] = useState(false);
+  const [automationError, setAutomationError] = useState<string | null>(null);
   const [processedUrls, setProcessedUrls] = useState<Map<string, number>>(new Map());
   const processedUrlsRef = useRef<Map<string, number>>(new Map());
 
@@ -537,7 +538,7 @@ const Home = () => {
     isAutoCheckingRef.current = true; setIsAutoChecking(true);
     const limit = nextFetchLimitRef.current || automationFrequency.limit;
     nextFetchLimitRef.current = null;
-    addLog(`Checking for new posts (${automationMode.toUpperCase()} MODE)...`, "process");
+    addLog(`Checking for new posts${automationMode === 'backup' ? ' (BACKUP MODE)' : ''}...`, "process");
     try {
       if (automationMode === 'backup' && !backupInitializedRef.current) {
         addLog("Initializing Backup mode...", "process");
@@ -549,6 +550,7 @@ const Home = () => {
         addLog(`Backup mode initialized with ${articles.length} posts.`, "success");
         return;
       }
+      console.log(`Fetching articles for ${automationMode} mode with limit ${limit}`);
       const articles = automationMode === 'main' ? await scrapeLatestLinks(limit) : await scrapeSitemapLinks();
       const newArticles = (articles || []).filter(art => !processedUrlsRef.current.has(art.url)).slice(0, limit).reverse();
       if (newArticles.length === 0) {
@@ -572,13 +574,18 @@ const Home = () => {
           }
         }
       }
-    } catch (e) { addLog("Automation error.", "error"); } finally { setIsAutoChecking(false); isAutoCheckingRef.current = false; }
+    } catch (e: any) {
+      console.error("Automation error:", e);
+      addLog(`Automation error: ${e.message || 'Unknown error'}`, "error");
+      setAutomationError(e.message || "Automation failed unexpectedly.");
+    } finally { setIsAutoChecking(false); isAutoCheckingRef.current = false; }
   }, [addLog, generatePhotoCardInternal, playNotification, automationFrequency, automationMode, wordRestrictions, scrapeLatestLinks, scrapeSitemapLinks]);
 
   useEffect(() => {
     if (!autoModeActive) return;
     let wakeLock: { release: () => Promise<void> } | null = null, isMounted = true;
     const controller = new AbortController();
+    console.log("Automation effect triggered. Mode Active:", autoModeActive);
     const startAutomation = (intervalMs: number) => {
       const blob = new Blob([`let i; self.onmessage=e=>{if(e.data==='start'){self.postMessage('tick');i=setInterval(()=>self.postMessage('tick'),${intervalMs})}else if(e.data==='stop')clearInterval(i)}`], { type: 'application/javascript' });
       const url = URL.createObjectURL(blob);
@@ -601,11 +608,20 @@ const Home = () => {
         if ('locks' in navigator) {
           navigator.locks.request('bg_photocard_automation', { signal: controller.signal }, async (lock) => {
             if (!lock || !isMounted) return;
-            setIsLeader(true); addLog("Took leadership of automation.", "success");
+            setIsLeader(true);
+            addLog("Took leadership of automation.", "success");
+            console.log("Automation leadership acquired.");
             workerInstance = startAutomation(automationFrequency.interval);
             await new Promise(resolve => { controller.signal.addEventListener('abort', resolve); });
             setIsLeader(false);
-          }).catch(err => { if (err.name !== 'AbortError') { setIsLeader(false); addLog("Automation standby", "info"); } });
+            console.log("Automation leadership released.");
+          }).catch(err => {
+            if (err.name !== 'AbortError') {
+              setIsLeader(false);
+              addLog("Automation standby", "info");
+              console.warn("Automation leadership request failed/ended:", err);
+            }
+          });
         } else { setIsLeader(true); workerInstance = startAutomation(automationFrequency.interval); }
       } catch (err) { setIsLeader(true); workerInstance = startAutomation(automationFrequency.interval); }
     };
@@ -628,6 +644,28 @@ const Home = () => {
 
   return (
     <div className="space-y-6 lg:space-y-8 animate-fade-in-up pb-20">
+      {automationError && (
+        <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-card border border-destructive/20 max-w-md w-full p-8 shadow-2xl rounded-3xl space-y-6 text-center">
+            <div className="w-16 h-16 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mx-auto mb-4">
+              <Zap className="w-8 h-8" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold text-foreground">Automation Failed</h2>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                The engine encountered a critical error: <span className="text-destructive font-mono font-bold">{automationError}</span>
+              </p>
+            </div>
+            <Button
+              className="w-full h-12 rounded-xl font-bold bg-destructive hover:bg-destructive/90 text-white"
+              onClick={() => window.location.reload()}
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh Application
+            </Button>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
         {/* Automation Section (Moved to Left) */}
         <div className="space-y-4 lg:space-y-6 h-full">
@@ -648,15 +686,29 @@ const Home = () => {
                 {autoModeActive ? "Stop Engine" : "Start Engine"}
               </Button>
               <Button variant="outline" className="h-12 w-12 px-0 text-sm font-bold" onClick={() => { nextFetchLimitRef.current = 30; if(!autoModeActive) setAutoModeActive(true); else checkAndGenerate(); }}>+30</Button>
-              <Button variant="outline" size="icon" className="h-12 w-12" onClick={() => { setShowLogs(!showLogs); }}><List className="w-4 h-4" /></Button>
             </div>
-            {showLogs ? (
-              <div className="bg-muted/50 p-5 flex-1 min-h-[200px] overflow-y-auto font-mono text-sm space-y-2 border border-border">
-                {autoLogs.length ? autoLogs.map((l, i) => <div key={i} className={cn(l.type==='success'?'text-green-500':l.type==='error'?'text-red-500':l.type==='process'?'text-primary':'text-muted-foreground')}>[{new Date(l.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}] {l.message}</div>) : <div className="italic text-muted-foreground text-center py-10   text-xs">No logs</div>}
-              </div>
+            {!showLogs ? (
+              <Button
+                variant="outline"
+                className="w-full h-12 flex items-center justify-center gap-2 border border-dashed border-border text-muted-foreground hover:text-foreground transition-all"
+                onClick={() => setShowLogs(true)}
+              >
+                <List className="w-4 h-4" />
+                <span className="text-xs font-bold">Logs Hidden</span>
+              </Button>
             ) : (
-              <div className="flex-1 flex items-center justify-center border border-dashed border-border text-muted-foreground">
-                <p className="text-xs font-bold  ">Logs Hidden</p>
+              <div className="space-y-4 animate-in fade-in duration-300">
+                <div className="bg-muted/50 p-5 max-h-[160px] overflow-y-auto font-mono text-sm space-y-2 border border-border">
+                  {autoLogs.length ? autoLogs.map((l, i) => <div key={i} className={cn(l.type==='success'?'text-green-500':l.type==='error'?'text-red-500':l.type==='process'?'text-primary':'text-muted-foreground')}>[{new Date(l.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}] {l.message}</div>) : <div className="italic text-muted-foreground text-center py-10   text-xs">No logs</div>}
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full h-10 flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowLogs(false)}
+                >
+                  <List className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Hide Logs</span>
+                </Button>
               </div>
             )}
           </div>
@@ -741,7 +793,7 @@ const Home = () => {
             <div className="w-1 h-8 lg:h-10 bg-primary" />
             <div>
               <h2 className="text-xl lg:text-2xl font-bold   text-foreground">Recent Generations</h2>
-              <p className="text-xs lg:text-sm text-muted-foreground   font-bold">Session History ({autoRecords.length}/50)</p>
+              <p className="text-xs lg:text-sm text-muted-foreground  ">Session History ({autoRecords.length}/50)</p>
             </div>
           </div>
           <Button variant="ghost" size="sm" className="text-xs font-bold text-muted-foreground hover:text-destructive  p-0 self-end sm:self-auto" onClick={() => { if(confirm('Clear all history?')) { clearRecordsDB(); setAutoRecords([]); } }}>CLEAR HISTORY</Button>

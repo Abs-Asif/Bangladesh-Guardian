@@ -106,12 +106,12 @@ const Ads = () => {
     <div className="space-y-6 lg:space-y-8 animate-fade-in-up pb-20">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl lg:text-3xl font-bold   text-foreground">Advertising Manager</h1>
-        <p className="text-sm lg:text-xs font-bold text-muted-foreground  ">Manage banners for photocard generation</p>
+        <p className="text-sm lg:text-xs text-muted-foreground  ">Manage banners for photocard generation</p>
       </div>
 
-      <div className="max-w-4xl space-y-4 lg:space-y-6">
+      <div className="space-y-4 lg:space-y-6">
         <div className="space-y-4">
-          <Label className="text-sm   text-muted-foreground font-bold">Register New Campaign</Label>
+          <Label className="text-sm   text-muted-foreground">Register New Campaign</Label>
           <div className="space-y-4 bg-card border border-border p-6 rounded-xl">
             {!previewData ? (
               <Button
@@ -160,11 +160,11 @@ const Ads = () => {
               onChange={handleFileSelect}
             />
           </div>
-          <p className="text-xs text-muted-foreground font-bold   italic">Images will be scaled to match photocard width. Optimal: Horizontal banners.</p>
+          <p className="text-xs text-muted-foreground italic">Images will be scaled to match photocard width. Optimal: Horizontal banners.</p>
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 lg:gap-4 max-w-5xl">
+      <div className="flex flex-col gap-3 lg:gap-4">
         {ads.map((ad) => (
           <div
             key={ad.id}
