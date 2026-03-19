@@ -18,6 +18,7 @@ const Settings = () => {
   const [automationMode, setAutomationMode] = useState(localStorage.getItem('bg_secret_automation_mode') || 'main');
   const [automationFrequency, setAutomationFrequency] = useState(localStorage.getItem('bg_secret_automation_frequency') || '1m3p');
   const [livePreview, setLivePreview] = useState(localStorage.getItem('bg_live_preview') === 'true');
+  const [theme, setTheme] = useState(localStorage.getItem('bg_theme') || 'day');
   const [expandedTile, setExpandedTile] = useState<string | null>(null);
 
   // Word Restrictions
@@ -60,25 +61,25 @@ const Settings = () => {
   const toggleTile = (id: string) => setExpandedTile(expandedTile === id ? null : id);
 
   const SettingTile = ({ id, title, description, icon: Icon, children }: { id: string, title: string, description: string, icon: any, children: React.ReactNode }) => (
-    <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden transition-all duration-300">
+    <div className="bg-card border border-border rounded-xl overflow-hidden transition-all duration-300">
       <button
         onClick={() => toggleTile(id)}
-        className="w-full flex items-center justify-between p-5 hover:bg-zinc-50 transition-colors"
+        className="w-full flex items-center justify-between p-5 hover:bg-muted/50 transition-colors"
       >
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-zinc-50 rounded-lg flex items-center justify-center text-primary border border-zinc-100">
+          <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center text-primary border border-border">
             <Icon className="w-5 h-5" />
           </div>
           <div className="text-left">
-            <h3 className="text-[11px] font-black uppercase tracking-[0.15em] text-zinc-900">{title}</h3>
-            <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">{description}</p>
+            <h3 className="text-[11px] font-black uppercase tracking-[0.15em] text-foreground">{title}</h3>
+            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">{description}</p>
           </div>
         </div>
-        <ChevronRight className={cn("w-4 h-4 text-zinc-300 transition-transform duration-300", expandedTile === id && "rotate-90")} />
+        <ChevronRight className={cn("w-4 h-4 text-muted-foreground/30 transition-transform duration-300", expandedTile === id && "rotate-90")} />
       </button>
 
       {expandedTile === id && (
-        <div className="p-6 border-t border-zinc-50 bg-zinc-50/30 animate-in slide-in-from-top-2 duration-300">
+        <div className="p-6 border-t border-border bg-muted/20 animate-in slide-in-from-top-2 duration-300">
           {children}
         </div>
       )}
@@ -88,11 +89,31 @@ const Settings = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-6 lg:space-y-8 animate-fade-in-up pb-20">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl lg:text-3xl font-black uppercase tracking-tighter">System Configuration</h1>
-        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">Full Flat Design • Manage your workspace parameters</p>
+        <h1 className="text-2xl lg:text-3xl font-black uppercase tracking-tighter text-foreground">System Configuration</h1>
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Full Flat Design • Manage your workspace parameters</p>
       </div>
 
       <div className="space-y-4">
+        {/* Theme Settings */}
+        <SettingTile
+          id="theme"
+          title="Interface Theme"
+          description="Switch between light and dark UI"
+          icon={Zap}
+        >
+          <div className="space-y-3">
+            <Label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Select Mode</Label>
+            <select
+              className="w-full h-11 bg-card border border-border px-4 text-[10px] font-black uppercase tracking-widest focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
+              value={theme}
+              onChange={(e) => { const val = e.target.value; setTheme(val); saveSetting('bg_theme', val); }}
+            >
+              <option value="day">DAY (DEFAULT LIGHT)</option>
+              <option value="night">NIGHT (DARK MODE)</option>
+            </select>
+          </div>
+        </SettingTile>
+
         {/* Live Preview */}
         <SettingTile
           id="preview"
@@ -101,9 +122,9 @@ const Settings = () => {
           icon={Zap}
         >
           <div className="space-y-3">
-            <Label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Configuration</Label>
+            <Label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Configuration</Label>
             <select
-              className="w-full h-11 bg-white border border-zinc-200 px-4 text-[10px] font-black uppercase tracking-widest focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg"
+              className="w-full h-11 bg-card border border-border px-4 text-[10px] font-black uppercase tracking-widest focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
               value={livePreview ? 'true' : 'false'}
               onChange={(e) => { const val = e.target.value === 'true'; setLivePreview(val); saveSetting('bg_live_preview', val); }}
             >
@@ -121,9 +142,9 @@ const Settings = () => {
           icon={Settings2}
         >
           <div className="space-y-3">
-            <Label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Processing Source</Label>
+            <Label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Processing Source</Label>
             <select
-              className="w-full h-11 bg-white border border-zinc-200 px-4 text-[10px] font-black uppercase tracking-widest focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg"
+              className="w-full h-11 bg-card border border-border px-4 text-[10px] font-black uppercase tracking-widest focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
               value={automationMode}
               onChange={(e) => { setAutomationMode(e.target.value); saveSetting('bg_secret_automation_mode', e.target.value); }}
             >
@@ -141,9 +162,9 @@ const Settings = () => {
           icon={RotateCcw}
         >
           <div className="space-y-3">
-            <Label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Frequency Level</Label>
+            <Label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Frequency Level</Label>
             <select
-              className="w-full h-11 bg-white border border-zinc-200 px-4 text-[10px] font-black uppercase tracking-widest focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg"
+              className="w-full h-11 bg-card border border-border px-4 text-[10px] font-black uppercase tracking-widest focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
               value={automationFrequency}
               onChange={(e) => { setAutomationFrequency(e.target.value); saveSetting('bg_secret_automation_frequency', e.target.value); }}
             >
@@ -162,9 +183,9 @@ const Settings = () => {
           icon={Volume2}
         >
           <div className="space-y-3">
-            <Label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Sound Selection</Label>
+            <Label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Sound Selection</Label>
             <select
-              className="w-full h-11 bg-white border border-zinc-200 px-4 text-[10px] font-black uppercase tracking-widest focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg"
+              className="w-full h-11 bg-card border border-border px-4 text-[10px] font-black uppercase tracking-widest focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
               value={selectedAudio}
               onChange={(e) => {
                 const val = e.target.value;
@@ -189,8 +210,8 @@ const Settings = () => {
         >
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <Label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Fine-Tuning Parameters</Label>
-              <Button variant="ghost" size="sm" className="h-6 text-[9px] font-black text-zinc-400 hover:text-red-500 tracking-widest p-0" onClick={resetTypography}>RESET DEFAULTS</Button>
+              <Label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Fine-Tuning Parameters</Label>
+              <Button variant="ghost" size="sm" className="h-6 text-[9px] font-black text-muted-foreground hover:text-destructive tracking-widest p-0" onClick={resetTypography}>RESET DEFAULTS</Button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
               {[
@@ -200,26 +221,26 @@ const Settings = () => {
                 { label: 'Date Font Size', val: dateFontSize, set: setDateFontSize, k: 'bg_date_font_size', min: 10, max: 40 }
               ].map(s => (
                 <div key={s.label} className="space-y-3">
-                  <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                  <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-muted-foreground">
                     <span>{s.label}</span>
-                    <span className="text-zinc-900 font-mono">{s.val}</span>
+                    <span className="text-foreground font-mono">{s.val}</span>
                   </div>
                   <input
                     type="range" min={s.min} max={s.max} step={s.step || 1}
                     value={s.val} onChange={e => { s.set(Number(e.target.value)); saveSetting(s.k, e.target.value); }}
-                    className="w-full accent-primary h-1.5 bg-zinc-200 appearance-none cursor-pointer rounded-full"
+                    className="w-full accent-primary h-1.5 bg-muted appearance-none cursor-pointer rounded-full"
                   />
                 </div>
               ))}
             </div>
-            <div className="grid grid-cols-2 gap-6 pt-6 border-t border-zinc-100">
+            <div className="grid grid-cols-2 gap-6 pt-6 border-t border-border">
               <div className="space-y-2">
-                <Label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Date X Offset</Label>
-                <Input type="number" value={dateXOffset} onChange={e => { setDateXOffset(Number(e.target.value)); saveSetting('bg_date_x_offset', e.target.value); }} className="h-11 bg-white border-zinc-200 text-xs font-bold rounded-lg" />
+                <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Date X Offset</Label>
+                <Input type="number" value={dateXOffset} onChange={e => { setDateXOffset(Number(e.target.value)); saveSetting('bg_date_x_offset', e.target.value); }} className="h-11 bg-card border-border text-xs font-bold rounded-lg text-foreground" />
               </div>
               <div className="space-y-2">
-                <Label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Date Y Offset</Label>
-                <Input type="number" value={dateYOffset} onChange={e => { setDateYOffset(Number(e.target.value)); saveSetting('bg_date_y_offset', e.target.value); }} className="h-11 bg-white border-zinc-200 text-xs font-bold rounded-lg" />
+                <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Date Y Offset</Label>
+                <Input type="number" value={dateYOffset} onChange={e => { setDateYOffset(Number(e.target.value)); saveSetting('bg_date_y_offset', e.target.value); }} className="h-11 bg-card border-border text-xs font-bold rounded-lg text-foreground" />
               </div>
             </div>
           </div>
@@ -234,35 +255,35 @@ const Settings = () => {
         >
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <Label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Rule Management</Label>
-              <Button variant="ghost" size="sm" className="h-6 text-[9px] font-black text-zinc-400 hover:text-red-500 tracking-widest p-0" onClick={() => { if(confirm('Reset all restrictions?')) setWordRestrictions(defaultMappings); }}>RESTORE DEFAULT</Button>
+              <Label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Rule Management</Label>
+              <Button variant="ghost" size="sm" className="h-6 text-[9px] font-black text-muted-foreground hover:text-destructive tracking-widest p-0" onClick={() => { if(confirm('Reset all restrictions?')) setWordRestrictions(defaultMappings); }}>RESTORE DEFAULT</Button>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <Input placeholder="RESTRICTED WORD" value={newWord} onChange={e => setNewWord(e.target.value)} className="bg-white border-zinc-200 h-11 text-[10px] font-black uppercase tracking-wider rounded-lg" />
-              <div className="flex items-center justify-center"><ArrowRight className="w-4 h-4 text-zinc-300 rotate-90 sm:rotate-0" /></div>
-              <Input placeholder="SAFE FORM" value={newReplacement} onChange={e => setNewReplacement(e.target.value)} className="bg-white border-zinc-200 h-11 text-[10px] font-black uppercase tracking-wider rounded-lg" />
+              <Input placeholder="RESTRICTED WORD" value={newWord} onChange={e => setNewWord(e.target.value)} className="bg-card border-border h-11 text-[10px] font-black uppercase tracking-wider rounded-lg text-foreground" />
+              <div className="flex items-center justify-center"><ArrowRight className="w-4 h-4 text-muted-foreground/30 rotate-90 sm:rotate-0" /></div>
+              <Input placeholder="SAFE FORM" value={newReplacement} onChange={e => setNewReplacement(e.target.value)} className="bg-card border-border h-11 text-[10px] font-black uppercase tracking-wider rounded-lg text-foreground" />
               <Button className="h-11 w-full sm:w-11 shrink-0 rounded-lg" onClick={() => { if(!newWord || !newReplacement) return; setWordRestrictions({...wordRestrictions, [newWord]: newReplacement}); setNewWord(''); setNewReplacement(''); }}><Plus className="w-5 h-5" /></Button>
             </div>
 
             <div className="flex flex-col gap-2">
               {Object.entries(wordRestrictions).map(([word, rep]) => (
-                <div key={word} className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 bg-white border border-zinc-100 group rounded-xl transition-all duration-200">
+                <div key={word} className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 bg-card border border-border group rounded-xl transition-all duration-200">
                   <div className="flex-1 flex items-center gap-4 min-w-0">
                     <div className="shrink-0 flex items-center gap-3">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900 whitespace-nowrap">{word}</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-zinc-300 shrink-0" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-foreground whitespace-nowrap">{word}</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/30 shrink-0" />
                     </div>
                     <Input
                       value={rep}
                       onChange={e => setWordRestrictions({...wordRestrictions, [word]: e.target.value})}
-                      className="h-9 text-[10px] bg-zinc-50 border-zinc-100 flex-1 font-black uppercase tracking-widest rounded-lg min-w-[120px]"
+                      className="h-9 text-[10px] bg-muted border-border flex-1 font-black uppercase tracking-widest rounded-lg min-w-[120px] text-foreground"
                     />
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-9 w-9 text-zinc-300 hover:text-red-500 self-end sm:self-auto shrink-0"
+                    className="h-9 w-9 text-muted-foreground/40 hover:text-destructive self-end sm:self-auto shrink-0"
                     onClick={() => { const next = {...wordRestrictions}; delete next[word]; setWordRestrictions(next); }}
                   >
                     <Trash2 className="w-4 h-4" />

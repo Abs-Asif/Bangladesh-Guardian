@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,20 @@ const Secret = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [currentPage, setCurrentPage] = useState<PageId>('home');
+
+  useEffect(() => {
+    const updateTheme = () => {
+      const theme = localStorage.getItem('bg_theme') || 'day';
+      if (theme === 'night') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    };
+    updateTheme();
+    window.addEventListener('storage', updateTheme);
+    return () => window.removeEventListener('storage', updateTheme);
+  }, []);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();

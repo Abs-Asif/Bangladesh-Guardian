@@ -105,14 +105,14 @@ const Ads = () => {
   return (
     <div className="space-y-6 lg:space-y-8 animate-fade-in-up pb-20">
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl lg:text-3xl font-black uppercase tracking-tighter">Advertising Manager</h1>
-        <p className="text-[10px] lg:text-xs font-bold text-zinc-400 uppercase tracking-[0.2em]">Manage banners for photocard generation</p>
+        <h1 className="text-2xl lg:text-3xl font-black uppercase tracking-tighter text-foreground">Advertising Manager</h1>
+        <p className="text-[10px] lg:text-xs font-bold text-muted-foreground uppercase tracking-[0.2em]">Manage banners for photocard generation</p>
       </div>
 
       <div className="max-w-4xl space-y-4 lg:space-y-6">
         <div className="space-y-4">
-          <Label className="text-[10px] uppercase tracking-widest text-zinc-400 font-black">Register New Campaign</Label>
-          <div className="space-y-4 bg-white border border-zinc-200 p-6 rounded-xl">
+          <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-black">Register New Campaign</Label>
+          <div className="space-y-4 bg-card border border-border p-6 rounded-xl">
             {!previewData ? (
               <Button
                 variant="outline"
@@ -124,7 +124,7 @@ const Ads = () => {
               </Button>
             ) : (
               <div className="space-y-4 animate-in fade-in zoom-in duration-300">
-                <div className="relative aspect-[3/1] bg-zinc-50 border border-zinc-100 rounded-lg overflow-hidden flex items-center justify-center">
+                <div className="relative aspect-[3/1] bg-muted border border-border rounded-lg overflow-hidden flex items-center justify-center">
                   <img src={previewData} className="w-full h-full object-contain" alt="Preview" />
                   <Button
                     variant="ghost"
@@ -140,7 +140,7 @@ const Ads = () => {
                     placeholder="Campaign Name..."
                     value={newAdName}
                     onChange={e => setNewAdName(e.target.value)}
-                    className="bg-zinc-50 border-zinc-200 h-12 text-xs font-bold uppercase tracking-wider rounded-lg"
+                    className="bg-muted border-border h-12 text-xs font-bold uppercase tracking-wider rounded-lg"
                   />
                   <Button
                     className="h-12 px-8 shrink-0 text-[10px] font-black uppercase tracking-[0.2em] gap-3 rounded-lg"
@@ -160,7 +160,7 @@ const Ads = () => {
               onChange={handleFileSelect}
             />
           </div>
-          <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest italic">Images will be scaled to match photocard width. Optimal: Horizontal banners.</p>
+          <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest italic">Images will be scaled to match photocard width. Optimal: Horizontal banners.</p>
         </div>
       </div>
 
@@ -170,22 +170,22 @@ const Ads = () => {
             key={ad.id}
             onClick={() => toggleSelect(ad.id)}
             className={cn(
-              "group bg-white border flex flex-col sm:flex-row items-stretch cursor-pointer transition-all duration-300 rounded-xl overflow-hidden",
-              selectedAdId === ad.id ? "border-primary ring-1 ring-primary/20" : "border-zinc-200 hover:border-zinc-400"
+              "group bg-card border flex flex-col sm:flex-row items-stretch cursor-pointer transition-all duration-300 rounded-xl overflow-hidden",
+              selectedAdId === ad.id ? "border-primary ring-1 ring-primary/20" : "border-border hover:border-muted-foreground/30"
             )}
           >
-            <div className="p-4 lg:p-5 flex-1 flex flex-col justify-center border-b sm:border-b-0 sm:border-r border-zinc-100">
+            <div className="p-4 lg:p-5 flex-1 flex flex-col justify-center border-b sm:border-b-0 sm:border-r border-border">
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0">
                   <h3 className={cn(
                     "text-sm font-black uppercase tracking-wider truncate",
-                    selectedAdId === ad.id ? "text-primary" : "text-zinc-900"
+                    selectedAdId === ad.id ? "text-primary" : "text-foreground"
                   )}>
                     {ad.name}
                   </h3>
                   <div className="flex items-center gap-2 mt-2">
-                    <div className={cn("w-1.5 h-1.5 rounded-full", selectedAdId === ad.id ? "bg-primary animate-pulse" : "bg-zinc-300")} />
-                    <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest">
+                    <div className={cn("w-1.5 h-1.5 rounded-full", selectedAdId === ad.id ? "bg-primary animate-pulse" : "bg-muted")} />
+                    <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">
                       {selectedAdId === ad.id ? "ACTIVE CAMPAIGN" : "STANDBY"}
                     </p>
                   </div>
@@ -193,7 +193,7 @@ const Ads = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-zinc-300 hover:text-red-500 shrink-0"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
                   onClick={(e) => { e.stopPropagation(); deleteAd(ad.id); }}
                 >
                   <Trash2 className="w-4 h-4" />
@@ -201,7 +201,7 @@ const Ads = () => {
               </div>
             </div>
 
-            <div className="sm:w-2/3 bg-zinc-50 flex items-center justify-center p-4">
+            <div className="sm:w-2/3 bg-muted flex items-center justify-center p-4">
               <div className="relative w-full h-full">
                 <img src={ad.data} alt={ad.name} className="w-full h-auto max-h-[300px] object-contain rounded-lg" />
                 {selectedAdId === ad.id && (
@@ -215,7 +215,7 @@ const Ads = () => {
         ))}
 
         {ads.length === 0 && (
-          <div className="col-span-full py-20 border border-dashed border-zinc-200 flex flex-col items-center justify-center text-zinc-300">
+          <div className="col-span-full py-20 border border-dashed border-border flex flex-col items-center justify-center text-muted-foreground">
              <ImageIcon className="w-12 h-12 mb-4 opacity-10" />
              <p className="text-[10px] font-black uppercase tracking-[0.2em]">No campaigns registered</p>
           </div>
