@@ -1,4 +1,11 @@
 {
+  "redirects": [
+    {
+      "source": "/robots.txt",
+      "destination": "https://m.youtube.com/watch?v=dQw4w9WgXcQ",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/validate-font-key",

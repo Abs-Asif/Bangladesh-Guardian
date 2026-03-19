@@ -162,6 +162,15 @@ const Home = () => {
   const [isAutoChecking, setIsAutoChecking] = useState(false);
   const isAutoCheckingRef = useRef(false);
   const [autoRecords, setAutoRecords] = useState<AutoRecord[]>([]);
+
+  const sortRecords = (records: AutoRecord[]) => {
+    return [...records].sort((a, b) => {
+      const timeA = new Date(a.timestamp).getTime();
+      const timeB = new Date(b.timestamp).getTime();
+      if (timeB !== timeA) return timeB - timeA;
+      return (b.contentId || 0) - (a.contentId || 0);
+    });
+  };
   const [autoLogs, setAutoLogs] = useState<LogEntry[]>([]);
   const [showLogs, setShowLogs] = useState(false);
   const [automationError, setAutomationError] = useState<string | null>(null);
@@ -423,7 +432,7 @@ const Home = () => {
         const manualTime = `[Manually Generated at ${now.getHours()%12||12}:${now.getMinutes().toString().padStart(2,'0')} ${now.getHours()>=12?'PM':'AM'}] [${getRelativeDateStr(now)}]`;
         const record = { id: Math.random().toString(36).substr(2, 9), url: 'manual', title: censored, imageUrl: finalImg, previewUrl: dataUrl, timestamp: now.toISOString(), postTime: manualTime };
         await saveRecordDB(record);
-        setAutoRecords(prev => [record, ...prev].slice(0, 50));
+        setAutoRecords(prev => sortRecords([record, ...prev]).slice(0, 50));
         toast.success("Generated!"); playNotification();
       }
     } catch (e) { if (!isLive) toast.error("Failed to generate"); }
@@ -527,7 +536,7 @@ const Home = () => {
       const dataUrl = await generatePhotoCardInternal(censored, eImage, false);
       const record = { id: Math.random().toString(36).substr(2, 9), url: trimmedUrl, title: censored, imageUrl: eImage, previewUrl: dataUrl, timestamp: new Date().toISOString(), postTime, contentId: parseInt(contentId || '0') };
       await saveRecordDB(record);
-      setAutoRecords(prev => [record, ...prev].slice(0, 50));
+      setAutoRecords(prev => sortRecords([record, ...prev]).slice(0, 50));
       setProcessedUrls(prev => new Map(prev).set(trimmedUrl, Date.now()));
       toast.success("Generated!"); playNotification();
     } catch (error) { toast.error("Failed to fetch post data."); } finally { setIsFetching(false); }
@@ -568,7 +577,7 @@ const Home = () => {
             const dataUrl = await generatePhotoCardInternal(censored, artImage, automationMode === 'backup');
             const record = { id: Math.random().toString(36).substr(2, 9), url: article.url, title: censored, imageUrl: artImage, previewUrl: dataUrl, timestamp: new Date().toISOString(), postTime: article.postTime, contentId: article.contentId };
             await saveRecordDB(record);
-            setAutoRecords(prev => [record, ...prev].slice(0, 50));
+            setAutoRecords(prev => sortRecords([record, ...prev]).slice(0, 50));
             setProcessedUrls(prev => new Map(prev).set(article.url, Date.now()));
             toast.success(`Auto-generated: ${censored}`); playNotification();
           }
