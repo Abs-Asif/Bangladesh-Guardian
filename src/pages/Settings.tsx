@@ -71,8 +71,8 @@ const Settings = () => {
             <Icon className="w-5 h-5" />
           </div>
           <div className="text-left">
-            <h3 className="text-[11px] font-black uppercase tracking-[0.15em] text-foreground">{title}</h3>
-            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">{description}</p>
+            <h3 className="text-base font-bold   text-foreground">{title}</h3>
+            <p className="text-xs font-bold text-muted-foreground   mt-0.5">{description}</p>
           </div>
         </div>
         <ChevronRight className={cn("w-4 h-4 text-muted-foreground/30 transition-transform duration-300", expandedTile === id && "rotate-90")} />
@@ -89,8 +89,8 @@ const Settings = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-6 lg:space-y-8 animate-fade-in-up pb-20">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl lg:text-3xl font-black uppercase tracking-tighter text-foreground">System Configuration</h1>
-        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Full Flat Design • Manage your workspace parameters</p>
+        <h1 className="text-2xl lg:text-3xl font-bold   text-foreground">System Configuration</h1>
+        <p className="text-sm font-bold text-muted-foreground  ">Full Flat Design • Manage your workspace parameters</p>
       </div>
 
       <div className="space-y-4">
@@ -102,14 +102,14 @@ const Settings = () => {
           icon={Zap}
         >
           <div className="space-y-3">
-            <Label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Select Mode</Label>
+            <Label className="text-xs font-bold text-muted-foreground  ">Select Mode</Label>
             <select
-              className="w-full h-11 bg-card border border-border px-4 text-[10px] font-black uppercase tracking-widest focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
+              className="w-full h-11 bg-card border border-border px-4 text-sm font-bold   focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
               value={theme}
               onChange={(e) => { const val = e.target.value; setTheme(val); saveSetting('bg_theme', val); }}
             >
-              <option value="day">DAY (DEFAULT LIGHT)</option>
-              <option value="night">NIGHT (DARK MODE)</option>
+              <option value="day">Day (Default Light)</option>
+              <option value="night">Night (Dark Mode)</option>
             </select>
           </div>
         </SettingTile>
@@ -122,14 +122,14 @@ const Settings = () => {
           icon={Zap}
         >
           <div className="space-y-3">
-            <Label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Configuration</Label>
+            <Label className="text-xs font-bold text-muted-foreground  ">Configuration</Label>
             <select
-              className="w-full h-11 bg-card border border-border px-4 text-[10px] font-black uppercase tracking-widest focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
+              className="w-full h-11 bg-card border border-border px-4 text-sm font-bold   focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
               value={livePreview ? 'true' : 'false'}
               onChange={(e) => { const val = e.target.value === 'true'; setLivePreview(val); saveSetting('bg_live_preview', val); }}
             >
-              <option value="true">ENABLED (REAL-TIME PREVIEW)</option>
-              <option value="false">DISABLED (MANUAL TRIGGER)</option>
+              <option value="true">Enabled (Real-time Preview)</option>
+              <option value="false">Disabled (Manual Trigger)</option>
             </select>
           </div>
         </SettingTile>
@@ -142,14 +142,14 @@ const Settings = () => {
           icon={Settings2}
         >
           <div className="space-y-3">
-            <Label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Processing Source</Label>
+            <Label className="text-xs font-bold text-muted-foreground  ">Processing Source</Label>
             <select
-              className="w-full h-11 bg-card border border-border px-4 text-[10px] font-black uppercase tracking-widest focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
+              className="w-full h-11 bg-card border border-border px-4 text-sm font-bold   focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
               value={automationMode}
               onChange={(e) => { setAutomationMode(e.target.value); saveSetting('bg_secret_automation_mode', e.target.value); }}
             >
-              <option value="main">REGULAR API (RECOMMENDED)</option>
-              <option value="backup">SITEMAP BACKUP (XML SCRAPING)</option>
+              <option value="main">Regular API (Recommended)</option>
+              <option value="backup">Sitemap Backup (XML Scraping)</option>
             </select>
           </div>
         </SettingTile>
@@ -162,14 +162,14 @@ const Settings = () => {
           icon={RotateCcw}
         >
           <div className="space-y-3">
-            <Label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Frequency Level</Label>
+            <Label className="text-xs font-bold text-muted-foreground  ">Frequency Level</Label>
             <select
-              className="w-full h-11 bg-card border border-border px-4 text-[10px] font-black uppercase tracking-widest focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
+              className="w-full h-11 bg-card border border-border px-4 text-sm font-bold   focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
               value={automationFrequency}
               onChange={(e) => { setAutomationFrequency(e.target.value); saveSetting('bg_secret_automation_frequency', e.target.value); }}
             >
               {FREQ_OPTIONS.map(opt => (
-                <option key={opt.id} value={opt.id}>{opt.label.toUpperCase()}</option>
+                <option key={opt.id} value={opt.id}>{opt.label}</option>
               ))}
             </select>
           </div>
@@ -183,9 +183,9 @@ const Settings = () => {
           icon={Volume2}
         >
           <div className="space-y-3">
-            <Label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Sound Selection</Label>
+            <Label className="text-xs font-bold text-muted-foreground  ">Sound Selection</Label>
             <select
-              className="w-full h-11 bg-card border border-border px-4 text-[10px] font-black uppercase tracking-widest focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
+              className="w-full h-11 bg-card border border-border px-4 text-sm font-bold   focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
               value={selectedAudio}
               onChange={(e) => {
                 const val = e.target.value;
@@ -210,8 +210,8 @@ const Settings = () => {
         >
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <Label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Fine-Tuning Parameters</Label>
-              <Button variant="ghost" size="sm" className="h-6 text-[9px] font-black text-muted-foreground hover:text-destructive tracking-widest p-0" onClick={resetTypography}>RESET DEFAULTS</Button>
+              <Label className="text-xs font-bold text-muted-foreground  ">Fine-Tuning Parameters</Label>
+              <Button variant="ghost" size="sm" className="h-6 text-xs font-bold text-muted-foreground hover:text-destructive  p-0" onClick={resetTypography}>Reset Defaults</Button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
               {[
@@ -221,7 +221,7 @@ const Settings = () => {
                 { label: 'Date Font Size', val: dateFontSize, set: setDateFontSize, k: 'bg_date_font_size', min: 10, max: 40 }
               ].map(s => (
                 <div key={s.label} className="space-y-3">
-                  <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                  <div className="flex justify-between text-xs font-bold   text-muted-foreground">
                     <span>{s.label}</span>
                     <span className="text-foreground font-mono">{s.val}</span>
                   </div>
@@ -235,11 +235,11 @@ const Settings = () => {
             </div>
             <div className="grid grid-cols-2 gap-6 pt-6 border-t border-border">
               <div className="space-y-2">
-                <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Date X Offset</Label>
+                <Label className="text-xs font-bold   text-muted-foreground">Date X Offset</Label>
                 <Input type="number" value={dateXOffset} onChange={e => { setDateXOffset(Number(e.target.value)); saveSetting('bg_date_x_offset', e.target.value); }} className="h-11 bg-card border-border text-xs font-bold rounded-lg text-foreground" />
               </div>
               <div className="space-y-2">
-                <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Date Y Offset</Label>
+                <Label className="text-xs font-bold   text-muted-foreground">Date Y Offset</Label>
                 <Input type="number" value={dateYOffset} onChange={e => { setDateYOffset(Number(e.target.value)); saveSetting('bg_date_y_offset', e.target.value); }} className="h-11 bg-card border-border text-xs font-bold rounded-lg text-foreground" />
               </div>
             </div>
@@ -255,14 +255,14 @@ const Settings = () => {
         >
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <Label className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Rule Management</Label>
-              <Button variant="ghost" size="sm" className="h-6 text-[9px] font-black text-muted-foreground hover:text-destructive tracking-widest p-0" onClick={() => { if(confirm('Reset all restrictions?')) setWordRestrictions(defaultMappings); }}>RESTORE DEFAULT</Button>
+              <Label className="text-xs font-bold text-muted-foreground  ">Rule Management</Label>
+              <Button variant="ghost" size="sm" className="h-6 text-xs font-bold text-muted-foreground hover:text-destructive  p-0" onClick={() => { if(confirm('Reset all restrictions?')) setWordRestrictions(defaultMappings); }}>Restore Default</Button>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <Input placeholder="RESTRICTED WORD" value={newWord} onChange={e => setNewWord(e.target.value)} className="bg-card border-border h-11 text-[10px] font-black uppercase tracking-wider rounded-lg text-foreground" />
+              <Input placeholder="RESTRICTED WORD" value={newWord} onChange={e => setNewWord(e.target.value)} className="bg-card border-border h-11 text-sm font-bold   rounded-lg text-foreground" />
               <div className="flex items-center justify-center"><ArrowRight className="w-4 h-4 text-muted-foreground/30 rotate-90 sm:rotate-0" /></div>
-              <Input placeholder="SAFE FORM" value={newReplacement} onChange={e => setNewReplacement(e.target.value)} className="bg-card border-border h-11 text-[10px] font-black uppercase tracking-wider rounded-lg text-foreground" />
+              <Input placeholder="SAFE FORM" value={newReplacement} onChange={e => setNewReplacement(e.target.value)} className="bg-card border-border h-11 text-sm font-bold   rounded-lg text-foreground" />
               <Button className="h-11 w-full sm:w-11 shrink-0 rounded-lg" onClick={() => { if(!newWord || !newReplacement) return; setWordRestrictions({...wordRestrictions, [newWord]: newReplacement}); setNewWord(''); setNewReplacement(''); }}><Plus className="w-5 h-5" /></Button>
             </div>
 
@@ -271,13 +271,13 @@ const Settings = () => {
                 <div key={word} className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 bg-card border border-border group rounded-xl transition-all duration-200">
                   <div className="flex-1 flex items-center gap-4 min-w-0">
                     <div className="shrink-0 flex items-center gap-3">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-foreground whitespace-nowrap">{word}</span>
+                      <span className="text-sm font-bold   text-foreground whitespace-nowrap">{word}</span>
                       <ArrowRight className="w-3.5 h-3.5 text-muted-foreground/30 shrink-0" />
                     </div>
                     <Input
                       value={rep}
                       onChange={e => setWordRestrictions({...wordRestrictions, [word]: e.target.value})}
-                      className="h-9 text-[10px] bg-muted border-border flex-1 font-black uppercase tracking-widest rounded-lg min-w-[120px] text-foreground"
+                      className="h-9 text-sm bg-muted border-border flex-1 font-bold   rounded-lg min-w-[120px] text-foreground"
                     />
                   </div>
                   <Button

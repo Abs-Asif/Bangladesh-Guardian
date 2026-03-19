@@ -80,20 +80,20 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange }) => {
                 "w-6 h-6 shrink-0",
                 currentPage === item.id ? "text-white" : "group-hover:scale-110 transition-transform"
               )} />
-              <span className="lg:hidden xl:block font-bold text-sm uppercase tracking-widest">{item.label}</span>
+              <span className="lg:hidden xl:block font-bold text-sm  ">{item.label}</span>
             </button>
           ))}
         </nav>
 
         <div className="p-6 border-t border-zinc-900 bg-zinc-950/50">
           <div className="hidden xl:block p-4 bg-black border border-zinc-800">
-            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-extrabold mb-1.5">Automation Status</p>
+            <p className="text-sm text-zinc-500   font-semibold mb-1.5 uppercase tracking-widest">Automation Status</p>
             <div className="flex items-center gap-2">
               <div className={cn(
                 "w-2 h-2 rounded-full animate-pulse",
                 automationStatus === 'ACTIVE' ? "bg-green-500" : automationStatus === 'STANDBY' ? "bg-amber-500" : "bg-zinc-500"
               )} />
-              <span className="text-xs font-bold text-zinc-300">{automationStatus}</span>
+              <span className="text-xs font-bold text-zinc-300 uppercase tracking-widest">{automationStatus}</span>
             </div>
           </div>
           <div className="xl:hidden flex justify-center">

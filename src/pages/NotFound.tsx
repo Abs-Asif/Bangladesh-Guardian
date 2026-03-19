@@ -31,7 +31,7 @@ const NotFound = () => {
           <div className="text-4xl font-mono font-bold text-primary animate-pulse">
             {countdown}
           </div>
-          <p className="text-zinc-500 text-sm mt-2 uppercase tracking-widest">Redirecting to Home</p>
+          <p className="text-zinc-500 text-sm mt-2  ">Redirecting to Home</p>
         </div>
       </div>
     </div>

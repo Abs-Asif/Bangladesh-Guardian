@@ -45,15 +45,15 @@ const Secret = () => {
 
   if (!isAuthorized) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-4 font-solaiman-regular text-white">
-        <div className="w-full max-w-md space-y-8 bg-zinc-900/50 backdrop-blur-xl p-8 rounded-3xl border border-zinc-800 shadow-2xl">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4 text-foreground">
+        <div className="w-full max-w-md space-y-8 bg-card/50 backdrop-blur-xl p-8 rounded-3xl border border-border shadow-2xl">
           <div className="flex flex-col items-center space-y-6">
-            <div className="p-4 bg-zinc-900 rounded-2xl">
+            <div className="p-4 bg-black rounded-2xl">
               <img src="/logo.png" alt="BG Logo" className="h-12 object-contain" />
             </div>
             <div className="text-center space-y-2">
-              <h1 className="text-2xl font-bold text-white tracking-tight">Photocard Automation</h1>
-              <p className="text-zinc-400 text-sm">Please enter your security key to access the tool.</p>
+              <h1 className="text-2xl font-bold text-foreground tracking-tight">Photocard Automation</h1>
+              <p className="text-base text-muted-foreground">Please enter your security key to access the tool.</p>
             </div>
           </div>
 
@@ -67,14 +67,14 @@ const Secret = () => {
                   placeholder="••••••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="bg-zinc-800/50 border-zinc-700 text-white pr-10 h-12 rounded-xl focus:ring-primary/20"
+                  className="bg-muted/50 border-border text-foreground pr-10 h-12 rounded-xl focus:ring-primary/20"
                   autoFocus
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-zinc-400 hover:text-white"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-muted-foreground hover:text-foreground"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -84,9 +84,9 @@ const Secret = () => {
             <Button type="submit" className="w-full h-12 rounded-xl font-bold transition-all hover:scale-[1.02]">Initialize Access</Button>
           </form>
 
-          <div className="pt-6 border-t border-zinc-800 text-center">
-            <p className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Need Access?</p>
-            <a href="mailto:contact@abdullah.ami.bd" className="text-xs text-primary hover:underline">contact@abdullah.ami.bd</a>
+          <div className="pt-6 border-t border-border text-center">
+            <p className="text-sm text-muted-foreground mb-1">Need Access?</p>
+            <a href="mailto:contact@abdullah.ami.bd" className="text-sm text-primary hover:underline">contact@abdullah.ami.bd</a>
           </div>
         </div>
       </div>
