@@ -60,7 +60,7 @@ const Settings = () => {
     };
 
     setFontSize(Number(getDVal('font_size', 70, 57)));
-    setLetterSpacing(Number(getDVal('letter_spacing', -2.4, -2.2)));
+    setLetterSpacing(Number(getDVal('letter_spacing', -2.4, -0.6)));
     setLineHeight(Number(getDVal('line_height', 0.9, 1)));
     setDateFontSize(Number(getDVal('date_font_size', 20, 19)));
     setDateXOffset(Number(getDVal('date_x_offset', -40, -40)));
@@ -68,7 +68,7 @@ const Settings = () => {
     setImageXOffset(Number(getDVal('image_x_offset', 0, 0)));
     setImageYOffset(Number(getDVal('image_y_offset', 0, 25)));
     setTitleXOffset(Number(getDVal('title_x_offset', 0, 0)));
-    setTitleYOffset(Number(getDVal('title_y_offset', 0, 15)));
+    setTitleYOffset(Number(getDVal('title_y_offset', 0, 35)));
 
     const defaultLayerOrder = isRamadanEid ? 'news_image,background,title_text,date_time' : 'background,news_image,date_time,title_text';
     const savedOrder = getVal('layer_order', defaultLayerOrder);
