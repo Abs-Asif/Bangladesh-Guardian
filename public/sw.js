@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bg-photocard-v2';
+const CACHE_NAME = 'bg-photocard-v3';
 const ASSETS = [
   '/',
   '/index.html',
@@ -8,9 +8,14 @@ const ASSETS = [
   '/icon-512.png',
   '/logo.png',
   '/PhotocardTemplate.png',
+  '/PhotocardTemplate1.png',
+  '/Def.png',
   '/Alert.mp3',
   '/Instant.mp3',
-  '/Loud.mp3'
+  '/Loud.mp3',
+  '/manifest.json',
+  '/fonts/Cambria.ttf',
+  '/fonts/cambriab.ttf'
 ];
 
 self.addEventListener('install', (event) => {
