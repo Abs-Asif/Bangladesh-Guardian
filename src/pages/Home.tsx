@@ -179,6 +179,7 @@ const Home = () => {
 
   const nextFetchLimitRef = useRef<number | null>(null);
   const backupInitializedRef = useRef(false);
+  const lastHeartbeatRef = useRef(Date.now());
 
   // Settings
   const [wordRestrictions, setWordRestrictions] = useState<Record<string, string>>({});
@@ -496,8 +497,29 @@ const Home = () => {
     const now = new Date();
     const sitemapUrl = `https://www.bangladeshguardian.com/english-sitemap/sitemap-daily-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.xml`;
     try {
-      const response = await fetch(sitemapUrl); if (!response.ok) return [];
-      const xmlDoc = new DOMParser().parseFromString(await response.text(), "text/xml");
+      let xmlText = '';
+      try {
+        const res = await fetch(sitemapUrl);
+        if (res.ok) xmlText = await res.text();
+      } catch (e) {}
+
+      if (!xmlText) {
+        const proxies = [
+          (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+          (u: string) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
+          (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+        ];
+        for (const p of proxies) {
+          try {
+            const res = await fetch(p(sitemapUrl));
+            if (res.ok) { xmlText = await res.text(); break; }
+          } catch (e) {}
+        }
+      }
+
+      if (!xmlText) return null;
+
+      const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
       return Array.from(xmlDoc.getElementsByTagName("url")).map(node => {
         const loc = node.getElementsByTagName("loc")[0]?.textContent || '';
         return {
@@ -506,7 +528,7 @@ const Home = () => {
           contentId: parseInt(loc.replace(/\/$/, '').split('/').pop() || '0')
         };
       }).filter(i => i.url && i.image).reverse();
-    } catch (e) { return []; }
+    } catch (e) { return null; }
   }, [formatSitemapTime]);
 
   const fetchPostData = async () => {
@@ -552,6 +574,10 @@ const Home = () => {
       if (automationMode === 'backup' && !backupInitializedRef.current) {
         addLog("Initializing Backup mode...", "process");
         const articles = await scrapeSitemapLinks();
+        if (articles === null) {
+          addLog("Backup initialization failed: Could not fetch sitemap.", "error");
+          return;
+        }
         const nextMap = new Map(processedUrlsRef.current);
         articles.forEach(art => { nextMap.set(art.url, Date.now()); });
         setProcessedUrls(nextMap);
@@ -561,10 +587,22 @@ const Home = () => {
       }
       console.log(`Fetching articles for ${automationMode} mode with limit ${limit}`);
       const articles = automationMode === 'main' ? await scrapeLatestLinks(limit) : await scrapeSitemapLinks();
-      const newArticles = (articles || []).filter(art => !processedUrlsRef.current.has(art.url)).slice(0, limit).reverse();
+
+      if (articles === null) {
+        addLog(`Fetch failed for ${automationMode} mode. Check connection or proxies.`, "error");
+        return;
+      }
+
+      const newArticles = articles.filter(art => !processedUrlsRef.current.has(art.url)).slice(0, limit).reverse();
       if (newArticles.length === 0) {
-        addLog("No new posts found.");
+        if (Date.now() - lastHeartbeatRef.current > 600000) { // 10 minutes
+          addLog("Engine Heartbeat: Automation is active and watching.", "info");
+          lastHeartbeatRef.current = Date.now();
+        } else {
+          addLog("No new posts found.");
+        }
       } else {
+        lastHeartbeatRef.current = Date.now();
         addLog(`Found ${newArticles.length} new post(s).`);
         for (const article of newArticles) {
           let artTitle = article.title, artImage = article.image;
@@ -590,6 +628,9 @@ const Home = () => {
     } finally { setIsAutoChecking(false); isAutoCheckingRef.current = false; }
   }, [addLog, generatePhotoCardInternal, playNotification, automationFrequency, automationMode, wordRestrictions, scrapeLatestLinks, scrapeSitemapLinks]);
 
+  const checkAndGenerateRef = useRef(checkAndGenerate);
+  useEffect(() => { checkAndGenerateRef.current = checkAndGenerate; }, [checkAndGenerate]);
+
   useEffect(() => {
     if (!autoModeActive) return;
     let wakeLock: { release: () => Promise<void> } | null = null, isMounted = true;
@@ -599,7 +640,7 @@ const Home = () => {
       const blob = new Blob([`let i; self.onmessage=e=>{if(e.data==='start'){self.postMessage('tick');i=setInterval(()=>self.postMessage('tick'),${intervalMs})}else if(e.data==='stop')clearInterval(i)}`], { type: 'application/javascript' });
       const url = URL.createObjectURL(blob);
       const worker = new Worker(url);
-      worker.onmessage = e => { if (e.data === 'tick') checkAndGenerate(); };
+      worker.onmessage = e => { if (e.data === 'tick') checkAndGenerateRef.current?.(); };
       worker.postMessage('start');
       return { worker, url };
     };
@@ -641,13 +682,23 @@ const Home = () => {
       if (wakeLock) { (wakeLock as { release: () => Promise<void> }).release().catch(() => {}); }
       if (workerInstance) { workerInstance.worker.postMessage('stop'); workerInstance.worker.terminate(); URL.revokeObjectURL(workerInstance.url); }
     };
-  }, [autoModeActive, automationFrequency, checkAndGenerate, addLog]);
+  }, [autoModeActive, automationFrequency.interval]);
 
   useEffect(() => {
     if (activeTab !== 'manual' || !livePreviewEnabled || !title || !(uploadedImage || imageUrl)) return;
     const t = setTimeout(() => { generatePhotoCard(true); }, 500);
     return () => { clearTimeout(t); };
   }, [title, imageUrl, uploadedImage, livePreviewEnabled, activeTab, generatePhotoCard]);
+
+  // Auto-refresh Recent Generations list every 70 seconds
+  useEffect(() => {
+    const refreshHistory = async () => {
+      const records = await getAllRecordsDB();
+      setAutoRecords(sortRecords(records).slice(0, 50));
+    };
+    const interval = setInterval(refreshHistory, 70000);
+    return () => clearInterval(interval);
+  }, []);
 
   const showPreview = activeTab === 'manual' && livePreviewEnabled;
 
