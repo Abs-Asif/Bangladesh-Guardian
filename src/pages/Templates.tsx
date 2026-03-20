@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 const templates = [
   { id: 'default', name: 'Basic (Default)', file: 'PhotocardTemplate.png', preview: '/Def.png' },
-  { id: 't1', name: 'Ramadan EID', file: 'PhotocardTemplate1.png', preview: '/PhotocardTemplate1.png' },
+  { id: 't1', name: 'Ramadan EID', file: 'PhotocardTemplate1.png', preview: '/Dif2.png' },
 ];
 
 const Templates = () => {

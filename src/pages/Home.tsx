@@ -213,18 +213,36 @@ const Home = () => {
       if (sm) setAutomationMode(sm);
       setSelectedAudio(localStorage.getItem('bg_secret_audio') || '/Alert.mp3');
       setLivePreviewEnabled(localStorage.getItem('bg_live_preview') === 'true');
-      setFontSize(Number(localStorage.getItem('bg_font_size') || 70));
-      setTitleLetterSpacing(Number(localStorage.getItem('bg_letter_spacing') || -2.4));
-      setLineHeightFactor(Number(localStorage.getItem('bg_line_height') || 0.9));
-      setDateFontSize(Number(localStorage.getItem('bg_date_font_size') || 20));
-      setDateXOffset(Number(localStorage.getItem('bg_date_x_offset') || -40));
-      setDateYOffset(Number(localStorage.getItem('bg_date_y_offset') || -30));
-      setImageXOffset(Number(localStorage.getItem('bg_image_x_offset') || 0));
-      setImageYOffset(Number(localStorage.getItem('bg_image_y_offset') || 0));
-      setTitleXOffset(Number(localStorage.getItem('bg_title_x_offset') || 0));
-      setTitleYOffset(Number(localStorage.getItem('bg_title_y_offset') || 0));
-      const savedLayerOrder = localStorage.getItem('bg_layer_order');
-      if (savedLayerOrder) setLayerOrder(savedLayerOrder.split(','));
+
+      const template = localStorage.getItem('bg_selected_template') || 'PhotocardTemplate.png';
+      const isRamadanEid = template === 'PhotocardTemplate1.png';
+      const suffix = template === 'PhotocardTemplate.png' ? '' : `_${template}`;
+
+      const getVal = (key: string, def: number | string) => {
+        const saved = localStorage.getItem(`bg_${key}${suffix}`);
+        return saved !== null ? saved : (localStorage.getItem(`bg_${key}`) || def);
+      };
+
+      const getDVal = (key: string, def: number | string, eidDef: number | string) => {
+        const saved = localStorage.getItem(`bg_${key}${suffix}`);
+        if (saved !== null) return saved;
+        return isRamadanEid ? eidDef : (localStorage.getItem(`bg_${key}`) || def);
+      };
+
+      setFontSize(Number(getDVal('font_size', 70, 57)));
+      setTitleLetterSpacing(Number(getDVal('letter_spacing', -2.4, -0.6)));
+      setLineHeightFactor(Number(getDVal('line_height', 0.9, 1)));
+      setDateFontSize(Number(getDVal('date_font_size', 20, 19)));
+      setDateXOffset(Number(getDVal('date_x_offset', -40, -40)));
+      setDateYOffset(Number(getDVal('date_y_offset', -30, 18)));
+      setImageXOffset(Number(getDVal('image_x_offset', 0, 0)));
+      setImageYOffset(Number(getDVal('image_y_offset', 0, 25)));
+      setTitleXOffset(Number(getDVal('title_x_offset', 0, 0)));
+      setTitleYOffset(Number(getDVal('title_y_offset', 0, 35)));
+
+      const defaultLayerOrder = isRamadanEid ? 'news_image,background,title_text,date_time' : 'background,news_image,date_time,title_text';
+      const savedLayerOrder = getVal('layer_order', defaultLayerOrder);
+      setLayerOrder(String(savedLayerOrder).split(','));
     };
     loadSettings();
     window.addEventListener('storage', loadSettings);
@@ -370,6 +388,7 @@ const Home = () => {
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
     const templateName = localStorage.getItem('bg_selected_template') || 'PhotocardTemplate.png';
+
     const template = new Image();
     template.crossOrigin = "anonymous";
     template.src = `/${templateName}`;
@@ -757,7 +776,7 @@ const Home = () => {
             <div className="flex items-center justify-between border-b border-border pb-4">
               <div className="flex items-center gap-3">
                 <Zap className="w-4 h-4 text-primary" />
-                <h3 className="text-sm font-bold   text-foreground">Automation Engine</h3>
+                <h3 className="text-sm font-bold   text-foreground">Autopilot Interface</h3>
               </div>
               <div className="flex items-center gap-2">
                 <div className={cn("w-2 h-2 rounded-full", !autoModeActive ? 'bg-muted' : isLeader ? 'bg-green-500 animate-pulse' : 'bg-amber-500')} />
@@ -806,13 +825,13 @@ const Home = () => {
                 onClick={() => setActiveTab('url')}
                 className={cn("flex-1 py-2 text-sm font-bold   transition-all rounded-md", activeTab === 'url' ? "bg-card text-primary border border-border" : "text-muted-foreground hover:text-foreground")}
               >
-                Post URL
+                Article URL
               </button>
               <button
                 onClick={() => setActiveTab('manual')}
                 className={cn("flex-1 py-2 text-sm font-bold   transition-all rounded-md", activeTab === 'manual' ? "bg-card text-primary border border-border" : "text-muted-foreground hover:text-foreground")}
               >
-                Manual Entry
+                Text & Image
               </button>
             </div>
 

@@ -21,6 +21,8 @@ const Settings = () => {
   const [theme, setTheme] = useState(localStorage.getItem('bg_theme') || 'day');
   const [expandedTile, setExpandedTile] = useState<string | null>(null);
 
+  const [currentTemplate, setCurrentTemplate] = useState(() => localStorage.getItem('bg_selected_template') || 'PhotocardTemplate.png');
+
   // Word Restrictions
   const [wordRestrictions, setWordRestrictions] = useState<Record<string, string>>(() => {
     const saved = localStorage.getItem('bg_secret_word_restrictions');
@@ -30,26 +32,61 @@ const Settings = () => {
   const [newReplacement, setNewReplacement] = useState('');
 
   // Typography
-  const [fontSize, setFontSize] = useState(Number(localStorage.getItem('bg_font_size') || 70));
-  const [letterSpacing, setLetterSpacing] = useState(Number(localStorage.getItem('bg_letter_spacing') || -2.4));
-  const [lineHeight, setLineHeight] = useState(Number(localStorage.getItem('bg_line_height') || 0.9));
-  const [dateFontSize, setDateFontSize] = useState(Number(localStorage.getItem('bg_date_font_size') || 20));
-  const [dateXOffset, setDateXOffset] = useState(Number(localStorage.getItem('bg_date_x_offset') || -40));
-  const [dateYOffset, setDateYOffset] = useState(Number(localStorage.getItem('bg_date_y_offset') || -30));
+  const [fontSize, setFontSize] = useState(70);
+  const [letterSpacing, setLetterSpacing] = useState(-2.4);
+  const [lineHeight, setLineHeight] = useState(0.9);
+  const [dateFontSize, setDateFontSize] = useState(20);
+  const [dateXOffset, setDateXOffset] = useState(-40);
+  const [dateYOffset, setDateYOffset] = useState(-30);
+  const [imageXOffset, setImageXOffset] = useState(0);
+  const [imageYOffset, setImageYOffset] = useState(0);
+  const [titleXOffset, setTitleXOffset] = useState(0);
+  const [titleYOffset, setTitleYOffset] = useState(0);
+  const [layerOrder, setLayerOrder] = useState(['background', 'news_image', 'date_time', 'title_text']);
 
-  // Image Positioning
-  const [imageXOffset, setImageXOffset] = useState(Number(localStorage.getItem('bg_image_x_offset') || 0));
-  const [imageYOffset, setImageYOffset] = useState(Number(localStorage.getItem('bg_image_y_offset') || 0));
+  const loadTypographySettings = (template: string) => {
+    const isRamadanEid = template === 'PhotocardTemplate1.png';
+    const suffix = template === 'PhotocardTemplate.png' ? '' : `_${template}`;
 
-  // Title Text Positioning
-  const [titleXOffset, setTitleXOffset] = useState(Number(localStorage.getItem('bg_title_x_offset') || 0));
-  const [titleYOffset, setTitleYOffset] = useState(Number(localStorage.getItem('bg_title_y_offset') || 0));
+    const getVal = (key: string, def: number | string) => {
+      const saved = localStorage.getItem(`bg_${key}${suffix}`);
+      return saved !== null ? saved : (localStorage.getItem(`bg_${key}`) || def);
+    };
 
-  // Layer Order
-  const [layerOrder, setLayerOrder] = useState(() => {
-    const saved = localStorage.getItem('bg_layer_order');
-    return saved ? saved.split(',') : ['background', 'news_image', 'date_time', 'title_text'];
-  });
+    const getDVal = (key: string, def: number | string, eidDef: number | string) => {
+      const saved = localStorage.getItem(`bg_${key}${suffix}`);
+      if (saved !== null) return saved;
+      return isRamadanEid ? eidDef : (localStorage.getItem(`bg_${key}`) || def);
+    };
+
+    setFontSize(Number(getDVal('font_size', 70, 57)));
+    setLetterSpacing(Number(getDVal('letter_spacing', -2.4, -0.6)));
+    setLineHeight(Number(getDVal('line_height', 0.9, 1)));
+    setDateFontSize(Number(getDVal('date_font_size', 20, 19)));
+    setDateXOffset(Number(getDVal('date_x_offset', -40, -40)));
+    setDateYOffset(Number(getDVal('date_y_offset', -30, 18)));
+    setImageXOffset(Number(getDVal('image_x_offset', 0, 0)));
+    setImageYOffset(Number(getDVal('image_y_offset', 0, 25)));
+    setTitleXOffset(Number(getDVal('title_x_offset', 0, 0)));
+    setTitleYOffset(Number(getDVal('title_y_offset', 0, 35)));
+
+    const defaultLayerOrder = isRamadanEid ? 'news_image,background,title_text,date_time' : 'background,news_image,date_time,title_text';
+    const savedOrder = getVal('layer_order', defaultLayerOrder);
+    setLayerOrder(String(savedOrder).split(','));
+  };
+
+  useEffect(() => {
+    loadTypographySettings(currentTemplate);
+  }, [currentTemplate]);
+
+  useEffect(() => {
+    const handleStorage = () => {
+      const template = localStorage.getItem('bg_selected_template') || 'PhotocardTemplate.png';
+      if (template !== currentTemplate) setCurrentTemplate(template);
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [currentTemplate]);
 
   useEffect(() => {
     localStorage.setItem('bg_secret_word_restrictions', JSON.stringify(wordRestrictions));
@@ -57,7 +94,17 @@ const Settings = () => {
   }, [wordRestrictions]);
 
   const saveSetting = (key: string, value: string | number | boolean) => {
-    localStorage.setItem(key, String(value));
+    const isTypoSetting = [
+      'bg_font_size', 'bg_letter_spacing', 'bg_line_height', 'bg_date_font_size',
+      'bg_date_x_offset', 'bg_date_y_offset', 'bg_image_x_offset', 'bg_image_y_offset',
+      'bg_title_x_offset', 'bg_title_y_offset', 'bg_layer_order'
+    ].includes(key);
+
+    if (isTypoSetting && currentTemplate !== 'PhotocardTemplate.png') {
+      localStorage.setItem(`${key}_${currentTemplate}`, String(value));
+    } else {
+      localStorage.setItem(key, String(value));
+    }
     window.dispatchEvent(new Event('storage'));
   };
 
@@ -82,6 +129,27 @@ const Settings = () => {
   };
 
   const toggleTile = (id: string) => setExpandedTile(expandedTile === id ? null : id);
+
+  const CustomSelect = ({ value, onChange, options }: { value: string, onChange: (val: string) => void, options: { id: string, label: string }[] }) => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      {options.map((opt) => (
+        <button
+          key={opt.id}
+          type="button"
+          onClick={() => onChange(opt.id)}
+          className={cn(
+            "h-11 px-4 text-sm font-medium transition-all rounded-lg border text-left flex items-center justify-between",
+            value === opt.id
+              ? "bg-primary/10 border-primary text-primary"
+              : "bg-card border-border text-foreground hover:bg-muted/50"
+          )}
+        >
+          {opt.label}
+          {value === opt.id && <div className="w-2 h-2 rounded-full bg-primary" />}
+        </button>
+      ))}
+    </div>
+  );
 
   const SettingTile = ({ id, title, description, icon: Icon, children }: { id: string, title: string, description: string, icon: any, children: React.ReactNode }) => (
     <div className="bg-card border border-border rounded-xl overflow-hidden transition-all duration-300">
@@ -121,20 +189,20 @@ const Settings = () => {
         {/* Theme Settings */}
         <SettingTile
           id="theme"
-          title="Interface Theme"
+          title="Theme"
           description="Switch between light and dark UI"
           icon={Zap}
         >
           <div className="space-y-3">
             <Label className="text-xs text-muted-foreground  ">Select Mode</Label>
-            <select
-              className="w-full h-11 bg-card border border-border px-4 text-sm focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
+            <CustomSelect
               value={theme}
-              onChange={(e) => { const val = e.target.value; setTheme(val); saveSetting('bg_theme', val); }}
-            >
-              <option value="day">Day (Default Light)</option>
-              <option value="night">Night (Dark Mode)</option>
-            </select>
+              onChange={(val) => { setTheme(val); saveSetting('bg_theme', val); }}
+              options={[
+                { id: 'day', label: 'Day (Default Light)' },
+                { id: 'night', label: 'Night (Dark Mode)' }
+              ]}
+            />
           </div>
         </SettingTile>
 
@@ -147,14 +215,14 @@ const Settings = () => {
         >
           <div className="space-y-3">
             <Label className="text-xs text-muted-foreground  ">Configuration</Label>
-            <select
-              className="w-full h-11 bg-card border border-border px-4 text-sm focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
+            <CustomSelect
               value={livePreview ? 'true' : 'false'}
-              onChange={(e) => { const val = e.target.value === 'true'; setLivePreview(val); saveSetting('bg_live_preview', val); }}
-            >
-              <option value="true">Enabled (Real-time Preview)</option>
-              <option value="false">Disabled (Manual Trigger)</option>
-            </select>
+              onChange={(val) => { const isTrue = val === 'true'; setLivePreview(isTrue); saveSetting('bg_live_preview', isTrue); }}
+              options={[
+                { id: 'true', label: 'Enabled (Real-time Preview)' },
+                { id: 'false', label: 'Disabled (Manual Trigger)' }
+              ]}
+            />
           </div>
         </SettingTile>
 
@@ -167,14 +235,14 @@ const Settings = () => {
         >
           <div className="space-y-3">
             <Label className="text-xs text-muted-foreground  ">Processing Source</Label>
-            <select
-              className="w-full h-11 bg-card border border-border px-4 text-sm focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
+            <CustomSelect
               value={automationMode}
-              onChange={(e) => { setAutomationMode(e.target.value); saveSetting('bg_secret_automation_mode', e.target.value); }}
-            >
-              <option value="main">Regular mode</option>
-              <option value="backup">Backup mode</option>
-            </select>
+              onChange={(val) => { setAutomationMode(val); saveSetting('bg_secret_automation_mode', val); }}
+              options={[
+                { id: 'main', label: 'Regular mode' },
+                { id: 'backup', label: 'Backup mode' }
+              ]}
+            />
           </div>
         </SettingTile>
 
@@ -187,48 +255,43 @@ const Settings = () => {
         >
           <div className="space-y-3">
             <Label className="text-xs text-muted-foreground  ">Frequency Level</Label>
-            <select
-              className="w-full h-11 bg-card border border-border px-4 text-sm focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
+            <CustomSelect
               value={automationFrequency}
-              onChange={(e) => { setAutomationFrequency(e.target.value); saveSetting('bg_secret_automation_frequency', e.target.value); }}
-            >
-              {FREQ_OPTIONS.map(opt => (
-                <option key={opt.id} value={opt.id}>{opt.label}</option>
-              ))}
-            </select>
+              onChange={(val) => { setAutomationFrequency(val); saveSetting('bg_secret_automation_frequency', val); }}
+              options={FREQ_OPTIONS}
+            />
           </div>
         </SettingTile>
 
         {/* Notification Profile */}
         <SettingTile
           id="audio"
-          title="Notification Profile"
+          title="Alert Sound"
           description="System audio alerts configuration"
           icon={Volume2}
         >
           <div className="space-y-3">
             <Label className="text-xs text-muted-foreground  ">Sound Selection</Label>
-            <select
-              className="w-full h-11 bg-card border border-border px-4 text-sm focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
+            <CustomSelect
               value={selectedAudio}
-              onChange={(e) => {
-                const val = e.target.value;
+              onChange={(val) => {
                 setSelectedAudio(val);
                 saveSetting('bg_secret_audio', val);
                 playNotification(val);
               }}
-            >
-              <option value="/Alert.mp3">Standard Alert</option>
-              <option value="/Instant.mp3">Minimal Ping</option>
-              <option value="/Loud.mp3">Urgent Signal</option>
-            </select>
+              options={[
+                { id: '/Alert.mp3', label: 'Standard Alert' },
+                { id: '/Instant.mp3', label: 'Minimal Ping' },
+                { id: '/Loud.mp3', label: 'Urgent Signal' }
+              ]}
+            />
           </div>
         </SettingTile>
 
         {/* Typography */}
         <SettingTile
           id="typo"
-          title="Typography Engine"
+          title="Typography"
           description="Layout and font fine-tuning"
           icon={Plus}
         >
@@ -292,21 +355,21 @@ const Settings = () => {
                 {[0, 1, 2, 3].map((index) => (
                   <div key={index} className="space-y-2">
                     <Label className="text-[10px] text-muted-foreground uppercase">Layer {index + 1} ( {index === 0 ? 'Bottom' : index === 3 ? 'Top' : 'Middle'} )</Label>
-                    <select
-                      className="w-full h-11 bg-card border border-border px-4 text-xs focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
+                    <CustomSelect
                       value={layerOrder[index]}
-                      onChange={(e) => {
+                      onChange={(val) => {
                         const newOrder = [...layerOrder];
-                        newOrder[index] = e.target.value;
+                        newOrder[index] = val;
                         setLayerOrder(newOrder);
                         saveSetting('bg_layer_order', newOrder.join(','));
                       }}
-                    >
-                      <option value="background">Background Image</option>
-                      <option value="news_image">News Image</option>
-                      <option value="date_time">Date and Time</option>
-                      <option value="title_text">Title Text</option>
-                    </select>
+                      options={[
+                        { id: 'background', label: 'Background Image' },
+                        { id: 'news_image', label: 'News Image' },
+                        { id: 'date_time', label: 'Date and Time' },
+                        { id: 'title_text', label: 'Title Text' }
+                      ]}
+                    />
                   </div>
                 ))}
               </div>
