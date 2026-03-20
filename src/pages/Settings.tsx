@@ -37,6 +37,20 @@ const Settings = () => {
   const [dateXOffset, setDateXOffset] = useState(Number(localStorage.getItem('bg_date_x_offset') || -40));
   const [dateYOffset, setDateYOffset] = useState(Number(localStorage.getItem('bg_date_y_offset') || -30));
 
+  // Image Positioning
+  const [imageXOffset, setImageXOffset] = useState(Number(localStorage.getItem('bg_image_x_offset') || 0));
+  const [imageYOffset, setImageYOffset] = useState(Number(localStorage.getItem('bg_image_y_offset') || 0));
+
+  // Title Text Positioning
+  const [titleXOffset, setTitleXOffset] = useState(Number(localStorage.getItem('bg_title_x_offset') || 0));
+  const [titleYOffset, setTitleYOffset] = useState(Number(localStorage.getItem('bg_title_y_offset') || 0));
+
+  // Layer Order
+  const [layerOrder, setLayerOrder] = useState(() => {
+    const saved = localStorage.getItem('bg_layer_order');
+    return saved ? saved.split(',') : ['background', 'news_image', 'date_time', 'title_text'];
+  });
+
   useEffect(() => {
     localStorage.setItem('bg_secret_word_restrictions', JSON.stringify(wordRestrictions));
     window.dispatchEvent(new Event('storage'));
@@ -52,9 +66,18 @@ const Settings = () => {
   const resetTypography = () => {
     setFontSize(70); setLetterSpacing(-2.4); setLineHeight(0.9);
     setDateFontSize(20); setDateXOffset(-40); setDateYOffset(-30);
+    setImageXOffset(0); setImageYOffset(0);
+    setTitleXOffset(0); setTitleYOffset(0);
+    const defaultOrder = ['background', 'news_image', 'date_time', 'title_text'];
+    setLayerOrder(defaultOrder);
+
     saveSetting('bg_font_size', 70); saveSetting('bg_letter_spacing', -2.4);
     saveSetting('bg_line_height', 0.9); saveSetting('bg_date_font_size', 20);
     saveSetting('bg_date_x_offset', -40); saveSetting('bg_date_y_offset', -30);
+    saveSetting('bg_image_x_offset', 0); saveSetting('bg_image_y_offset', 0);
+    saveSetting('bg_title_x_offset', 0); saveSetting('bg_title_y_offset', 0);
+    saveSetting('bg_layer_order', defaultOrder.join(','));
+
     toast.success("Typography reset to defaults");
   };
 
@@ -242,6 +265,50 @@ const Settings = () => {
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Date Y Offset</Label>
                 <Input type="number" value={dateYOffset} onChange={e => { setDateYOffset(Number(e.target.value)); saveSetting('bg_date_y_offset', e.target.value); }} className="h-11 bg-card border-border text-xs rounded-lg text-foreground" />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Image X Offset</Label>
+                <Input type="number" value={imageXOffset} onChange={e => { setImageXOffset(Number(e.target.value)); saveSetting('bg_image_x_offset', e.target.value); }} className="h-11 bg-card border-border text-xs rounded-lg text-foreground" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Image Y Offset</Label>
+                <Input type="number" value={imageYOffset} onChange={e => { setImageYOffset(Number(e.target.value)); saveSetting('bg_image_y_offset', e.target.value); }} className="h-11 bg-card border-border text-xs rounded-lg text-foreground" />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Title X Offset</Label>
+                <Input type="number" value={titleXOffset} onChange={e => { setTitleXOffset(Number(e.target.value)); saveSetting('bg_title_x_offset', e.target.value); }} className="h-11 bg-card border-border text-xs rounded-lg text-foreground" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Title Y Offset</Label>
+                <Input type="number" value={titleYOffset} onChange={e => { setTitleYOffset(Number(e.target.value)); saveSetting('bg_title_y_offset', e.target.value); }} className="h-11 bg-card border-border text-xs rounded-lg text-foreground" />
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-6 border-t border-border">
+              <Label className="text-xs text-muted-foreground">Layer Stacking Order (Top to Bottom: 4 to 1)</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {[0, 1, 2, 3].map((index) => (
+                  <div key={index} className="space-y-2">
+                    <Label className="text-[10px] text-muted-foreground uppercase">Layer {index + 1} ( {index === 0 ? 'Bottom' : index === 3 ? 'Top' : 'Middle'} )</Label>
+                    <select
+                      className="w-full h-11 bg-card border border-border px-4 text-xs focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
+                      value={layerOrder[index]}
+                      onChange={(e) => {
+                        const newOrder = [...layerOrder];
+                        newOrder[index] = e.target.value;
+                        setLayerOrder(newOrder);
+                        saveSetting('bg_layer_order', newOrder.join(','));
+                      }}
+                    >
+                      <option value="background">Background Image</option>
+                      <option value="news_image">News Image</option>
+                      <option value="date_time">Date and Time</option>
+                      <option value="title_text">Title Text</option>
+                    </select>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
