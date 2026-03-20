@@ -196,6 +196,12 @@ const Home = () => {
   const [titleLetterSpacing, setTitleLetterSpacing] = useState(-2.4);
   const [lineHeightFactor, setLineHeightFactor] = useState(0.9);
 
+  const [imageXOffset, setImageXOffset] = useState(0);
+  const [imageYOffset, setImageYOffset] = useState(0);
+  const [titleXOffset, setTitleXOffset] = useState(0);
+  const [titleYOffset, setTitleYOffset] = useState(0);
+  const [layerOrder, setLayerOrder] = useState<string[]>(['background', 'news_image', 'date_time', 'title_text']);
+
   useEffect(() => {
     const loadSettings = (e?: StorageEvent) => {
       if (e && e.key === 'bg_automation_status') return; // Ignore status updates
@@ -213,6 +219,12 @@ const Home = () => {
       setDateFontSize(Number(localStorage.getItem('bg_date_font_size') || 20));
       setDateXOffset(Number(localStorage.getItem('bg_date_x_offset') || -40));
       setDateYOffset(Number(localStorage.getItem('bg_date_y_offset') || -30));
+      setImageXOffset(Number(localStorage.getItem('bg_image_x_offset') || 0));
+      setImageYOffset(Number(localStorage.getItem('bg_image_y_offset') || 0));
+      setTitleXOffset(Number(localStorage.getItem('bg_title_x_offset') || 0));
+      setTitleYOffset(Number(localStorage.getItem('bg_title_y_offset') || 0));
+      const savedLayerOrder = localStorage.getItem('bg_layer_order');
+      if (savedLayerOrder) setLayerOrder(savedLayerOrder.split(','));
     };
     loadSettings();
     window.addEventListener('storage', loadSettings);
@@ -373,8 +385,6 @@ const Home = () => {
     const adHeight = adImg ? (CANVAS_WIDTH / adImg.width) * adImg.height : 0;
     canvas.height = CANVAS_HEIGHT + adHeight;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(template, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    if (adImg) ctx.drawImage(adImg, 0, CANVAS_HEIGHT, CANVAS_WIDTH, adHeight);
 
     const userImgBlobUrl = (targetImageUrl.startsWith('blob:') || targetImageUrl.startsWith('data:')) ? targetImageUrl : await fetchImageWithProxy(targetImageUrl, forceProxy);
     const userImg = new Image();
@@ -383,42 +393,56 @@ const Home = () => {
 
     const scale = Math.max(BOX.w / userImg.width, BOX.h / userImg.height);
     const drawW = userImg.width * scale, drawH = userImg.height * scale;
-    const drawX = BOX.x + (BOX.w - drawW) / 2, drawY = BOX.y + (BOX.h - drawH) / 2;
+    const drawX = BOX.x + (BOX.w - drawW) / 2 + imageXOffset, drawY = BOX.y + (BOX.h - drawH) / 2 + imageYOffset;
+    const boxX = BOX.x + imageXOffset, boxY = BOX.y + imageYOffset;
 
-    const radius = 35;
-    const definePath = () => {
-      ctx.beginPath();
-      ctx.moveTo(BOX.x + radius, BOX.y); ctx.lineTo(BOX.x + BOX.w - radius, BOX.y);
-      ctx.quadraticCurveTo(BOX.x + BOX.w, BOX.y, BOX.x + BOX.w, BOX.y + radius);
-      ctx.lineTo(BOX.x + BOX.w, BOX.y + BOX.h - radius);
-      ctx.quadraticCurveTo(BOX.x + BOX.w, BOX.y + BOX.h, BOX.x + BOX.w - radius, BOX.y + BOX.h);
-      ctx.lineTo(BOX.x + radius, BOX.y + BOX.h);
-      ctx.quadraticCurveTo(BOX.x, BOX.y + BOX.h, BOX.x, BOX.y + BOX.h - radius);
-      ctx.lineTo(BOX.x, BOX.y + radius);
-      ctx.quadraticCurveTo(BOX.x, BOX.y, BOX.x + radius, BOX.y);
-      ctx.closePath();
+    const renderLayers: Record<string, () => void> = {
+      background: () => {
+        ctx.drawImage(template, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        if (adImg) ctx.drawImage(adImg, 0, CANVAS_HEIGHT, CANVAS_WIDTH, adHeight);
+      },
+      news_image: () => {
+        const radius = 35;
+        const definePath = () => {
+          ctx.beginPath();
+          ctx.moveTo(boxX + radius, boxY); ctx.lineTo(boxX + BOX.w - radius, boxY);
+          ctx.quadraticCurveTo(boxX + BOX.w, boxY, boxX + BOX.w, boxY + radius);
+          ctx.lineTo(boxX + BOX.w, boxY + BOX.h - radius);
+          ctx.quadraticCurveTo(boxX + BOX.w, boxY + BOX.h, boxX + BOX.w - radius, boxY + BOX.h);
+          ctx.lineTo(boxX + radius, boxY + BOX.h);
+          ctx.quadraticCurveTo(boxX, boxY + BOX.h, boxX, boxY + BOX.h - radius);
+          ctx.lineTo(boxX, boxY + radius);
+          ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
+          ctx.closePath();
+        };
+        ctx.save(); definePath(); ctx.clip(); ctx.drawImage(userImg, drawX, drawY, drawW, drawH); ctx.restore();
+        ctx.save(); definePath(); ctx.lineWidth = 2; ctx.strokeStyle = '#FF0000'; ctx.stroke(); ctx.restore();
+      },
+      date_time: () => {
+        ctx.font = `${dateFontSize}px "Cambria"`; ctx.fillStyle = 'white'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillText(formatDate(new Date()), DATE_X + dateXOffset, DATE_Y + dateYOffset);
+      },
+      title_text: () => {
+        let curFS = fontSize; ctx.fillStyle = 'white'; ctx.textAlign = 'center'; ctx.letterSpacing = `${titleLetterSpacing}px`;
+        let lines: string[] = [];
+        for (let i=0; i<10; i++) {
+          ctx.font = `bold ${curFS}px "Cambria"`;
+          lines = wrapText(ctx, targetTitle, 980);
+          if (lines.length <= 3 && Math.max(...lines.map(l => ctx.measureText(l).width)) <= 980) break;
+          curFS *= 0.9;
+        }
+        const lh = curFS * lineHeightFactor;
+        lines.forEach((l, i) => ctx.fillText(l, TITLE_X + titleXOffset, TITLE_Y + titleYOffset - ((lines.length - 1) * lh / 2) + (i * lh)));
+      }
     };
 
-    ctx.save(); definePath(); ctx.clip(); ctx.drawImage(userImg, drawX, drawY, drawW, drawH); ctx.restore();
-    ctx.save(); definePath(); ctx.lineWidth = 2; ctx.strokeStyle = '#FF0000'; ctx.stroke(); ctx.restore();
-
-    ctx.font = `${dateFontSize}px "Cambria"`; ctx.fillStyle = 'white'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.fillText(formatDate(new Date()), DATE_X + dateXOffset, DATE_Y + dateYOffset);
-
-    let curFS = fontSize; ctx.fillStyle = 'white'; ctx.textAlign = 'center'; ctx.letterSpacing = `${titleLetterSpacing}px`;
-    let lines: string[] = [];
-    for (let i=0; i<10; i++) {
-      ctx.font = `bold ${curFS}px "Cambria"`;
-      lines = wrapText(ctx, targetTitle, 980);
-      if (lines.length <= 3 && Math.max(...lines.map(l => ctx.measureText(l).width)) <= 980) break;
-      curFS *= 0.9;
-    }
-    const lh = curFS * lineHeightFactor;
-    lines.forEach((l, i) => ctx.fillText(l, TITLE_X, TITLE_Y - ((lines.length - 1) * lh / 2) + (i * lh)));
+    layerOrder.forEach(layer => {
+      if (renderLayers[layer]) renderLayers[layer]();
+    });
 
     if (userImgBlobUrl.startsWith('blob:') && userImgBlobUrl !== targetImageUrl) URL.revokeObjectURL(userImgBlobUrl);
     return canvas.toDataURL('image/png');
-  }, [dateFontSize, dateXOffset, dateYOffset, fontSize, lineHeightFactor, titleLetterSpacing, BOX.h, BOX.w, BOX.x, BOX.y, DATE_Y, TITLE_X]);
+  }, [dateFontSize, dateXOffset, dateYOffset, fontSize, lineHeightFactor, titleLetterSpacing, BOX.h, BOX.w, BOX.x, BOX.y, DATE_Y, TITLE_X, imageXOffset, imageYOffset, titleXOffset, titleYOffset, layerOrder]);
 
   const generatePhotoCard = useCallback(async (isLive = false) => {
     const finalImg = uploadedImage || imageUrl;
