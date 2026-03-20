@@ -370,6 +370,8 @@ const Home = () => {
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
     const templateName = localStorage.getItem('bg_selected_template') || 'PhotocardTemplate.png';
+    const isRamadanEid = templateName === 'PhotocardTemplate1.png';
+
     const template = new Image();
     template.crossOrigin = "anonymous";
     template.src = `/${templateName}`;
@@ -391,10 +393,20 @@ const Home = () => {
     userImg.src = userImgBlobUrl;
     await new Promise(r => { userImg.onload = r; });
 
+    const currentImageYOffset = isRamadanEid ? 25 : imageYOffset;
+    const currentTitleFontSize = isRamadanEid ? 57 : fontSize;
+    const currentTitleYOffset = isRamadanEid ? 15 : titleYOffset;
+    const currentTitleLetterSpacing = isRamadanEid ? -2.2 : titleLetterSpacing;
+    const currentLineHeightFactor = isRamadanEid ? 1 : lineHeightFactor;
+    const currentDateXOffset = isRamadanEid ? -40 : dateXOffset;
+    const currentDateYOffset = isRamadanEid ? 18 : dateYOffset;
+    const currentDateFontSize = isRamadanEid ? 19 : dateFontSize;
+    const currentLayerOrder = isRamadanEid ? ['news_image', 'background', 'title_text', 'date_time'] : layerOrder;
+
     const scale = Math.max(BOX.w / userImg.width, BOX.h / userImg.height);
     const drawW = userImg.width * scale, drawH = userImg.height * scale;
-    const drawX = BOX.x + (BOX.w - drawW) / 2 + imageXOffset, drawY = BOX.y + (BOX.h - drawH) / 2 + imageYOffset;
-    const boxX = BOX.x + imageXOffset, boxY = BOX.y + imageYOffset;
+    const drawX = BOX.x + (BOX.w - drawW) / 2 + imageXOffset, drawY = BOX.y + (BOX.h - drawH) / 2 + currentImageYOffset;
+    const boxX = BOX.x + imageXOffset, boxY = BOX.y + currentImageYOffset;
 
     const renderLayers: Record<string, () => void> = {
       background: () => {
@@ -419,11 +431,11 @@ const Home = () => {
         ctx.save(); definePath(); ctx.lineWidth = 2; ctx.strokeStyle = '#FF0000'; ctx.stroke(); ctx.restore();
       },
       date_time: () => {
-        ctx.font = `${dateFontSize}px "Cambria"`; ctx.fillStyle = 'white'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-        ctx.fillText(formatDate(new Date()), DATE_X + dateXOffset, DATE_Y + dateYOffset);
+        ctx.font = `${currentDateFontSize}px "Cambria"`; ctx.fillStyle = 'white'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillText(formatDate(new Date()), DATE_X + currentDateXOffset, DATE_Y + currentDateYOffset);
       },
       title_text: () => {
-        let curFS = fontSize; ctx.fillStyle = 'white'; ctx.textAlign = 'center'; ctx.letterSpacing = `${titleLetterSpacing}px`;
+        let curFS = currentTitleFontSize; ctx.fillStyle = 'white'; ctx.textAlign = 'center'; ctx.letterSpacing = `${currentTitleLetterSpacing}px`;
         let lines: string[] = [];
         for (let i=0; i<10; i++) {
           ctx.font = `bold ${curFS}px "Cambria"`;
@@ -431,12 +443,12 @@ const Home = () => {
           if (lines.length <= 3 && Math.max(...lines.map(l => ctx.measureText(l).width)) <= 980) break;
           curFS *= 0.9;
         }
-        const lh = curFS * lineHeightFactor;
-        lines.forEach((l, i) => ctx.fillText(l, TITLE_X + titleXOffset, TITLE_Y + titleYOffset - ((lines.length - 1) * lh / 2) + (i * lh)));
+        const lh = curFS * currentLineHeightFactor;
+        lines.forEach((l, i) => ctx.fillText(l, TITLE_X + titleXOffset, TITLE_Y + currentTitleYOffset - ((lines.length - 1) * lh / 2) + (i * lh)));
       }
     };
 
-    layerOrder.forEach(layer => {
+    currentLayerOrder.forEach(layer => {
       if (renderLayers[layer]) renderLayers[layer]();
     });
 
@@ -757,7 +769,7 @@ const Home = () => {
             <div className="flex items-center justify-between border-b border-border pb-4">
               <div className="flex items-center gap-3">
                 <Zap className="w-4 h-4 text-primary" />
-                <h3 className="text-sm font-bold   text-foreground">Automation Engine</h3>
+                <h3 className="text-sm font-bold   text-foreground">Autopilot Interface</h3>
               </div>
               <div className="flex items-center gap-2">
                 <div className={cn("w-2 h-2 rounded-full", !autoModeActive ? 'bg-muted' : isLeader ? 'bg-green-500 animate-pulse' : 'bg-amber-500')} />
@@ -806,13 +818,13 @@ const Home = () => {
                 onClick={() => setActiveTab('url')}
                 className={cn("flex-1 py-2 text-sm font-bold   transition-all rounded-md", activeTab === 'url' ? "bg-card text-primary border border-border" : "text-muted-foreground hover:text-foreground")}
               >
-                Post URL
+                Article URL
               </button>
               <button
                 onClick={() => setActiveTab('manual')}
                 className={cn("flex-1 py-2 text-sm font-bold   transition-all rounded-md", activeTab === 'manual' ? "bg-card text-primary border border-border" : "text-muted-foreground hover:text-foreground")}
               >
-                Manual Entry
+                Text & Image
               </button>
             </div>
 

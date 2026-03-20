@@ -83,6 +83,27 @@ const Settings = () => {
 
   const toggleTile = (id: string) => setExpandedTile(expandedTile === id ? null : id);
 
+  const CustomSelect = ({ value, onChange, options }: { value: string, onChange: (val: string) => void, options: { id: string, label: string }[] }) => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      {options.map((opt) => (
+        <button
+          key={opt.id}
+          type="button"
+          onClick={() => onChange(opt.id)}
+          className={cn(
+            "h-11 px-4 text-sm font-medium transition-all rounded-lg border text-left flex items-center justify-between",
+            value === opt.id
+              ? "bg-primary/10 border-primary text-primary"
+              : "bg-card border-border text-foreground hover:bg-muted/50"
+          )}
+        >
+          {opt.label}
+          {value === opt.id && <div className="w-2 h-2 rounded-full bg-primary" />}
+        </button>
+      ))}
+    </div>
+  );
+
   const SettingTile = ({ id, title, description, icon: Icon, children }: { id: string, title: string, description: string, icon: any, children: React.ReactNode }) => (
     <div className="bg-card border border-border rounded-xl overflow-hidden transition-all duration-300">
       <button
@@ -121,20 +142,20 @@ const Settings = () => {
         {/* Theme Settings */}
         <SettingTile
           id="theme"
-          title="Interface Theme"
+          title="Theme"
           description="Switch between light and dark UI"
           icon={Zap}
         >
           <div className="space-y-3">
             <Label className="text-xs text-muted-foreground  ">Select Mode</Label>
-            <select
-              className="w-full h-11 bg-card border border-border px-4 text-sm focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
+            <CustomSelect
               value={theme}
-              onChange={(e) => { const val = e.target.value; setTheme(val); saveSetting('bg_theme', val); }}
-            >
-              <option value="day">Day (Default Light)</option>
-              <option value="night">Night (Dark Mode)</option>
-            </select>
+              onChange={(val) => { setTheme(val); saveSetting('bg_theme', val); }}
+              options={[
+                { id: 'day', label: 'Day (Default Light)' },
+                { id: 'night', label: 'Night (Dark Mode)' }
+              ]}
+            />
           </div>
         </SettingTile>
 
@@ -147,14 +168,14 @@ const Settings = () => {
         >
           <div className="space-y-3">
             <Label className="text-xs text-muted-foreground  ">Configuration</Label>
-            <select
-              className="w-full h-11 bg-card border border-border px-4 text-sm focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
+            <CustomSelect
               value={livePreview ? 'true' : 'false'}
-              onChange={(e) => { const val = e.target.value === 'true'; setLivePreview(val); saveSetting('bg_live_preview', val); }}
-            >
-              <option value="true">Enabled (Real-time Preview)</option>
-              <option value="false">Disabled (Manual Trigger)</option>
-            </select>
+              onChange={(val) => { const isTrue = val === 'true'; setLivePreview(isTrue); saveSetting('bg_live_preview', isTrue); }}
+              options={[
+                { id: 'true', label: 'Enabled (Real-time Preview)' },
+                { id: 'false', label: 'Disabled (Manual Trigger)' }
+              ]}
+            />
           </div>
         </SettingTile>
 
@@ -167,14 +188,14 @@ const Settings = () => {
         >
           <div className="space-y-3">
             <Label className="text-xs text-muted-foreground  ">Processing Source</Label>
-            <select
-              className="w-full h-11 bg-card border border-border px-4 text-sm focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
+            <CustomSelect
               value={automationMode}
-              onChange={(e) => { setAutomationMode(e.target.value); saveSetting('bg_secret_automation_mode', e.target.value); }}
-            >
-              <option value="main">Regular mode</option>
-              <option value="backup">Backup mode</option>
-            </select>
+              onChange={(val) => { setAutomationMode(val); saveSetting('bg_secret_automation_mode', val); }}
+              options={[
+                { id: 'main', label: 'Regular mode' },
+                { id: 'backup', label: 'Backup mode' }
+              ]}
+            />
           </div>
         </SettingTile>
 
@@ -187,48 +208,43 @@ const Settings = () => {
         >
           <div className="space-y-3">
             <Label className="text-xs text-muted-foreground  ">Frequency Level</Label>
-            <select
-              className="w-full h-11 bg-card border border-border px-4 text-sm focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
+            <CustomSelect
               value={automationFrequency}
-              onChange={(e) => { setAutomationFrequency(e.target.value); saveSetting('bg_secret_automation_frequency', e.target.value); }}
-            >
-              {FREQ_OPTIONS.map(opt => (
-                <option key={opt.id} value={opt.id}>{opt.label}</option>
-              ))}
-            </select>
+              onChange={(val) => { setAutomationFrequency(val); saveSetting('bg_secret_automation_frequency', val); }}
+              options={FREQ_OPTIONS}
+            />
           </div>
         </SettingTile>
 
         {/* Notification Profile */}
         <SettingTile
           id="audio"
-          title="Notification Profile"
+          title="Alert Sound"
           description="System audio alerts configuration"
           icon={Volume2}
         >
           <div className="space-y-3">
             <Label className="text-xs text-muted-foreground  ">Sound Selection</Label>
-            <select
-              className="w-full h-11 bg-card border border-border px-4 text-sm focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
+            <CustomSelect
               value={selectedAudio}
-              onChange={(e) => {
-                const val = e.target.value;
+              onChange={(val) => {
                 setSelectedAudio(val);
                 saveSetting('bg_secret_audio', val);
                 playNotification(val);
               }}
-            >
-              <option value="/Alert.mp3">Standard Alert</option>
-              <option value="/Instant.mp3">Minimal Ping</option>
-              <option value="/Loud.mp3">Urgent Signal</option>
-            </select>
+              options={[
+                { id: '/Alert.mp3', label: 'Standard Alert' },
+                { id: '/Instant.mp3', label: 'Minimal Ping' },
+                { id: '/Loud.mp3', label: 'Urgent Signal' }
+              ]}
+            />
           </div>
         </SettingTile>
 
         {/* Typography */}
         <SettingTile
           id="typo"
-          title="Typography Engine"
+          title="Typography"
           description="Layout and font fine-tuning"
           icon={Plus}
         >
@@ -292,21 +308,21 @@ const Settings = () => {
                 {[0, 1, 2, 3].map((index) => (
                   <div key={index} className="space-y-2">
                     <Label className="text-[10px] text-muted-foreground uppercase">Layer {index + 1} ( {index === 0 ? 'Bottom' : index === 3 ? 'Top' : 'Middle'} )</Label>
-                    <select
-                      className="w-full h-11 bg-card border border-border px-4 text-xs focus:ring-1 focus:ring-primary outline-none cursor-pointer rounded-lg text-foreground"
+                    <CustomSelect
                       value={layerOrder[index]}
-                      onChange={(e) => {
+                      onChange={(val) => {
                         const newOrder = [...layerOrder];
-                        newOrder[index] = e.target.value;
+                        newOrder[index] = val;
                         setLayerOrder(newOrder);
                         saveSetting('bg_layer_order', newOrder.join(','));
                       }}
-                    >
-                      <option value="background">Background Image</option>
-                      <option value="news_image">News Image</option>
-                      <option value="date_time">Date and Time</option>
-                      <option value="title_text">Title Text</option>
-                    </select>
+                      options={[
+                        { id: 'background', label: 'Background Image' },
+                        { id: 'news_image', label: 'News Image' },
+                        { id: 'date_time', label: 'Date and Time' },
+                        { id: 'title_text', label: 'Title Text' }
+                      ]}
+                    />
                   </div>
                 ))}
               </div>
