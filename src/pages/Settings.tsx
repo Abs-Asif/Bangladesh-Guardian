@@ -21,6 +21,8 @@ const Settings = () => {
   const [theme, setTheme] = useState(localStorage.getItem('bg_theme') || 'day');
   const [expandedTile, setExpandedTile] = useState<string | null>(null);
 
+  const [currentTemplate, setCurrentTemplate] = useState(() => localStorage.getItem('bg_selected_template') || 'PhotocardTemplate.png');
+
   // Word Restrictions
   const [wordRestrictions, setWordRestrictions] = useState<Record<string, string>>(() => {
     const saved = localStorage.getItem('bg_secret_word_restrictions');
@@ -30,26 +32,61 @@ const Settings = () => {
   const [newReplacement, setNewReplacement] = useState('');
 
   // Typography
-  const [fontSize, setFontSize] = useState(Number(localStorage.getItem('bg_font_size') || 70));
-  const [letterSpacing, setLetterSpacing] = useState(Number(localStorage.getItem('bg_letter_spacing') || -2.4));
-  const [lineHeight, setLineHeight] = useState(Number(localStorage.getItem('bg_line_height') || 0.9));
-  const [dateFontSize, setDateFontSize] = useState(Number(localStorage.getItem('bg_date_font_size') || 20));
-  const [dateXOffset, setDateXOffset] = useState(Number(localStorage.getItem('bg_date_x_offset') || -40));
-  const [dateYOffset, setDateYOffset] = useState(Number(localStorage.getItem('bg_date_y_offset') || -30));
+  const [fontSize, setFontSize] = useState(70);
+  const [letterSpacing, setLetterSpacing] = useState(-2.4);
+  const [lineHeight, setLineHeight] = useState(0.9);
+  const [dateFontSize, setDateFontSize] = useState(20);
+  const [dateXOffset, setDateXOffset] = useState(-40);
+  const [dateYOffset, setDateYOffset] = useState(-30);
+  const [imageXOffset, setImageXOffset] = useState(0);
+  const [imageYOffset, setImageYOffset] = useState(0);
+  const [titleXOffset, setTitleXOffset] = useState(0);
+  const [titleYOffset, setTitleYOffset] = useState(0);
+  const [layerOrder, setLayerOrder] = useState(['background', 'news_image', 'date_time', 'title_text']);
 
-  // Image Positioning
-  const [imageXOffset, setImageXOffset] = useState(Number(localStorage.getItem('bg_image_x_offset') || 0));
-  const [imageYOffset, setImageYOffset] = useState(Number(localStorage.getItem('bg_image_y_offset') || 0));
+  const loadTypographySettings = (template: string) => {
+    const isRamadanEid = template === 'PhotocardTemplate1.png';
+    const suffix = template === 'PhotocardTemplate.png' ? '' : `_${template}`;
 
-  // Title Text Positioning
-  const [titleXOffset, setTitleXOffset] = useState(Number(localStorage.getItem('bg_title_x_offset') || 0));
-  const [titleYOffset, setTitleYOffset] = useState(Number(localStorage.getItem('bg_title_y_offset') || 0));
+    const getVal = (key: string, def: number | string) => {
+      const saved = localStorage.getItem(`bg_${key}${suffix}`);
+      return saved !== null ? saved : (localStorage.getItem(`bg_${key}`) || def);
+    };
 
-  // Layer Order
-  const [layerOrder, setLayerOrder] = useState(() => {
-    const saved = localStorage.getItem('bg_layer_order');
-    return saved ? saved.split(',') : ['background', 'news_image', 'date_time', 'title_text'];
-  });
+    const getDVal = (key: string, def: number | string, eidDef: number | string) => {
+      const saved = localStorage.getItem(`bg_${key}${suffix}`);
+      if (saved !== null) return saved;
+      return isRamadanEid ? eidDef : (localStorage.getItem(`bg_${key}`) || def);
+    };
+
+    setFontSize(Number(getDVal('font_size', 70, 57)));
+    setLetterSpacing(Number(getDVal('letter_spacing', -2.4, -2.2)));
+    setLineHeight(Number(getDVal('line_height', 0.9, 1)));
+    setDateFontSize(Number(getDVal('date_font_size', 20, 19)));
+    setDateXOffset(Number(getDVal('date_x_offset', -40, -40)));
+    setDateYOffset(Number(getDVal('date_y_offset', -30, 18)));
+    setImageXOffset(Number(getDVal('image_x_offset', 0, 0)));
+    setImageYOffset(Number(getDVal('image_y_offset', 0, 25)));
+    setTitleXOffset(Number(getDVal('title_x_offset', 0, 0)));
+    setTitleYOffset(Number(getDVal('title_y_offset', 0, 15)));
+
+    const defaultLayerOrder = isRamadanEid ? 'news_image,background,title_text,date_time' : 'background,news_image,date_time,title_text';
+    const savedOrder = getVal('layer_order', defaultLayerOrder);
+    setLayerOrder(String(savedOrder).split(','));
+  };
+
+  useEffect(() => {
+    loadTypographySettings(currentTemplate);
+  }, [currentTemplate]);
+
+  useEffect(() => {
+    const handleStorage = () => {
+      const template = localStorage.getItem('bg_selected_template') || 'PhotocardTemplate.png';
+      if (template !== currentTemplate) setCurrentTemplate(template);
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [currentTemplate]);
 
   useEffect(() => {
     localStorage.setItem('bg_secret_word_restrictions', JSON.stringify(wordRestrictions));
@@ -57,7 +94,17 @@ const Settings = () => {
   }, [wordRestrictions]);
 
   const saveSetting = (key: string, value: string | number | boolean) => {
-    localStorage.setItem(key, String(value));
+    const isTypoSetting = [
+      'bg_font_size', 'bg_letter_spacing', 'bg_line_height', 'bg_date_font_size',
+      'bg_date_x_offset', 'bg_date_y_offset', 'bg_image_x_offset', 'bg_image_y_offset',
+      'bg_title_x_offset', 'bg_title_y_offset', 'bg_layer_order'
+    ].includes(key);
+
+    if (isTypoSetting && currentTemplate !== 'PhotocardTemplate.png') {
+      localStorage.setItem(`${key}_${currentTemplate}`, String(value));
+    } else {
+      localStorage.setItem(key, String(value));
+    }
     window.dispatchEvent(new Event('storage'));
   };
 

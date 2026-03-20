@@ -213,18 +213,36 @@ const Home = () => {
       if (sm) setAutomationMode(sm);
       setSelectedAudio(localStorage.getItem('bg_secret_audio') || '/Alert.mp3');
       setLivePreviewEnabled(localStorage.getItem('bg_live_preview') === 'true');
-      setFontSize(Number(localStorage.getItem('bg_font_size') || 70));
-      setTitleLetterSpacing(Number(localStorage.getItem('bg_letter_spacing') || -2.4));
-      setLineHeightFactor(Number(localStorage.getItem('bg_line_height') || 0.9));
-      setDateFontSize(Number(localStorage.getItem('bg_date_font_size') || 20));
-      setDateXOffset(Number(localStorage.getItem('bg_date_x_offset') || -40));
-      setDateYOffset(Number(localStorage.getItem('bg_date_y_offset') || -30));
-      setImageXOffset(Number(localStorage.getItem('bg_image_x_offset') || 0));
-      setImageYOffset(Number(localStorage.getItem('bg_image_y_offset') || 0));
-      setTitleXOffset(Number(localStorage.getItem('bg_title_x_offset') || 0));
-      setTitleYOffset(Number(localStorage.getItem('bg_title_y_offset') || 0));
-      const savedLayerOrder = localStorage.getItem('bg_layer_order');
-      if (savedLayerOrder) setLayerOrder(savedLayerOrder.split(','));
+
+      const template = localStorage.getItem('bg_selected_template') || 'PhotocardTemplate.png';
+      const isRamadanEid = template === 'PhotocardTemplate1.png';
+      const suffix = template === 'PhotocardTemplate.png' ? '' : `_${template}`;
+
+      const getVal = (key: string, def: number | string) => {
+        const saved = localStorage.getItem(`bg_${key}${suffix}`);
+        return saved !== null ? saved : (localStorage.getItem(`bg_${key}`) || def);
+      };
+
+      const getDVal = (key: string, def: number | string, eidDef: number | string) => {
+        const saved = localStorage.getItem(`bg_${key}${suffix}`);
+        if (saved !== null) return saved;
+        return isRamadanEid ? eidDef : (localStorage.getItem(`bg_${key}`) || def);
+      };
+
+      setFontSize(Number(getDVal('font_size', 70, 57)));
+      setTitleLetterSpacing(Number(getDVal('letter_spacing', -2.4, -2.2)));
+      setLineHeightFactor(Number(getDVal('line_height', 0.9, 1)));
+      setDateFontSize(Number(getDVal('date_font_size', 20, 19)));
+      setDateXOffset(Number(getDVal('date_x_offset', -40, -40)));
+      setDateYOffset(Number(getDVal('date_y_offset', -30, 18)));
+      setImageXOffset(Number(getDVal('image_x_offset', 0, 0)));
+      setImageYOffset(Number(getDVal('image_y_offset', 0, 25)));
+      setTitleXOffset(Number(getDVal('title_x_offset', 0, 0)));
+      setTitleYOffset(Number(getDVal('title_y_offset', 0, 15)));
+
+      const defaultLayerOrder = isRamadanEid ? 'news_image,background,title_text,date_time' : 'background,news_image,date_time,title_text';
+      const savedLayerOrder = getVal('layer_order', defaultLayerOrder);
+      setLayerOrder(String(savedLayerOrder).split(','));
     };
     loadSettings();
     window.addEventListener('storage', loadSettings);
@@ -370,7 +388,6 @@ const Home = () => {
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
     const templateName = localStorage.getItem('bg_selected_template') || 'PhotocardTemplate.png';
-    const isRamadanEid = templateName === 'PhotocardTemplate1.png';
 
     const template = new Image();
     template.crossOrigin = "anonymous";
@@ -393,20 +410,10 @@ const Home = () => {
     userImg.src = userImgBlobUrl;
     await new Promise(r => { userImg.onload = r; });
 
-    const currentImageYOffset = isRamadanEid ? 25 : imageYOffset;
-    const currentTitleFontSize = isRamadanEid ? 57 : fontSize;
-    const currentTitleYOffset = isRamadanEid ? 15 : titleYOffset;
-    const currentTitleLetterSpacing = isRamadanEid ? -2.2 : titleLetterSpacing;
-    const currentLineHeightFactor = isRamadanEid ? 1 : lineHeightFactor;
-    const currentDateXOffset = isRamadanEid ? -40 : dateXOffset;
-    const currentDateYOffset = isRamadanEid ? 18 : dateYOffset;
-    const currentDateFontSize = isRamadanEid ? 19 : dateFontSize;
-    const currentLayerOrder = isRamadanEid ? ['news_image', 'background', 'title_text', 'date_time'] : layerOrder;
-
     const scale = Math.max(BOX.w / userImg.width, BOX.h / userImg.height);
     const drawW = userImg.width * scale, drawH = userImg.height * scale;
-    const drawX = BOX.x + (BOX.w - drawW) / 2 + imageXOffset, drawY = BOX.y + (BOX.h - drawH) / 2 + currentImageYOffset;
-    const boxX = BOX.x + imageXOffset, boxY = BOX.y + currentImageYOffset;
+    const drawX = BOX.x + (BOX.w - drawW) / 2 + imageXOffset, drawY = BOX.y + (BOX.h - drawH) / 2 + imageYOffset;
+    const boxX = BOX.x + imageXOffset, boxY = BOX.y + imageYOffset;
 
     const renderLayers: Record<string, () => void> = {
       background: () => {
@@ -431,11 +438,11 @@ const Home = () => {
         ctx.save(); definePath(); ctx.lineWidth = 2; ctx.strokeStyle = '#FF0000'; ctx.stroke(); ctx.restore();
       },
       date_time: () => {
-        ctx.font = `${currentDateFontSize}px "Cambria"`; ctx.fillStyle = 'white'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-        ctx.fillText(formatDate(new Date()), DATE_X + currentDateXOffset, DATE_Y + currentDateYOffset);
+        ctx.font = `${dateFontSize}px "Cambria"`; ctx.fillStyle = 'white'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillText(formatDate(new Date()), DATE_X + dateXOffset, DATE_Y + dateYOffset);
       },
       title_text: () => {
-        let curFS = currentTitleFontSize; ctx.fillStyle = 'white'; ctx.textAlign = 'center'; ctx.letterSpacing = `${currentTitleLetterSpacing}px`;
+        let curFS = fontSize; ctx.fillStyle = 'white'; ctx.textAlign = 'center'; ctx.letterSpacing = `${titleLetterSpacing}px`;
         let lines: string[] = [];
         for (let i=0; i<10; i++) {
           ctx.font = `bold ${curFS}px "Cambria"`;
@@ -443,12 +450,12 @@ const Home = () => {
           if (lines.length <= 3 && Math.max(...lines.map(l => ctx.measureText(l).width)) <= 980) break;
           curFS *= 0.9;
         }
-        const lh = curFS * currentLineHeightFactor;
-        lines.forEach((l, i) => ctx.fillText(l, TITLE_X + titleXOffset, TITLE_Y + currentTitleYOffset - ((lines.length - 1) * lh / 2) + (i * lh)));
+        const lh = curFS * lineHeightFactor;
+        lines.forEach((l, i) => ctx.fillText(l, TITLE_X + titleXOffset, TITLE_Y + titleYOffset - ((lines.length - 1) * lh / 2) + (i * lh)));
       }
     };
 
-    currentLayerOrder.forEach(layer => {
+    layerOrder.forEach(layer => {
       if (renderLayers[layer]) renderLayers[layer]();
     });
 
