@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import Sidebar, { PageId } from "@/components/Sidebar";
@@ -10,6 +11,8 @@ import Settings from "./Settings";
 
 const Secret = () => {
   const [isAuthorized, setIsAuthorized] = useState(localStorage.getItem('bg_authorized') === 'true');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState<PageId>('home');
 
   useEffect(() => {
@@ -26,11 +29,33 @@ const Secret = () => {
     return () => window.removeEventListener('storage', updateTheme);
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const hashPassword = async (string: string) => {
+    const utf8 = new TextEncoder().encode(string);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', utf8);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsAuthorized(true);
-    localStorage.setItem('bg_authorized', 'true');
-    toast.success("Access Granted");
+    setIsLoading(true);
+
+    try {
+      const hashed = await hashPassword(password);
+      // SHA-256 hash of "01522105373"
+      if (hashed === "0859e0bdc6f9ed36eee08ce94733fc6631990cf0c0d82967c4fa3a946ec48015") {
+        setIsAuthorized(true);
+        localStorage.setItem('bg_authorized', 'true');
+        toast.success("Access Granted");
+      } else {
+        toast.error("Invalid Credentials");
+      }
+    } catch (error) {
+      toast.error("Authentication failed");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (!isAuthorized) {
@@ -48,7 +73,23 @@ const Secret = () => {
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
-            <Button type="submit" className="w-full h-12 rounded-xl font-bold transition-all hover:scale-[1.02]">Enter Application</Button>
+            <div className="space-y-2">
+              <Input
+                type="password"
+                placeholder="Enter Access Key"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="h-12 px-4 rounded-xl text-center tracking-[0.5em] font-mono"
+                required
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="w-full h-12 rounded-xl font-bold transition-all hover:scale-[1.02]"
+            >
+              {isLoading ? "Verifying..." : "Enter Application"}
+            </Button>
           </form>
 
           <div className="pt-6 border-t border-border text-center">
