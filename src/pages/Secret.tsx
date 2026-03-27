@@ -63,7 +63,6 @@ const Secret = () => {
   if (!isAuthorized) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4 text-foreground">
-        <ScrollToTop />
         <div className="w-full max-w-md space-y-8 bg-card/50 backdrop-blur-xl p-8 rounded-3xl border border-border shadow-2xl">
           <div className="flex flex-col items-center space-y-6">
             <div className="p-4 bg-black rounded-2xl">
