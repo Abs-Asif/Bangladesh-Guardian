@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import Sidebar, { PageId } from "@/components/Sidebar";
+import ScrollToTop from "@/components/ScrollToTop";
 import Home from "./Home";
 import Templates from "./Templates";
 import Ads from "./Ads";
@@ -14,6 +15,7 @@ const Secret = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState<PageId>('home');
+  const mainRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const updateTheme = () => {
@@ -109,7 +111,7 @@ const Secret = () => {
       <div className="lg:hidden">
         <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
       </div>
-      <main className="flex-1 overflow-y-auto relative pt-20 lg:pt-0 h-full scrollbar-hide">
+      <main ref={mainRef} className="flex-1 overflow-y-scroll relative pt-20 lg:pt-0 h-full">
         <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
           <div className={cn(currentPage !== 'home' && "hidden")}>
             <Home />
@@ -124,6 +126,7 @@ const Secret = () => {
             <Settings />
           </div>
         </div>
+        <ScrollToTop containerRef={mainRef} />
       </main>
     </div>
   );
