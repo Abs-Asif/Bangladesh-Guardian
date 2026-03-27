@@ -654,6 +654,25 @@ const Home = () => {
             if (meta) { artTitle = artTitle || meta.title; artImage = artImage || meta.image; }
           }
           if (artTitle && artImage) {
+            addLog(`Verifying "${artTitle.substring(0, 30)}..." (5s delay)...`, "process");
+            await new Promise(r => setTimeout(r, 5000));
+            const verifyMeta = await getMetadata(article.url, automationMode === 'backup');
+            if (verifyMeta && verifyMeta.title && verifyMeta.image) {
+              if (verifyMeta.title === artTitle && verifyMeta.image === artImage) {
+                addLog("Verification successful: data matches.", "success");
+              } else {
+                const oldWords = artTitle.split(/\s+/).filter(Boolean).length;
+                const newWords = verifyMeta.title.split(/\s+/).filter(Boolean).length;
+                if (newWords > oldWords) {
+                  artTitle = verifyMeta.title;
+                  artImage = verifyMeta.image;
+                  addLog("Data mismatch: Using updated version (more words).", "info");
+                } else {
+                  addLog("Data mismatch: Using original version (better or same word count).", "info");
+                }
+              }
+            }
+
             const censored = censorText(artTitle, wordRestrictions);
             const dataUrl = await generatePhotoCardInternal(censored, artImage, automationMode === 'backup');
             const record = { id: Math.random().toString(36).substr(2, 9), url: article.url, title: censored, imageUrl: artImage, previewUrl: dataUrl, timestamp: new Date().toISOString(), postTime: article.postTime, contentId: article.contentId };
