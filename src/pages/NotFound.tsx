@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import ScrollToTop from "@/components/ScrollToTop";
 
 const NotFound = () => {
   const [countdown, setCountdown] = useState(5);
@@ -34,6 +35,7 @@ const NotFound = () => {
           <p className="text-zinc-500 text-sm mt-2  ">Redirecting to Home</p>
         </div>
       </div>
+      <ScrollToTop />
     </div>
   );
 };
