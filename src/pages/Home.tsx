@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { censorText } from "@/lib/censor";
+import { shouldUpgradeTitle } from "@/lib/title-utils";
 import { Download, RefreshCw, Image as ImageIcon, ChevronRight, ClipboardPaste, List, Zap, Play, Square, Trash2, Copy, Trash, X, PenTool, ExternalLink, Share2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -660,16 +661,12 @@ const Home = () => {
             if (verifyMeta && verifyMeta.title && verifyMeta.image) {
               if (verifyMeta.title === artTitle && verifyMeta.image === artImage) {
                 addLog("Verification successful: data matches.", "success");
+              } else if (shouldUpgradeTitle(artTitle, verifyMeta.title)) {
+                artTitle = verifyMeta.title;
+                artImage = verifyMeta.image;
+                addLog("Data mismatch: Using improved version.", "info");
               } else {
-                const oldWords = artTitle.split(/\s+/).filter(Boolean).length;
-                const newWords = verifyMeta.title.split(/\s+/).filter(Boolean).length;
-                if (newWords > oldWords) {
-                  artTitle = verifyMeta.title;
-                  artImage = verifyMeta.image;
-                  addLog("Data mismatch: Using updated version (more words).", "info");
-                } else {
-                  addLog("Data mismatch: Using original version (better or same word count).", "info");
-                }
+                addLog("Data mismatch: Original version is better or same.", "info");
               }
             }
 
