@@ -95,7 +95,7 @@ const Secret = () => {
           </form>
 
           <div className="pt-6 border-t border-border text-center">
-            <p className="text-sm text-muted-foreground mb-1">Bangladesh Guardian</p>
+            <p className="text-sm text-muted-foreground mb-1">Daily Bangladesh</p>
             <a href="mailto:contact@abdullah.ami.bd" className="text-sm text-primary hover:underline">Support & Access</a>
           </div>
         </div>

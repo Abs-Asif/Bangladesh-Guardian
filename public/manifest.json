@@ -1,7 +1,7 @@
 {
-  "name": "Bangladesh Guardian PhotoCard Automation",
-  "short_name": "BG Automation",
-  "description": "A web based Application that uses Bangladesh Guardian's internal API to fetch Latest news posts and generate Photocards automatically.",
+  "name": "Daily Bangladesh PhotoCard Automation",
+  "short_name": "DB Automation",
+  "description": "A web based Application that uses Daily Bangladesh's internal API to fetch Latest news posts and generate Photocards automatically.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",

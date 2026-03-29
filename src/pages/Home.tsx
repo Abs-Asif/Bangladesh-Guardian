@@ -524,14 +524,14 @@ const Home = () => {
 
   const scrapeLatestLinks = useCallback(async (fetchLimit: number = 3) => {
     try {
-      const response = await fetch("https://backoffice.bangladeshguardian.com/api-en/archive", {
+      const response = await fetch("https://backoffice.daily-bangladesh.com/api-en/archive", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ start_date: "", end_date: "", category_name: "", limit: fetchLimit, offset: 0 })
       });
       const data = await response.json();
       return (data.archive_data || []).map((item: BGArchiveItem) => ({
-        url: `https://www.bangladeshguardian.com/${item.Slug}/${item.ContentID}`,
-        title: item.ContentHeading, image: `https://backoffice.bangladeshguardian.com/media/imgAll/${item.ImageBgPath}`,
+        url: `https://www.daily-bangladesh.com/${item.Slug}/${item.ContentID}`,
+        title: item.ContentHeading, image: `https://backoffice.daily-bangladesh.com/media/imgAll/${item.ImageBgPath}`,
         postTime: item.create_date ? formatSitemapTime(item.create_date) : '', contentId: item.ContentID
       }));
     } catch (e) { return null; }
@@ -539,7 +539,7 @@ const Home = () => {
 
   const scrapeSitemapLinks = useCallback(async () => {
     const now = new Date();
-    const sitemapUrl = `https://www.bangladeshguardian.com/english-sitemap/sitemap-daily-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.xml`;
+    const sitemapUrl = `https://www.daily-bangladesh.com/english-sitemap/sitemap-daily-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.xml`;
     try {
       let xmlText = '';
       try {
@@ -581,7 +581,7 @@ const Home = () => {
     setIsFetching(true);
     try {
       const contentId = trimmedUrl.split('/').pop();
-      const response = await fetch("https://backoffice.bangladeshguardian.com/api-en/archive", {
+      const response = await fetch("https://backoffice.daily-bangladesh.com/api-en/archive", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ start_date: "", end_date: "", category_name: "", limit: 50, offset: 0 })
       });
@@ -589,7 +589,7 @@ const Home = () => {
       const article = (data.archive_data || []).find((item: BGArchiveItem) => String(item.ContentID) === contentId);
       let eTitle = '', eImage = '', postTime = '';
       if (article) {
-        eTitle = article.ContentHeading; eImage = `https://backoffice.bangladeshguardian.com/media/imgAll/${article.ImageBgPath}`;
+        eTitle = article.ContentHeading; eImage = `https://backoffice.daily-bangladesh.com/media/imgAll/${article.ImageBgPath}`;
         postTime = article.create_date ? formatSitemapTime(article.create_date) : '';
       } else {
         const meta = await getMetadata(trimmedUrl);
@@ -715,7 +715,7 @@ const Home = () => {
       }
       try {
         if ('locks' in navigator) {
-          navigator.locks.request('bg_photocard_automation', { signal: controller.signal }, async (lock) => {
+          navigator.locks.request('db_photocard_automation', { signal: controller.signal }, async (lock) => {
             if (!lock || !isMounted) return;
             setIsLeader(true);
             addLog("Took leadership of automation.", "success");
@@ -858,7 +858,7 @@ const Home = () => {
                   <Button variant="ghost" size="sm" className="h-6 text-xs font-bold text-primary p-0 hover:bg-transparent" onClick={() => { navigator.clipboard.readText().then(setPostUrl); }}>Paste from Clipboard</Button>
                 </div>
                 <div className="flex gap-4">
-                  <Input value={postUrl} onChange={e => setPostUrl(e.target.value)} placeholder="https://www.bangladeshguardian.com/..." className="bg-muted/50 border-border h-12 text-sm rounded-xl" />
+                  <Input value={postUrl} onChange={e => setPostUrl(e.target.value)} placeholder="https://www.daily-bangladesh.com/..." className="bg-muted/50 border-border h-12 text-sm rounded-xl" />
                   <Button variant="destructive" className="h-12 w-12 shrink-0 rounded-xl" onClick={fetchPostData} disabled={isFetching || !postUrl}>{isFetching ? <RefreshCw className="w-5 h-5 animate-spin" /> : <ChevronRight className="w-6 h-6" />}</Button>
                 </div>
               </div>

@@ -1,12 +1,12 @@
-# Bangladesh Guardian Photocard Automation
+# Daily Bangladesh Photocard Automation
 
-A professional, high-performance web application designed for social media managers of the **Bangladesh Guardian**. This tool automates the creation of news photocards by fetching content directly from the website's backoffice or sitemaps, applying text moderation, and rendering high-quality PNGs via HTML5 Canvas.
+A professional, high-performance web application designed for social media managers of the **Daily Bangladesh**. This tool automates the creation of news photocards by fetching content directly from the website's backoffice or sitemaps, applying text moderation, and rendering high-quality PNGs via HTML5 Canvas.
 
 ---
 
 ## 🚀 1. What is this App?
 
-The **Bangladesh Guardian Photocard Automation** is a specialized tool that streamlines the workflow of posting news to social media. Instead of manually designing photocards for every article, this app "watches" for new posts and generates ready-to-download images instantly.
+The **Daily Bangladesh Photocard Automation** is a specialized tool that streamlines the workflow of posting news to social media. Instead of manually designing photocards for every article, this app "watches" for new posts and generates ready-to-download images instantly.
 
 **Key use cases:**
 - **Instant Social Sharing:** Generate cards as soon as an article is published.
@@ -60,7 +60,7 @@ The application uses a simplified access screen. To enter, users simply click th
 
 ### **Leader Election System**
 To prevent redundant API calls and processing, the app uses the `navigator.locks` (Web Locks API).
-- **Leader:** The first tab opened takes a lock named `bg_photocard_automation`. This tab is responsible for running the Web Worker and performing all automation tasks.
+- **Leader:** The first tab opened takes a lock named `db_photocard_automation`. This tab is responsible for running the Web Worker and performing all automation tasks.
 - **Standby:** Any subsequent tabs that cannot acquire the lock enter a "Standby" state. They will automatically attempt to take leadership if the primary tab is closed.
 
 ### **Automation Engine & Reliability**
@@ -105,7 +105,7 @@ Follow these steps to run the app on your local machine:
 1.  **Clone the Repository:**
     ```bash
     git clone <repo-url>
-    cd bg-photocard-automation
+    cd db-photocard-automation
     ```
 2.  **Install Dependencies:**
     ```bash
