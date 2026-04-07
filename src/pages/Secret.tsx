@@ -45,8 +45,8 @@ const Secret = () => {
 
     try {
       const hashed = await hashPassword(password);
-      // SHA-256 hash of "01522105373"
-      if (hashed === "0859e0bdc6f9ed36eee08ce94733fc6631990cf0c0d82967c4fa3a946ec48015") {
+      // SHA-256 hash of "01738745285"
+      if (hashed === "af27ebbe2d45f24a3a1451104f59f8ecda9f065f86a89d5a95ed81676a0e9586") {
         setIsAuthorized(true);
         localStorage.setItem('bg_authorized', 'true');
         toast.success("Access Granted");

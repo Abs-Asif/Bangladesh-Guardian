@@ -1,0 +1,71 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - region "Notifications alt+T"
+  - generic [ref=e3]:
+    - complementary [ref=e5]:
+      - img "Logo" [ref=e7]
+      - navigation [ref=e8]:
+        - button "Home" [ref=e9] [cursor=pointer]:
+          - img [ref=e10]
+          - generic [ref=e13]: Home
+        - button "Templates" [ref=e14] [cursor=pointer]:
+          - img [ref=e15]
+          - generic [ref=e17]: Templates
+        - button "Ads" [ref=e18] [cursor=pointer]:
+          - img [ref=e19]
+          - generic [ref=e23]: Ads
+        - button "Settings" [ref=e24] [cursor=pointer]:
+          - img [ref=e25]
+          - generic [ref=e28]: Settings
+      - generic [ref=e30]:
+        - paragraph [ref=e31]: Automation Status
+        - generic [ref=e34]: IDLE
+    - main [ref=e35]:
+      - generic [ref=e38]:
+        - generic [ref=e39]:
+          - generic [ref=e41]:
+            - generic [ref=e42]:
+              - generic [ref=e43]:
+                - img [ref=e44]
+                - heading "Autopilot Interface" [level=3] [ref=e46]
+              - generic [ref=e49]: IDLE
+            - generic [ref=e50]:
+              - button "Start Engine" [ref=e51] [cursor=pointer]:
+                - img [ref=e52]
+                - text: Start Engine
+              - button "+30" [ref=e54] [cursor=pointer]
+            - button "Logs Hidden" [ref=e55] [cursor=pointer]:
+              - img [ref=e56]
+              - generic [ref=e57]: Logs Hidden
+          - generic [ref=e59]:
+            - generic [ref=e60]:
+              - button "Article URL" [ref=e61] [cursor=pointer]
+              - button "Text & Image" [ref=e62] [cursor=pointer]
+            - generic [ref=e63]:
+              - generic [ref=e64]:
+                - generic [ref=e65]:
+                  - generic [ref=e66]: Headline Text
+                  - button "Paste Text" [ref=e67] [cursor=pointer]
+                - textbox "Enter headline..." [ref=e68]: Test Headline for Verification
+              - generic [ref=e69]:
+                - text: Media Source
+                - generic [ref=e70]:
+                  - textbox "Paste image URL..." [ref=e71]: https://fastly.picsum.photos/id/237/200/300.jpg
+                  - button "Upload" [ref=e72] [cursor=pointer]:
+                    - img [ref=e73]
+                    - text: Upload
+              - button "Create PhotoCard" [disabled]:
+                - img
+                - text: Create PhotoCard
+        - generic [ref=e77]:
+          - generic [ref=e78]:
+            - generic [ref=e81]:
+              - heading "Recent Generations" [level=2] [ref=e82]
+              - paragraph [ref=e83]: Session History (0/50)
+            - button "CLEAR HISTORY" [ref=e84] [cursor=pointer]
+          - generic [ref=e86]:
+            - img [ref=e87]
+            - paragraph [ref=e91]: No generations yet
+```

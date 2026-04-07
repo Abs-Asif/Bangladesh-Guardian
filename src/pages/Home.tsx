@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { censorText } from "@/lib/censor";
 import { shouldUpgradeTitle } from "@/lib/title-utils";
-import { Download, RefreshCw, Image as ImageIcon, ChevronRight, ClipboardPaste, List, Zap, Play, Square, Trash2, Copy, Trash, X, PenTool, ExternalLink, Share2 } from "lucide-react";
+import { Download, RefreshCw, Image as ImageIcon, ChevronRight, List, Zap, Play, Square, Trash2, Copy, X, PenTool, Share2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface AutoRecord {
@@ -18,6 +18,7 @@ interface AutoRecord {
   timestamp: string;
   postTime?: string;
   contentId?: number;
+  highlightedIndices?: number[];
 }
 
 interface BGArchiveItem {
@@ -163,6 +164,10 @@ const Home = () => {
   const [isAutoChecking, setIsAutoChecking] = useState(false);
   const isAutoCheckingRef = useRef(false);
   const [autoRecords, setAutoRecords] = useState<AutoRecord[]>([]);
+  const [editingRecord, setEditingRecord] = useState<AutoRecord | null>(null);
+  const [tempHighlights, setTempHighlights] = useState<number[]>([]);
+  const [mobileActiveId, setMobileActiveId] = useState<string | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const sortRecords = (records: AutoRecord[]) => {
     return [...records].sort((a, b) => {
@@ -385,9 +390,10 @@ const Home = () => {
     return lines;
   };
 
-  const generatePhotoCardInternal = useCallback(async (targetTitle: string, targetImageUrl: string, forceProxy: boolean = false): Promise<string> => {
+  const generatePhotoCardInternal = useCallback(async (targetTitle: string, targetImageUrl: string, forceProxy: boolean = false, manualHighlights?: number[]): Promise<{ dataUrl: string, appliedHighlights: number[] }> => {
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+    let appliedHighlightsResult: number[] = [];
     const templateName = localStorage.getItem('bg_selected_template') || 'PhotocardTemplate.png';
 
     const template = new Image();
@@ -443,16 +449,61 @@ const Home = () => {
         ctx.fillText(formatDate(new Date()), DATE_X + dateXOffset, DATE_Y + dateYOffset);
       },
       title_text: () => {
-        let curFS = fontSize; ctx.fillStyle = 'white'; ctx.textAlign = 'center'; ctx.letterSpacing = `${titleLetterSpacing}px`;
-        let lines: string[] = [];
-        for (let i=0; i<10; i++) {
+        const highlightColor = localStorage.getItem('bg_highlight_color') || '#FFFF00';
+        let curFS = fontSize; ctx.textAlign = 'center'; ctx.letterSpacing = `${titleLetterSpacing}px`;
+        const allWords = targetTitle.split(' ');
+        let lines: { text: string; wordIndices: number[] }[] = [];
+
+        for (let i = 0; i < 10; i++) {
           ctx.font = `bold ${curFS}px "Cambria"`;
-          lines = wrapText(ctx, targetTitle, 980);
-          if (lines.length <= 3 && Math.max(...lines.map(l => ctx.measureText(l).width)) <= 980) break;
+          lines = [];
+          let currentLineText = '';
+          let currentLineIndices: number[] = [];
+
+          for (let j = 0; j < allWords.length; j++) {
+            const word = allWords[j];
+            const testLine = currentLineText ? currentLineText + ' ' + word : word;
+            if (ctx.measureText(testLine).width > 980 && currentLineText !== '') {
+              lines.push({ text: currentLineText, wordIndices: currentLineIndices });
+              currentLineText = word;
+              currentLineIndices = [j];
+            } else {
+              currentLineText = testLine;
+              currentLineIndices.push(j);
+            }
+          }
+          lines.push({ text: currentLineText, wordIndices: currentLineIndices });
+
+          if (lines.length <= 3 && Math.max(...lines.map(l => ctx.measureText(l.text).width)) <= 980) break;
           curFS *= 0.9;
         }
+
         const lh = curFS * lineHeightFactor;
-        lines.forEach((l, i) => ctx.fillText(l, TITLE_X + titleXOffset, TITLE_Y + titleYOffset - ((lines.length - 1) * lh / 2) + (i * lh)));
+        let appliedHighlights = manualHighlights;
+        const autoHighlightEnabled = localStorage.getItem('bg_auto_highlight_two_lines') !== 'false';
+
+        if (!appliedHighlights && lines.length === 2 && autoHighlightEnabled) {
+          appliedHighlights = lines[0].wordIndices;
+        }
+        if (!appliedHighlights) appliedHighlights = [];
+        appliedHighlightsResult = appliedHighlights;
+
+        lines.forEach((line, i) => {
+          const totalWidth = ctx.measureText(line.text).width;
+          let currentX = TITLE_X + titleXOffset - totalWidth / 2;
+          const y = TITLE_Y + titleYOffset - ((lines.length - 1) * lh / 2) + (i * lh);
+
+          ctx.textAlign = 'left';
+          line.wordIndices.forEach((wordIdx, idxInLine) => {
+            const word = allWords[wordIdx];
+            ctx.fillStyle = appliedHighlights!.includes(wordIdx) ? highlightColor : 'white';
+            ctx.fillText(word, currentX, y);
+            currentX += ctx.measureText(word).width;
+            if (idxInLine < line.wordIndices.length - 1) {
+              currentX += ctx.measureText(' ').width;
+            }
+          });
+        });
       }
     };
 
@@ -461,7 +512,7 @@ const Home = () => {
     });
 
     if (userImgBlobUrl.startsWith('blob:') && userImgBlobUrl !== targetImageUrl) URL.revokeObjectURL(userImgBlobUrl);
-    return canvas.toDataURL('image/png');
+    return { dataUrl: canvas.toDataURL('image/png'), appliedHighlights: appliedHighlightsResult };
   }, [dateFontSize, dateXOffset, dateYOffset, fontSize, lineHeightFactor, titleLetterSpacing, BOX.h, BOX.w, BOX.x, BOX.y, DATE_Y, TITLE_X, imageXOffset, imageYOffset, titleXOffset, titleYOffset, layerOrder]);
 
   const generatePhotoCard = useCallback(async (isLive = false) => {
@@ -470,12 +521,12 @@ const Home = () => {
     if (!isLive) setIsGenerating(true);
     try {
       const censored = censorText(title, wordRestrictions);
-      const dataUrl = await generatePhotoCardInternal(censored, finalImg, false);
+      const { dataUrl, appliedHighlights } = await generatePhotoCardInternal(censored, finalImg, false);
       setPreviewUrl(dataUrl);
       if (!isLive) {
         const now = new Date();
         const manualTime = `[Manually Generated at ${now.getHours()%12||12}:${now.getMinutes().toString().padStart(2,'0')} ${now.getHours()>=12?'PM':'AM'}] [${getRelativeDateStr(now)}]`;
-        const record = { id: Math.random().toString(36).substr(2, 9), url: 'manual', title: censored, imageUrl: finalImg, previewUrl: dataUrl, timestamp: now.toISOString(), postTime: manualTime };
+        const record: AutoRecord = { id: Math.random().toString(36).substr(2, 9), url: 'manual', title: censored, imageUrl: finalImg, previewUrl: dataUrl, timestamp: now.toISOString(), postTime: manualTime, highlightedIndices: appliedHighlights };
         await saveRecordDB(record);
         setAutoRecords(prev => sortRecords([record, ...prev]).slice(0, 50));
         toast.success("Generated!"); playNotification();
@@ -545,7 +596,9 @@ const Home = () => {
       try {
         const res = await fetch(sitemapUrl);
         if (res.ok) xmlText = await res.text();
-      } catch (e) {}
+      } catch (e) {
+        // Ignored
+      }
 
       if (!xmlText) {
         const proxies = [
@@ -557,7 +610,9 @@ const Home = () => {
           try {
             const res = await fetch(p(sitemapUrl));
             if (res.ok) { xmlText = await res.text(); break; }
-          } catch (e) {}
+          } catch (e) {
+            // Ignored
+          }
         }
       }
 
@@ -599,8 +654,8 @@ const Home = () => {
         } else { toast.error("Post not found."); return; }
       }
       const censored = censorText(eTitle, wordRestrictions);
-      const dataUrl = await generatePhotoCardInternal(censored, eImage, false);
-      const record = { id: Math.random().toString(36).substr(2, 9), url: trimmedUrl, title: censored, imageUrl: eImage, previewUrl: dataUrl, timestamp: new Date().toISOString(), postTime, contentId: parseInt(contentId || '0') };
+      const { dataUrl, appliedHighlights } = await generatePhotoCardInternal(censored, eImage, false);
+      const record: AutoRecord = { id: Math.random().toString(36).substr(2, 9), url: trimmedUrl, title: censored, imageUrl: eImage, previewUrl: dataUrl, timestamp: new Date().toISOString(), postTime, contentId: parseInt(contentId || '0'), highlightedIndices: appliedHighlights };
       await saveRecordDB(record);
       setAutoRecords(prev => sortRecords([record, ...prev]).slice(0, 50));
       setProcessedUrls(prev => new Map(prev).set(trimmedUrl, Date.now()));
@@ -671,8 +726,8 @@ const Home = () => {
             }
 
             const censored = censorText(artTitle, wordRestrictions);
-            const dataUrl = await generatePhotoCardInternal(censored, artImage, automationMode === 'backup');
-            const record = { id: Math.random().toString(36).substr(2, 9), url: article.url, title: censored, imageUrl: artImage, previewUrl: dataUrl, timestamp: new Date().toISOString(), postTime: article.postTime, contentId: article.contentId };
+            const { dataUrl, appliedHighlights } = await generatePhotoCardInternal(censored, artImage, automationMode === 'backup');
+            const record: AutoRecord = { id: Math.random().toString(36).substr(2, 9), url: article.url, title: censored, imageUrl: artImage, previewUrl: dataUrl, timestamp: new Date().toISOString(), postTime: article.postTime, contentId: article.contentId, highlightedIndices: appliedHighlights };
             await saveRecordDB(record);
             setAutoRecords(prev => sortRecords([record, ...prev]).slice(0, 50));
             setProcessedUrls(prev => new Map(prev).set(article.url, Date.now()));
@@ -680,10 +735,11 @@ const Home = () => {
           }
         }
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("Automation error:", e);
-      addLog(`Automation error: ${e.message || 'Unknown error'}`, "error");
-      setAutomationError(e.message || "Automation failed unexpectedly.");
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      addLog(`Automation error: ${msg}`, "error");
+      setAutomationError(msg || "Automation failed unexpectedly.");
     } finally { setIsAutoChecking(false); isAutoCheckingRef.current = false; }
   }, [addLog, generatePhotoCardInternal, playNotification, automationFrequency, automationMode, wordRestrictions, scrapeLatestLinks, scrapeSitemapLinks]);
 
@@ -760,6 +816,63 @@ const Home = () => {
   }, []);
 
   const showPreview = activeTab === 'manual' && livePreviewEnabled;
+
+  const handleEditSave = async () => {
+    if (!editingRecord) return;
+    setIsSavingEdit(true);
+    try {
+      const { dataUrl } = await generatePhotoCardInternal(editingRecord.title, editingRecord.imageUrl, false, tempHighlights);
+      const updatedRecord = { ...editingRecord, previewUrl: dataUrl, highlightedIndices: tempHighlights };
+      await saveRecordDB(updatedRecord);
+      setAutoRecords(prev => prev.map(r => r.id === updatedRecord.id ? updatedRecord : r));
+      setEditingRecord(null);
+      toast.success("Changes saved!");
+    } catch (e) {
+      toast.error("Failed to save changes");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleEditDownload = async () => {
+    if (!editingRecord) return;
+    try {
+      const { dataUrl } = await generatePhotoCardInternal(editingRecord.title, editingRecord.imageUrl, false, tempHighlights);
+      const a = document.createElement('a');
+      a.download = `${editingRecord.title}.png`;
+      a.href = dataUrl;
+      a.click();
+    } catch (e) {
+      toast.error("Failed to download");
+    }
+  };
+
+  const handleEditShare = async () => {
+    if (!editingRecord) return;
+    try {
+      const { dataUrl } = await generatePhotoCardInternal(editingRecord.title, editingRecord.imageUrl, false, tempHighlights);
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], `${editingRecord.title}.png`, { type: 'image/png' });
+      if (navigator.share) {
+        await navigator.share({ files: [file], title: editingRecord.title });
+      } else {
+        navigator.clipboard.writeText(dataUrl);
+        toast.success("Image link copied");
+      }
+    } catch (e) {
+      toast.error("Failed to share");
+    }
+  };
+
+  useEffect(() => {
+    if (editingRecord) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [editingRecord]);
 
   return (
     <div className="space-y-6 lg:space-y-8 animate-fade-in-up pb-20">
@@ -921,8 +1034,37 @@ const Home = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
           {autoRecords.map(r => (
             <div key={r.id} className="group bg-card border border-border overflow-hidden hover:border-primary transition-all duration-300 rounded-xl">
-              <div className="aspect-square bg-muted overflow-hidden relative border-b border-border">
+              <div
+                className="aspect-square bg-muted overflow-hidden relative border-b border-border cursor-pointer"
+                onClick={() => {
+                  if (window.innerWidth < 1024) {
+                    if (mobileActiveId === r.id) {
+                      setEditingRecord(r);
+                      setTempHighlights(r.highlightedIndices || []);
+                      setMobileActiveId(null);
+                    } else {
+                      setMobileActiveId(r.id);
+                    }
+                  }
+                }}
+              >
                 <img src={r.previewUrl} className="w-full h-full object-contain" alt={r.title} />
+                <div className={cn(
+                  "absolute inset-0 bg-black/40 flex items-center justify-center transition-opacity duration-300",
+                  mobileActiveId === r.id ? "opacity-100" : "opacity-0 lg:group-hover:opacity-100"
+                )}>
+                  <Button
+                    variant="secondary"
+                    className="rounded-full h-12 w-12 p-0 shadow-xl"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingRecord(r);
+                      setTempHighlights(r.highlightedIndices || []);
+                    }}
+                  >
+                    <PenTool className="w-5 h-5" />
+                  </Button>
+                </div>
               </div>
               <div className="p-4 space-y-3">
                 <div className="min-w-0 space-y-1">
@@ -1004,6 +1146,76 @@ const Home = () => {
           )}
         </div>
       </div>
+
+      {editingRecord && (
+        <div
+          className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-300"
+          onClick={() => setEditingRecord(null)}
+        >
+          <div
+            className="bg-card border border-border max-w-2xl w-full p-6 lg:p-8 shadow-2xl rounded-3xl space-y-6 animate-in zoom-in-95 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-border pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                  <PenTool className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-foreground">Edit Highlights</h2>
+                  <p className="text-xs text-muted-foreground">Customize word-level coloring</p>
+                </div>
+              </div>
+              <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setEditingRecord(null)}>
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              <Label className="text-sm text-muted-foreground font-bold">Tap words to toggle highlight</Label>
+              <div className="p-6 bg-muted/30 rounded-2xl border border-border flex flex-wrap gap-2 leading-relaxed">
+                {editingRecord.title.split(' ').map((word, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      setTempHighlights(prev =>
+                        prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx]
+                      );
+                    }}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-lg font-medium transition-all",
+                      tempHighlights.includes(idx)
+                        ? "bg-primary text-primary-foreground shadow-lg scale-105"
+                        : "bg-card text-foreground border border-border hover:bg-muted hover:border-primary/30"
+                    )}
+                  >
+                    {word}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-border">
+              <Button
+                className="h-12 font-bold gap-2 rounded-xl shadow-lg shadow-primary/20"
+                onClick={handleEditSave}
+                disabled={isSavingEdit}
+              >
+                {isSavingEdit ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                Save Changes
+              </Button>
+              <Button variant="outline" className="h-12 font-bold gap-2 rounded-xl" onClick={handleEditDownload}>
+                <Download className="w-4 h-4" />
+                Download
+              </Button>
+              <Button variant="outline" className="h-12 font-bold gap-2 rounded-xl" onClick={handleEditShare}>
+                <Share2 className="w-4 h-4" />
+                Share link
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
