@@ -1,16 +1,16 @@
-# Daily Bangladesh Photocard Automation
+# Bangladesh Guardian Photocard Automation
 
-A professional, high-performance web application designed for social media managers of **Daily Bangladesh** (formerly Bangladesh Guardian). This tool automates the creation of news photocards by fetching content directly from the website's backoffice API or sitemaps, applying text moderation, and rendering high-quality PNGs via HTML5 Canvas.
+A professional, high-performance web application designed for social media managers of **Bangladesh Guardian**. This tool automates the creation of news photocards by fetching content directly from the website's backoffice API or sitemaps, applying text moderation, and rendering high-quality PNGs via HTML5 Canvas.
 
 ---
 
 ## 🚀 1. Overview
 
-The **Daily Bangladesh Photocard Automation** is a specialized tool that streamlines the workflow of posting news to social media. It features an "Autopilot" engine that monitors the website for new articles and generates ready-to-share photocards instantly.
+The **Bangladesh Guardian Photocard Automation** is a specialized tool that streamlines the workflow of posting news to social media. It features an "Autopilot" engine that monitors the website for new articles and generates ready-to-share photocards instantly.
 
 ### Key Features:
 - **Autopilot Engine:** Scans the news archive every 1-3 minutes and generates photocards in the background.
-- **Backoffice Integration:** Direct connection to the `backoffice.daily-bangladesh.com` API.
+- **Backoffice Integration:** Direct connection to the `backoffice.bangladeshguardian.com` API.
 - **High-Performance Rendering:** Optimized Canvas rendering with word-level highlighting and dynamic font scaling.
 - **Manual Entry:** Support for custom headlines and image uploads.
 - **Professional Design:** Standardized typography (Google Sans, Cambria) and flat design aesthetic.
@@ -44,10 +44,10 @@ The **Daily Bangladesh Photocard Automation** is a specialized tool that streaml
 
 ## 🔗 3. Backoffice API & Scraper Integration
 
-The application integrates with the **Daily Bangladesh Backoffice** to fetch the latest news articles.
+The application integrates with the **Bangladesh Guardian Backoffice** to fetch the latest news articles.
 
 ### **The Archive API**
-- **Endpoint:** `https://backoffice.daily-bangladesh.com/api-en/archive` (Note: Rebranded from `bangladeshguardian.com`)
+- **Endpoint:** `https://backoffice.bangladeshguardian.com/api-en/archive`
 - **Method:** `POST`
 - **Content-Type:** `application/json`
 
@@ -66,7 +66,7 @@ To fetch the 3 most recent articles:
 #### **Implementation Example (JavaScript):**
 ```javascript
 const fetchLatestNews = async (limit = 3) => {
-  const response = await fetch("https://backoffice.daily-bangladesh.com/api-en/archive", {
+  const response = await fetch("https://backoffice.bangladeshguardian.com/api-en/archive", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -84,7 +84,7 @@ const fetchLatestNews = async (limit = 3) => {
     title: item.ContentHeading,
     slug: item.Slug,
     id: item.ContentID,
-    imageUrl: `https://backoffice.daily-bangladesh.com/media/imgAll/${item.ImageBgPath}`
+    imageUrl: `https://backoffice.bangladeshguardian.com/media/imgAll/${item.ImageBgPath}`
   }));
 };
 ```
