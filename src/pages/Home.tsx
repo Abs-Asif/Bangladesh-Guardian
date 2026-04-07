@@ -865,6 +865,15 @@ const Home = () => {
     }
   };
 
+  useEffect(() => {
+    if (editingRecord) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [editingRecord]);
+
   return (
     <div className="space-y-6 lg:space-y-8 animate-fade-in-up pb-20">
       {automationError && (
@@ -1139,21 +1148,32 @@ const Home = () => {
       </div>
 
       {editingRecord && (
-        <div className="fixed inset-0 z-[110] bg-background/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-card border border-border max-w-2xl w-full p-6 lg:p-8 shadow-2xl rounded-3xl space-y-6 max-h-[90vh] overflow-y-auto">
+        <div
+          className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-300"
+          onClick={() => setEditingRecord(null)}
+        >
+          <div
+            className="bg-card border border-border max-w-2xl w-full p-6 lg:p-8 shadow-2xl rounded-3xl space-y-6 animate-in zoom-in-95 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between border-b border-border pb-4">
               <div className="flex items-center gap-3">
-                <PenTool className="w-5 h-5 text-primary" />
-                <h2 className="text-xl font-bold text-foreground">Edit Highlights</h2>
+                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                  <PenTool className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-foreground">Edit Highlights</h2>
+                  <p className="text-xs text-muted-foreground">Customize word-level coloring</p>
+                </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setEditingRecord(null)}>
+              <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setEditingRecord(null)}>
                 <X className="w-5 h-5" />
               </Button>
             </div>
 
             <div className="space-y-4">
               <Label className="text-sm text-muted-foreground font-bold">Tap words to toggle highlight</Label>
-              <div className="p-6 bg-muted/50 rounded-2xl border border-border flex flex-wrap gap-2 leading-relaxed">
+              <div className="p-6 bg-muted/30 rounded-2xl border border-border flex flex-wrap gap-2 leading-relaxed">
                 {editingRecord.title.split(' ').map((word, idx) => (
                   <button
                     key={idx}
@@ -1165,8 +1185,8 @@ const Home = () => {
                     className={cn(
                       "px-3 py-1.5 rounded-lg text-lg font-medium transition-all",
                       tempHighlights.includes(idx)
-                        ? "bg-primary text-primary-foreground shadow-md scale-105"
-                        : "bg-card text-foreground border border-border hover:bg-muted"
+                        ? "bg-primary text-primary-foreground shadow-lg scale-105"
+                        : "bg-card text-foreground border border-border hover:bg-muted hover:border-primary/30"
                     )}
                   >
                     {word}
@@ -1177,20 +1197,20 @@ const Home = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-border">
               <Button
-                className="h-12 font-bold gap-2"
+                className="h-12 font-bold gap-2 rounded-xl shadow-lg shadow-primary/20"
                 onClick={handleEditSave}
                 disabled={isSavingEdit}
               >
                 {isSavingEdit ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                Save
+                Save Changes
               </Button>
-              <Button variant="outline" className="h-12 font-bold gap-2" onClick={handleEditDownload}>
+              <Button variant="outline" className="h-12 font-bold gap-2 rounded-xl" onClick={handleEditDownload}>
                 <Download className="w-4 h-4" />
                 Download
               </Button>
-              <Button variant="outline" className="h-12 font-bold gap-2" onClick={handleEditShare}>
+              <Button variant="outline" className="h-12 font-bold gap-2 rounded-xl" onClick={handleEditShare}>
                 <Share2 className="w-4 h-4" />
-                Share
+                Share link
               </Button>
             </div>
           </div>

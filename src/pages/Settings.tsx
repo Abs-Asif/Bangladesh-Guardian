@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Settings2, Volume2, Zap, ShieldAlert, ArrowRight, Plus, Trash2, RotateCcw, ChevronRight, Palette } from "lucide-react";
-import { BlossomColorPicker } from '@dayflow/blossom-color-picker-react';
+import { Settings2, Volume2, Zap, ShieldAlert, ArrowRight, Plus, Trash2, RotateCcw, ChevronRight, Palette, Copy, Check } from "lucide-react";
+import { HexAlphaColorPicker } from "react-colorful";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -384,27 +384,80 @@ const Settings = () => {
         <SettingTile
           id="highlight"
           title="Title Highlight Color"
-          description="Color for auto and manual highlights"
+          description="Advanced color engine for highlights"
           icon={Palette}
         >
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs text-muted-foreground">Select Highlight Color</Label>
-              <div
-                className="w-8 h-8 rounded-full border border-border shadow-sm"
-                style={{ backgroundColor: highlightColor }}
-              />
+          <div className="space-y-6">
+            <div className="flex flex-col lg:flex-row gap-8 items-center lg:items-start">
+              <div className="custom-color-picker flex-1 w-full max-w-[240px]">
+                <HexAlphaColorPicker
+                  color={highlightColor}
+                  onChange={(color) => {
+                    setHighlightColor(color);
+                    saveSetting('bg_highlight_color', color);
+                  }}
+                />
+              </div>
+
+              <div className="flex-1 w-full space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Active Color</Label>
+                  <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border">
+                    <div
+                      className="w-10 h-10 rounded-lg border border-border shadow-sm shrink-0"
+                      style={{ backgroundColor: highlightColor }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-mono font-bold text-foreground truncate uppercase">{highlightColor}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase">Current Selection</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-primary"
+                      onClick={() => {
+                        navigator.clipboard.writeText(highlightColor);
+                        toast.success("Color copied");
+                      }}
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Manual HEX Override</Label>
+                  <div className="relative">
+                    <Input
+                      value={highlightColor}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setHighlightColor(val);
+                        saveSetting('bg_highlight_color', val);
+                      }}
+                      className="h-11 pl-4 pr-10 bg-card border-border font-mono text-xs uppercase"
+                    />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <Check className="w-3.5 h-3.5 text-green-500" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-5 gap-2 pt-2">
+                  {['#FFFF00', '#FF0000', '#00FF00', '#0000FF', '#FF00FF', '#00FFFF', '#FFA500', '#800080', '#008080', '#FFFFFF'].map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      className="aspect-square rounded-md border border-border hover:scale-110 transition-transform shadow-sm"
+                      style={{ backgroundColor: c }}
+                      onClick={() => { setHighlightColor(c); saveSetting('bg_highlight_color', c); }}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="flex justify-center py-4 bg-muted/30 rounded-xl border border-border">
-              <BlossomColorPicker
-                color={highlightColor}
-                onChange={(color: { hex: string }) => {
-                  setHighlightColor(color.hex);
-                  saveSetting('bg_highlight_color', color.hex);
-                }}
-              />
-            </div>
-            <div className="space-y-3 pt-4 border-t border-border">
+
+            <div className="space-y-3 pt-6 border-t border-border">
               <Label className="text-xs text-muted-foreground">Auto Highlight (1st Line for 2-Line Titles)</Label>
               <CustomSelect
                 value={autoHighlight ? 'true' : 'false'}
