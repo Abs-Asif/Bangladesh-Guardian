@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Settings2, Volume2, Zap, ShieldAlert, ArrowRight, Plus, Trash2, RotateCcw, ChevronRight } from "lucide-react";
+import { Settings2, Volume2, Zap, ShieldAlert, ArrowRight, Plus, Trash2, RotateCcw, ChevronRight, Palette } from "lucide-react";
+import { BlossomColorPicker } from '@dayflow/blossom-color-picker';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +20,8 @@ const Settings = () => {
   const [automationFrequency, setAutomationFrequency] = useState(localStorage.getItem('bg_secret_automation_frequency') || '1m3p');
   const [livePreview, setLivePreview] = useState(localStorage.getItem('bg_live_preview') === 'true');
   const [theme, setTheme] = useState(localStorage.getItem('bg_theme') || 'day');
+  const [highlightColor, setHighlightColor] = useState(localStorage.getItem('bg_highlight_color') || '#FFFF00');
+  const [autoHighlight, setAutoHighlight] = useState(localStorage.getItem('bg_auto_highlight_two_lines') !== 'false');
   const [expandedTile, setExpandedTile] = useState<string | null>(null);
 
   const [currentTemplate, setCurrentTemplate] = useState(() => localStorage.getItem('bg_selected_template') || 'PhotocardTemplate.png');
@@ -151,7 +154,7 @@ const Settings = () => {
     </div>
   );
 
-  const SettingTile = ({ id, title, description, icon: Icon, children }: { id: string, title: string, description: string, icon: any, children: React.ReactNode }) => (
+  const SettingTile = ({ id, title, description, icon: Icon, children }: { id: string, title: string, description: string, icon: React.ElementType, children: React.ReactNode }) => (
     <div className="bg-card border border-border rounded-xl overflow-hidden transition-all duration-300">
       <button
         type="button"
@@ -373,6 +376,48 @@ const Settings = () => {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        </SettingTile>
+
+        {/* Highlight Color Settings */}
+        <SettingTile
+          id="highlight"
+          title="Title Highlight Color"
+          description="Color for auto and manual highlights"
+          icon={Palette}
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">Select Highlight Color</Label>
+              <div
+                className="w-8 h-8 rounded-full border border-border shadow-sm"
+                style={{ backgroundColor: highlightColor }}
+              />
+            </div>
+            <div className="flex justify-center py-4 bg-muted/30 rounded-xl border border-border">
+              <BlossomColorPicker
+                color={highlightColor}
+                onChange={(color: { hex: string }) => {
+                  setHighlightColor(color.hex);
+                  saveSetting('bg_highlight_color', color.hex);
+                }}
+              />
+            </div>
+            <div className="space-y-3 pt-4 border-t border-border">
+              <Label className="text-xs text-muted-foreground">Auto Highlight (1st Line for 2-Line Titles)</Label>
+              <CustomSelect
+                value={autoHighlight ? 'true' : 'false'}
+                onChange={(val) => {
+                  const isTrue = val === 'true';
+                  setAutoHighlight(isTrue);
+                  saveSetting('bg_auto_highlight_two_lines', isTrue);
+                }}
+                options={[
+                  { id: 'true', label: 'Enabled' },
+                  { id: 'false', label: 'Disabled' }
+                ]}
+              />
             </div>
           </div>
         </SettingTile>
