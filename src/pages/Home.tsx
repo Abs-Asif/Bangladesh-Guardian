@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -182,6 +183,7 @@ const Home = () => {
   const [automationError, setAutomationError] = useState<string | null>(null);
   const [processedUrls, setProcessedUrls] = useState<Map<string, number>>(new Map());
   const processedUrlsRef = useRef<Map<string, number>>(new Map());
+  const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
 
   const nextFetchLimitRef = useRef<number | null>(null);
   const backupInitializedRef = useRef(false);
@@ -359,6 +361,19 @@ const Home = () => {
     } catch (e) { return ''; }
   }, []);
 
+  const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeout = 8000) => {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(id);
+      return response;
+    } catch (e) {
+      clearTimeout(id);
+      throw e;
+    }
+  };
+
   const fetchImageWithProxy = async (url: string, forceProxy: boolean = false): Promise<string> => {
     const proxies = [
       (u: string) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
@@ -366,12 +381,18 @@ const Home = () => {
       (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
     ];
     if (!forceProxy) {
-      try { const res = await fetch(url, { mode: 'cors' }); if (res.ok) return URL.createObjectURL(await res.blob()); } catch {
+      try {
+        const res = await fetchWithTimeout(url, { mode: 'cors' });
+        if (res.ok) return URL.createObjectURL(await res.blob());
+      } catch {
         // Fallback
       }
     }
     for (const p of proxies) {
-      try { const res = await fetch(p(url)); if (res.ok) return URL.createObjectURL(await res.blob()); } catch {
+      try {
+        const res = await fetchWithTimeout(p(url));
+        if (res.ok) return URL.createObjectURL(await res.blob());
+      } catch {
         // Fallback
       }
     }
@@ -396,16 +417,28 @@ const Home = () => {
     let appliedHighlightsResult: number[] = [];
     const templateName = localStorage.getItem('bg_selected_template') || 'PhotocardTemplate.png';
 
-    const template = new Image();
-    template.crossOrigin = "anonymous";
-    template.src = `/${templateName}`;
-    await new Promise(r => { template.onload = r; });
+    const getCachedImage = async (src: string, isData = false): Promise<HTMLImageElement> => {
+      if (imageCacheRef.current.has(src)) return imageCacheRef.current.get(src)!;
+      const img = new Image();
+      if (!isData) img.crossOrigin = "anonymous";
+      img.src = src;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+      });
+      imageCacheRef.current.set(src, img);
+      return img;
+    };
+
+    const template = await getCachedImage(`/${templateName}`);
 
     let adImg: HTMLImageElement | null = null;
     const selectedAdId = localStorage.getItem('bg_selected_ad');
     if (selectedAdId) {
       const adData = await getSelectedAd(selectedAdId);
-      if (adData) { adImg = new Image(); adImg.src = adData.data; await new Promise(r => { adImg!.onload = r; }); }
+      if (adData) {
+        adImg = await getCachedImage(adData.data, true);
+      }
     }
 
     const adHeight = adImg ? (CANVAS_WIDTH / adImg.width) * adImg.height : 0;
@@ -539,7 +572,7 @@ const Home = () => {
     let html = '';
     if (!forceProxy) {
       try {
-        const response = await fetch(targetUrl);
+        const response = await fetchWithTimeout(targetUrl);
         if (response.ok) html = await response.text();
       } catch (e) {
         // Fallback
@@ -554,7 +587,7 @@ const Home = () => {
       ];
       for (const proxy of proxies) {
         try {
-          const response = await fetch(proxy.url(targetUrl));
+          const response = await fetchWithTimeout(proxy.url(targetUrl));
           if (response.ok) {
             html = proxy.type === 'json' ? (await response.json()).contents : await response.text();
             if (html && (html.includes('<title>') || html.includes('og:title'))) break;
@@ -702,37 +735,59 @@ const Home = () => {
         }
       } else {
         lastHeartbeatRef.current = Date.now();
-        addLog(`Found ${newArticles.length} new post(s).`);
-        for (const article of newArticles) {
-          let artTitle = article.title, artImage = article.image;
-          if (!artTitle || !artImage) {
-            const meta = await getMetadata(article.url, automationMode === 'backup');
-            if (meta) { artTitle = artTitle || meta.title; artImage = artImage || meta.image; }
-          }
-          if (artTitle && artImage) {
-            addLog(`Verifying "${artTitle.substring(0, 30)}..." (5s delay)...`, "process");
-            await new Promise(r => setTimeout(r, 5000));
+        addLog(`Found ${newArticles.length} new post(s). Processing...`);
+
+        // Process new articles in parallel for speed
+        const results = await Promise.all(newArticles.map(async (article) => {
+          try {
+            let artTitle = article.title, artImage = article.image;
+            if (!artTitle || !artImage) {
+              const meta = await getMetadata(article.url, automationMode === 'backup');
+              if (meta) { artTitle = artTitle || meta.title; artImage = artImage || meta.image; }
+            }
+            if (!artTitle || !artImage) return null;
+
+            // Optional verification with short delay if needed, but let's make it parallel
+            // We'll reduce the delay to 2s for parallel processing
+            await new Promise(r => setTimeout(r, 2000));
             const verifyMeta = await getMetadata(article.url, automationMode === 'backup');
             if (verifyMeta && verifyMeta.title && verifyMeta.image) {
-              if (verifyMeta.title === artTitle && verifyMeta.image === artImage) {
-                addLog("Verification successful: data matches.", "success");
-              } else if (shouldUpgradeTitle(artTitle, verifyMeta.title)) {
+              if (shouldUpgradeTitle(artTitle, verifyMeta.title)) {
                 artTitle = verifyMeta.title;
                 artImage = verifyMeta.image;
-                addLog("Data mismatch: Using improved version.", "info");
-              } else {
-                addLog("Data mismatch: Original version is better or same.", "info");
               }
             }
 
             const censored = censorText(artTitle, wordRestrictions);
             const { dataUrl, appliedHighlights } = await generatePhotoCardInternal(censored, artImage, automationMode === 'backup');
-            const record: AutoRecord = { id: Math.random().toString(36).substr(2, 9), url: article.url, title: censored, imageUrl: artImage, previewUrl: dataUrl, timestamp: new Date().toISOString(), postTime: article.postTime, contentId: article.contentId, highlightedIndices: appliedHighlights };
-            await saveRecordDB(record);
-            setAutoRecords(prev => sortRecords([record, ...prev]).slice(0, 50));
-            setProcessedUrls(prev => new Map(prev).set(article.url, Date.now()));
-            toast.success(`Auto-generated: ${censored}`); playNotification();
+            const record: AutoRecord = {
+              id: Math.random().toString(36).substr(2, 9),
+              url: article.url,
+              title: censored,
+              imageUrl: artImage,
+              previewUrl: dataUrl,
+              timestamp: new Date().toISOString(),
+              postTime: article.postTime,
+              contentId: article.contentId,
+              highlightedIndices: appliedHighlights
+            };
+            return record;
+          } catch (e) {
+            console.error(`Error processing article ${article.url}:`, e);
+            return null;
           }
+        }));
+
+        const validRecords = results.filter((r): r is AutoRecord => r !== null);
+        if (validRecords.length > 0) {
+          for (const record of validRecords) {
+            await saveRecordDB(record);
+            setProcessedUrls(prev => new Map(prev).set(record.url, Date.now()));
+          }
+          setAutoRecords(prev => sortRecords([...validRecords, ...prev]).slice(0, 50));
+          addLog(`Successfully generated ${validRecords.length} new card(s).`, "success");
+          toast.success(`Generated ${validRecords.length} photocards`);
+          playNotification();
         }
       }
     } catch (e: unknown) {
@@ -1147,13 +1202,13 @@ const Home = () => {
         </div>
       </div>
 
-      {editingRecord && (
+      {editingRecord && createPortal(
         <div
-          className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-300"
+          className="fixed inset-0 z-[40] bg-black/60 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-300"
           onClick={() => setEditingRecord(null)}
         >
           <div
-            className="bg-card border border-border max-w-2xl w-full p-6 lg:p-8 shadow-2xl rounded-3xl space-y-6 animate-in zoom-in-95 duration-300"
+            className="bg-card border border-border max-w-2xl w-full p-6 lg:p-8 shadow-2xl rounded-3xl space-y-6 animate-in zoom-in-95 duration-300 z-[60]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-border pb-4">
@@ -1214,7 +1269,8 @@ const Home = () => {
               </Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
