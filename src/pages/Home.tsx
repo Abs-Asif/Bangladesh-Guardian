@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { censorText } from "@/lib/censor";
 import { shouldUpgradeTitle } from "@/lib/title-utils";
-import { Download, RefreshCw, Image as ImageIcon, ChevronRight, ClipboardPaste, List, Zap, Play, Square, Trash2, Copy, Trash, X, PenTool, ExternalLink, Share2 } from "lucide-react";
+import { Download, RefreshCw, Image as ImageIcon, ChevronRight, List, Zap, Play, Square, Trash2, Copy, X, PenTool, Share2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface AutoRecord {
@@ -739,7 +739,7 @@ const Home = () => {
       console.error("Automation error:", e);
       const msg = e instanceof Error ? e.message : 'Unknown error';
       addLog(`Automation error: ${msg}`, "error");
-      setAutomationError(e.message || "Automation failed unexpectedly.");
+      setAutomationError(msg || "Automation failed unexpectedly.");
     } finally { setIsAutoChecking(false); isAutoCheckingRef.current = false; }
   }, [addLog, generatePhotoCardInternal, playNotification, automationFrequency, automationMode, wordRestrictions, scrapeLatestLinks, scrapeSitemapLinks]);
 
@@ -803,7 +803,7 @@ const Home = () => {
     if (activeTab !== 'manual' || !livePreviewEnabled || !title || !(uploadedImage || imageUrl)) return;
     const t = setTimeout(() => { generatePhotoCard(true); }, 500);
     return () => { clearTimeout(t); };
-  }, [title, imageUrl, uploadedImage, livePreviewEnabled, activeTab, generatePhotoCard, addLog]);
+  }, [title, imageUrl, uploadedImage, livePreviewEnabled, activeTab, generatePhotoCard]);
 
   // Auto-refresh Recent Generations list every 70 seconds
   useEffect(() => {

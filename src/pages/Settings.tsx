@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Settings2, Volume2, Zap, ShieldAlert, ArrowRight, Plus, Trash2, RotateCcw, ChevronRight, Palette } from "lucide-react";
-import { BlossomColorPicker } from '@dayflow/blossom-color-picker';
+import { BlossomColorPicker } from '@dayflow/blossom-color-picker-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
