@@ -4,8 +4,7 @@ import { toast } from 'sonner';
 import { censorText } from '@/lib/censor';
 import { loadTypographySettings } from '@/lib/settings';
 import { generatePhotoCardInternal, CANVAS_WIDTH, CANVAS_HEIGHT } from '@/lib/renderer';
-import { getMetadata, formatSitemapTime, BGArchiveItem } from '@/lib/api';
-import { saveRecordDB } from '@/lib/db';
+import { formatSitemapTime, BGArchiveItem } from '@/lib/api';
 
 interface QuickDownloadProps {
   contentId: string;
@@ -22,6 +21,18 @@ const QuickDownload: React.FC<QuickDownloadProps> = ({ contentId }) => {
       try {
         setStatus('loading');
 
+        // 0. Preload Fonts
+        try {
+          await Promise.all([
+            document.fonts.load('bold 70px "Cambria"'),
+            document.fonts.load('20px "Cambria"'),
+            document.fonts.load('400 16px "Solaiman Lipi"'),
+            document.fonts.load('700 16px "Solaiman Lipi"')
+          ]);
+        } catch (e) {
+          console.warn("Font preloading failed, continuing with system fonts.");
+        }
+
         // 1. Fetch metadata
         const response = await fetch("https://backoffice.bangladeshguardian.com/api-en/archive", {
           method: "POST",
@@ -34,28 +45,25 @@ const QuickDownload: React.FC<QuickDownloadProps> = ({ contentId }) => {
         const data = await response.json();
         const article = (data.archive_data || []).find((item: BGArchiveItem) => String(item.ContentID) === contentId);
 
-        let title = '', imageUrl = '', postTime = '', articleUrl = '';
+        let title = '', imageUrl = '', articleUrl = '';
 
         if (article) {
           title = article.ContentHeading;
           imageUrl = `https://backoffice.bangladeshguardian.com/media/imgAll/${article.ImageBgPath}`;
-          postTime = article.create_date ? formatSitemapTime(article.create_date) : '';
           articleUrl = `https://www.bangladeshguardian.com/${article.Slug}/${article.ContentID}`;
         } else {
-          // Fallback to scraping if not found in recent API
-          setStatus('processing');
-          // We don't have the slug, so we try a common pattern or just show error
-          // For simplicity in this "API", if it's not in the last 50, we might need more logic
-          // but usually this feature is for recent posts.
           throw new Error("Article not found in recent archive.");
         }
 
         setStatus('processing');
         const settings = loadTypographySettings();
-        const censoredTitle = censorText(title);
+
+        const sw = localStorage.getItem('bg_secret_word_restrictions');
+        const wordRestrictions = sw ? JSON.parse(sw) : {};
+        const censoredTitle = censorText(title, wordRestrictions);
 
         // 2. Render Photocard
-        const { dataUrl, appliedHighlights } = await generatePhotoCardInternal(
+        const { dataUrl } = await generatePhotoCardInternal(
           canvasRef.current!,
           censoredTitle,
           imageUrl,
@@ -74,23 +82,10 @@ const QuickDownload: React.FC<QuickDownloadProps> = ({ contentId }) => {
         a.click();
         document.body.removeChild(a);
 
-        // 4. Save to history
-        await saveRecordDB({
-          id: Math.random().toString(36).substr(2, 9),
-          url: articleUrl,
-          title: censoredTitle,
-          imageUrl: imageUrl,
-          previewUrl: dataUrl,
-          timestamp: new Date().toISOString(),
-          postTime: postTime,
-          contentId: parseInt(contentId),
-          highlightedIndices: appliedHighlights
-        });
-
         setStatus('completed');
         toast.success("Photocard Downloaded!");
 
-        // 5. Close tab or go back
+        // 4. Close tab or go back
         setTimeout(() => {
           if (window.history.length > 1) {
             window.history.back();

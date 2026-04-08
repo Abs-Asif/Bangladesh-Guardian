@@ -18,8 +18,9 @@ const Secret = () => {
   const [currentPage, setCurrentPage] = useState<PageId>('home');
   const mainRef = useRef<HTMLElement>(null);
 
-  const path = window.location.pathname.replace(/^\/|\/$/g, '');
-  const isNumericPath = /^\d+$/.test(path);
+  const searchParams = new URLSearchParams(window.location.search);
+  const quickId = searchParams.get(''); // Handle ?=45310 where key is empty
+  const isQuickDownload = !!quickId && /^\d+$/.test(quickId);
 
   useEffect(() => {
     const updateTheme = () => {
@@ -64,8 +65,8 @@ const Secret = () => {
     }
   };
 
-  if (isNumericPath) {
-    return <QuickDownload contentId={path} />;
+  if (isQuickDownload && quickId) {
+    return <QuickDownload contentId={quickId} />;
   }
 
   if (!isAuthorized) {
