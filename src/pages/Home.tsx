@@ -9,26 +9,23 @@ import { censorText } from "@/lib/censor";
 import { shouldUpgradeTitle } from "@/lib/title-utils";
 import { Download, RefreshCw, Image as ImageIcon, ChevronRight, List, Zap, Play, Square, Trash2, Copy, X, PenTool, Share2 } from "lucide-react";
 import { toast } from "sonner";
-
-interface AutoRecord {
-  id: string;
-  url: string;
-  title: string;
-  imageUrl: string;
-  previewUrl: string;
-  timestamp: string;
-  postTime?: string;
-  contentId?: number;
-  highlightedIndices?: number[];
-}
-
-interface BGArchiveItem {
-  ContentID: number;
-  Slug: string;
-  ContentHeading: string;
-  ImageBgPath: string;
-  create_date?: string;
-}
+import {
+  AutoRecord,
+  deleteRecordDB,
+  clearRecordsDB,
+  saveRecordDB,
+  getAllRecordsDB
+} from "@/lib/db";
+import {
+  BGArchiveItem,
+  getMetadata,
+  getRelativeDateStr,
+  formatSitemapTime,
+  scrapeLatestLinks,
+  scrapeSitemapLinks
+} from "@/lib/api";
+import { loadTypographySettings, TypographySettings } from "@/lib/settings";
+import { generatePhotoCardInternal, CANVAS_WIDTH, CANVAS_HEIGHT } from "@/lib/renderer";
 
 interface LogEntry {
   message: string;
@@ -36,117 +33,11 @@ interface LogEntry {
   type?: 'info' | 'success' | 'error' | 'process';
 }
 
-interface AdData {
-  id: string;
-  name: string;
-  data: string;
-}
-
-const DB_NAME = 'SecretBGDB';
-const STORE_NAME = 'photocards';
-
-const initDB = (): Promise<IDBDatabase> => {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-};
-
-const deleteRecordDB = async (id: string) => {
-  const db = await initDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
-    store.delete(id);
-    tx.oncomplete = () => resolve(true);
-    tx.onerror = () => reject(tx.error);
-  });
-};
-
-const clearRecordsDB = async () => {
-  const db = await initDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
-    store.clear();
-    tx.oncomplete = () => resolve(true);
-    tx.onerror = () => reject(tx.error);
-  });
-};
-
-const saveRecordDB = async (record: AutoRecord) => {
-  const db = await initDB();
-  const allRecords = await new Promise<AutoRecord[]>((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const store = tx.objectStore(STORE_NAME);
-    const request = store.getAll();
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-  if (allRecords.length >= 50) {
-    const sorted = allRecords.sort((a, b) => (a.contentId || new Date(a.timestamp).getTime()) - (b.contentId || new Date(b.timestamp).getTime()));
-    const toDeleteCount = (allRecords.length - 50) + 1;
-    const deleteTx = db.transaction(STORE_NAME, 'readwrite');
-    const deleteStore = deleteTx.objectStore(STORE_NAME);
-    for (let i = 0; i < toDeleteCount; i++) deleteStore.delete(sorted[i].id);
-    await new Promise((resolve) => { deleteTx.oncomplete = resolve; });
-  }
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    tx.objectStore(STORE_NAME).put(record);
-    tx.oncomplete = () => resolve(true);
-    tx.onerror = () => reject(tx.error);
-  });
-};
-
-const getAllRecordsDB = async (): Promise<AutoRecord[]> => {
-  const db = await initDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const store = tx.objectStore(STORE_NAME);
-    const request = store.getAll();
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-};
-
 const FREQ_OPTIONS = [
   { id: '1m3p', label: '1m 3p', interval: 60000, limit: 3 },
   { id: '2m6p', label: '2m 6p', interval: 120000, limit: 6 },
   { id: '3m6p', label: '3m 6p', interval: 180000, limit: 6 }
 ];
-
-const AD_DB_NAME = 'AdImagesDB';
-const AD_STORE_NAME = 'ads';
-
-const initAdDB = (): Promise<IDBDatabase> => {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(AD_DB_NAME, 1);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(AD_STORE_NAME)) db.createObjectStore(AD_STORE_NAME, { keyPath: 'id' });
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-};
-
-const getSelectedAd = async (id: string): Promise<AdData | undefined> => {
-  const db = await initAdDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(AD_STORE_NAME, 'readonly');
-    const request = tx.objectStore(AD_STORE_NAME).get(id);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-};
 
 const Home = () => {
   const [activeTab, setActiveTab] = useState<'url' | 'manual'>('url');
@@ -222,35 +113,18 @@ const Home = () => {
       setSelectedAudio(localStorage.getItem('bg_secret_audio') || '/Alert.mp3');
       setLivePreviewEnabled(localStorage.getItem('bg_live_preview') === 'true');
 
-      const template = localStorage.getItem('bg_selected_template') || 'PhotocardTemplate.png';
-      const isRamadanEid = template === 'PhotocardTemplate1.png';
-      const suffix = template === 'PhotocardTemplate.png' ? '' : `_${template}`;
-
-      const getVal = (key: string, def: number | string) => {
-        const saved = localStorage.getItem(`bg_${key}${suffix}`);
-        return saved !== null ? saved : (localStorage.getItem(`bg_${key}`) || def);
-      };
-
-      const getDVal = (key: string, def: number | string, eidDef: number | string) => {
-        const saved = localStorage.getItem(`bg_${key}${suffix}`);
-        if (saved !== null) return saved;
-        return isRamadanEid ? eidDef : (localStorage.getItem(`bg_${key}`) || def);
-      };
-
-      setFontSize(Number(getDVal('font_size', 70, 57)));
-      setTitleLetterSpacing(Number(getDVal('letter_spacing', -2.4, -0.6)));
-      setLineHeightFactor(Number(getDVal('line_height', 0.9, 1)));
-      setDateFontSize(Number(getDVal('date_font_size', 20, 19)));
-      setDateXOffset(Number(getDVal('date_x_offset', -40, -40)));
-      setDateYOffset(Number(getDVal('date_y_offset', -30, 18)));
-      setImageXOffset(Number(getDVal('image_x_offset', 0, 0)));
-      setImageYOffset(Number(getDVal('image_y_offset', 0, 25)));
-      setTitleXOffset(Number(getDVal('title_x_offset', 0, 0)));
-      setTitleYOffset(Number(getDVal('title_y_offset', 0, 35)));
-
-      const defaultLayerOrder = isRamadanEid ? 'news_image,background,title_text,date_time' : 'background,news_image,date_time,title_text';
-      const savedLayerOrder = getVal('layer_order', defaultLayerOrder);
-      setLayerOrder(String(savedLayerOrder).split(','));
+      const settings = loadTypographySettings();
+      setFontSize(settings.fontSize);
+      setTitleLetterSpacing(settings.titleLetterSpacing);
+      setLineHeightFactor(settings.lineHeightFactor);
+      setDateFontSize(settings.dateFontSize);
+      setDateXOffset(settings.dateXOffset);
+      setDateYOffset(settings.dateYOffset);
+      setImageXOffset(settings.imageXOffset);
+      setImageYOffset(settings.imageYOffset);
+      setTitleXOffset(settings.titleXOffset);
+      setTitleYOffset(settings.titleYOffset);
+      setLayerOrder(settings.layerOrder);
     };
     loadSettings();
     window.addEventListener('storage', loadSettings);
@@ -330,231 +204,26 @@ const Home = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const CANVAS_WIDTH = 1080;
-  const CANVAS_HEIGHT = 1080;
-  const BOX = { x: 30, y: 32, w: 1020, h: 574 };
-  const GRAY_BAR_Y = 660;
-  const GRAY_BAR_H = 85;
-  const DATE_X = 88;
-  const DATE_Y = GRAY_BAR_Y + (GRAY_BAR_H / 2);
-  const TITLE_X = CANVAS_WIDTH / 2;
-  const TITLE_Y = 860;
-
-  const formatDate = (date: Date) => {
-    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    return `${days[date.getDay()]} | ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
-  };
-
-  const getRelativeDateStr = (date: Date) => {
-    const diffDays = Math.floor((new Date().setHours(0,0,0,0) - new Date(date).setHours(0,0,0,0)) / 86400000);
-    if (diffDays <= 0) return 'Today';
-    if (diffDays === 1) return '1 day ago';
-    return diffDays < 7 ? `${diffDays} days ago` : diffDays === 7 ? 'A week ago' : `${Math.floor(diffDays/7)} weeks ago`;
-  };
-
-  const formatSitemapTime = useCallback((isoStr: string) => {
-    try {
-      const date = new Date(isoStr);
-      const h = date.getHours(), m = date.getMinutes().toString().padStart(2, '0'), ampm = h >= 12 ? 'PM' : 'AM';
-      return `[${h%12||12}:${m} ${ampm}] [${getRelativeDateStr(date)}]`;
-    } catch (e) { return ''; }
-  }, []);
-
-  const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeout = 8000) => {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
-    try {
-      const response = await fetch(url, { ...options, signal: controller.signal });
-      clearTimeout(id);
-      return response;
-    } catch (e) {
-      clearTimeout(id);
-      throw e;
-    }
-  };
-
-  const fetchImageWithProxy = async (url: string, forceProxy: boolean = false): Promise<string> => {
-    const proxies = [
-      (u: string) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
-      (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-      (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-    ];
-    if (!forceProxy) {
-      try {
-        const res = await fetchWithTimeout(url, { mode: 'cors' });
-        if (res.ok) return URL.createObjectURL(await res.blob());
-      } catch {
-        // Fallback
-      }
-    }
-    for (const p of proxies) {
-      try {
-        const res = await fetchWithTimeout(p(url));
-        if (res.ok) return URL.createObjectURL(await res.blob());
-      } catch {
-        // Fallback
-      }
-    }
-    throw new Error("Failed to load image");
-  };
-
-  const wrapText = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number) => {
-    const words = text.split(' '), lines = [];
-    let currentLine = '';
-    for (const word of words) {
-      const test = currentLine ? currentLine + ' ' + word : word;
-      if (ctx.measureText(test).width > maxWidth) { lines.push(currentLine); currentLine = word; }
-      else currentLine = test;
-    }
-    lines.push(currentLine);
-    return lines;
-  };
-
-  const generatePhotoCardInternal = useCallback(async (targetTitle: string, targetImageUrl: string, forceProxy: boolean = false, manualHighlights?: number[]): Promise<{ dataUrl: string, appliedHighlights: number[] }> => {
-    const canvas = canvasRef.current!;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
-    let appliedHighlightsResult: number[] = [];
-    const templateName = localStorage.getItem('bg_selected_template') || 'PhotocardTemplate.png';
-
-    const getCachedImage = async (src: string, isData = false): Promise<HTMLImageElement> => {
-      if (imageCacheRef.current.has(src)) return imageCacheRef.current.get(src)!;
-      const img = new Image();
-      if (!isData) img.crossOrigin = "anonymous";
-      img.src = src;
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-      });
-      imageCacheRef.current.set(src, img);
-      return img;
-    };
-
-    const template = await getCachedImage(`/${templateName}`);
-
-    let adImg: HTMLImageElement | null = null;
-    const selectedAdId = localStorage.getItem('bg_selected_ad');
-    if (selectedAdId) {
-      const adData = await getSelectedAd(selectedAdId);
-      if (adData) {
-        adImg = await getCachedImage(adData.data, true);
-      }
-    }
-
-    const adHeight = adImg ? (CANVAS_WIDTH / adImg.width) * adImg.height : 0;
-    canvas.height = CANVAS_HEIGHT + adHeight;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const userImgBlobUrl = (targetImageUrl.startsWith('blob:') || targetImageUrl.startsWith('data:')) ? targetImageUrl : await fetchImageWithProxy(targetImageUrl, forceProxy);
-    const userImg = new Image();
-    userImg.src = userImgBlobUrl;
-    await new Promise(r => { userImg.onload = r; });
-
-    const scale = Math.max(BOX.w / userImg.width, BOX.h / userImg.height);
-    const drawW = userImg.width * scale, drawH = userImg.height * scale;
-    const drawX = BOX.x + (BOX.w - drawW) / 2 + imageXOffset, drawY = BOX.y + (BOX.h - drawH) / 2 + imageYOffset;
-    const boxX = BOX.x + imageXOffset, boxY = BOX.y + imageYOffset;
-
-    const renderLayers: Record<string, () => void> = {
-      background: () => {
-        ctx.drawImage(template, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-        if (adImg) ctx.drawImage(adImg, 0, CANVAS_HEIGHT, CANVAS_WIDTH, adHeight);
-      },
-      news_image: () => {
-        const radius = 35;
-        const definePath = () => {
-          ctx.beginPath();
-          ctx.moveTo(boxX + radius, boxY); ctx.lineTo(boxX + BOX.w - radius, boxY);
-          ctx.quadraticCurveTo(boxX + BOX.w, boxY, boxX + BOX.w, boxY + radius);
-          ctx.lineTo(boxX + BOX.w, boxY + BOX.h - radius);
-          ctx.quadraticCurveTo(boxX + BOX.w, boxY + BOX.h, boxX + BOX.w - radius, boxY + BOX.h);
-          ctx.lineTo(boxX + radius, boxY + BOX.h);
-          ctx.quadraticCurveTo(boxX, boxY + BOX.h, boxX, boxY + BOX.h - radius);
-          ctx.lineTo(boxX, boxY + radius);
-          ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
-          ctx.closePath();
-        };
-        ctx.save(); definePath(); ctx.clip(); ctx.drawImage(userImg, drawX, drawY, drawW, drawH); ctx.restore();
-        ctx.save(); definePath(); ctx.lineWidth = 2; ctx.strokeStyle = '#FF0000'; ctx.stroke(); ctx.restore();
-      },
-      date_time: () => {
-        ctx.font = `${dateFontSize}px "Cambria"`; ctx.fillStyle = 'white'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-        ctx.fillText(formatDate(new Date()), DATE_X + dateXOffset, DATE_Y + dateYOffset);
-      },
-      title_text: () => {
-        const highlightColor = localStorage.getItem('bg_highlight_color') || '#FFFF00';
-        let curFS = fontSize; ctx.textAlign = 'center'; ctx.letterSpacing = `${titleLetterSpacing}px`;
-        const allWords = targetTitle.split(' ');
-        let lines: { text: string; wordIndices: number[] }[] = [];
-
-        for (let i = 0; i < 10; i++) {
-          ctx.font = `bold ${curFS}px "Cambria"`;
-          lines = [];
-          let currentLineText = '';
-          let currentLineIndices: number[] = [];
-
-          for (let j = 0; j < allWords.length; j++) {
-            const word = allWords[j];
-            const testLine = currentLineText ? currentLineText + ' ' + word : word;
-            if (ctx.measureText(testLine).width > 980 && currentLineText !== '') {
-              lines.push({ text: currentLineText, wordIndices: currentLineIndices });
-              currentLineText = word;
-              currentLineIndices = [j];
-            } else {
-              currentLineText = testLine;
-              currentLineIndices.push(j);
-            }
-          }
-          lines.push({ text: currentLineText, wordIndices: currentLineIndices });
-
-          if (lines.length <= 3 && Math.max(...lines.map(l => ctx.measureText(l.text).width)) <= 980) break;
-          curFS *= 0.9;
-        }
-
-        const lh = curFS * lineHeightFactor;
-        let appliedHighlights = manualHighlights;
-        const autoHighlightEnabled = localStorage.getItem('bg_auto_highlight_two_lines') !== 'false';
-
-        if (!appliedHighlights && lines.length === 2 && autoHighlightEnabled) {
-          appliedHighlights = lines[0].wordIndices;
-        }
-        if (!appliedHighlights) appliedHighlights = [];
-        appliedHighlightsResult = appliedHighlights;
-
-        lines.forEach((line, i) => {
-          const totalWidth = ctx.measureText(line.text).width;
-          let currentX = TITLE_X + titleXOffset - totalWidth / 2;
-          const y = TITLE_Y + titleYOffset - ((lines.length - 1) * lh / 2) + (i * lh);
-
-          ctx.textAlign = 'left';
-          line.wordIndices.forEach((wordIdx, idxInLine) => {
-            const word = allWords[wordIdx];
-            ctx.fillStyle = appliedHighlights!.includes(wordIdx) ? highlightColor : 'white';
-            ctx.fillText(word, currentX, y);
-            currentX += ctx.measureText(word).width;
-            if (idxInLine < line.wordIndices.length - 1) {
-              currentX += ctx.measureText(' ').width;
-            }
-          });
-        });
-      }
-    };
-
-    layerOrder.forEach(layer => {
-      if (renderLayers[layer]) renderLayers[layer]();
-    });
-
-    if (userImgBlobUrl.startsWith('blob:') && userImgBlobUrl !== targetImageUrl) URL.revokeObjectURL(userImgBlobUrl);
-    return { dataUrl: canvas.toDataURL('image/png'), appliedHighlights: appliedHighlightsResult };
-  }, [dateFontSize, dateXOffset, dateYOffset, fontSize, lineHeightFactor, titleLetterSpacing, BOX.h, BOX.w, BOX.x, BOX.y, DATE_Y, TITLE_X, imageXOffset, imageYOffset, titleXOffset, titleYOffset, layerOrder]);
-
   const generatePhotoCard = useCallback(async (isLive = false) => {
     const finalImg = uploadedImage || imageUrl;
     if (!title || !finalImg) { if (!isLive) toast.error("Provide title and image"); return; }
     if (!isLive) setIsGenerating(true);
     try {
       const censored = censorText(title, wordRestrictions);
-      const { dataUrl, appliedHighlights } = await generatePhotoCardInternal(censored, finalImg, false);
+      const settings: TypographySettings = {
+        fontSize,
+        dateXOffset,
+        dateYOffset,
+        dateFontSize,
+        titleLetterSpacing,
+        lineHeightFactor,
+        imageXOffset,
+        imageYOffset,
+        titleXOffset,
+        titleYOffset,
+        layerOrder
+      };
+      const { dataUrl, appliedHighlights } = await generatePhotoCardInternal(canvasRef.current!, censored, finalImg, settings, imageCacheRef.current, false);
       setPreviewUrl(dataUrl);
       if (!isLive) {
         const now = new Date();
@@ -566,102 +235,7 @@ const Home = () => {
       }
     } catch (e) { if (!isLive) toast.error("Failed to generate"); }
     finally { if (!isLive) setIsGenerating(false); }
-  }, [uploadedImage, imageUrl, title, wordRestrictions, playNotification, generatePhotoCardInternal]);
-
-  const getMetadata = async (targetUrl: string, forceProxy: boolean = false) => {
-    let html = '';
-    if (!forceProxy) {
-      try {
-        const response = await fetchWithTimeout(targetUrl);
-        if (response.ok) html = await response.text();
-      } catch (e) {
-        // Fallback
-      }
-    }
-    if (!html) {
-      const proxies = [
-        { url: (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`, type: 'text' },
-        { url: (u: string) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`, type: 'text' },
-        { url: (u: string) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`, type: 'json' },
-        { url: (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`, type: 'text' }
-      ];
-      for (const proxy of proxies) {
-        try {
-          const response = await fetchWithTimeout(proxy.url(targetUrl));
-          if (response.ok) {
-            html = proxy.type === 'json' ? (await response.json()).contents : await response.text();
-            if (html && (html.includes('<title>') || html.includes('og:title'))) break;
-          }
-        } catch (e) {
-          // Fallback
-        }
-      }
-    }
-    if (!html) return null;
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    return {
-      title: doc.querySelector('meta[property="og:title"]')?.getAttribute('content') || doc.querySelector('title')?.textContent || '',
-      image: doc.querySelector('meta[property="og:image"]')?.getAttribute('content') || doc.querySelector('meta[name="twitter:image"]')?.getAttribute('content') || '',
-      publishDate: doc.querySelector('meta[property="article:published_time"]')?.getAttribute('content') || doc.querySelector('meta[name="publish-date"]')?.getAttribute('content') || ''
-    };
-  };
-
-  const scrapeLatestLinks = useCallback(async (fetchLimit: number = 3) => {
-    try {
-      const response = await fetch("https://backoffice.bangladeshguardian.com/api-en/archive", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ start_date: "", end_date: "", category_name: "", limit: fetchLimit, offset: 0 })
-      });
-      const data = await response.json();
-      return (data.archive_data || []).map((item: BGArchiveItem) => ({
-        url: `https://www.bangladeshguardian.com/${item.Slug}/${item.ContentID}`,
-        title: item.ContentHeading, image: `https://backoffice.bangladeshguardian.com/media/imgAll/${item.ImageBgPath}`,
-        postTime: item.create_date ? formatSitemapTime(item.create_date) : '', contentId: item.ContentID
-      }));
-    } catch (e) { return null; }
-  }, [formatSitemapTime]);
-
-  const scrapeSitemapLinks = useCallback(async () => {
-    const now = new Date();
-    const sitemapUrl = `https://www.bangladeshguardian.com/english-sitemap/sitemap-daily-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}.xml`;
-    try {
-      let xmlText = '';
-      try {
-        const res = await fetch(sitemapUrl);
-        if (res.ok) xmlText = await res.text();
-      } catch (e) {
-        // Ignored
-      }
-
-      if (!xmlText) {
-        const proxies = [
-          (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-          (u: string) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
-          (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-        ];
-        for (const p of proxies) {
-          try {
-            const res = await fetch(p(sitemapUrl));
-            if (res.ok) { xmlText = await res.text(); break; }
-          } catch (e) {
-            // Ignored
-          }
-        }
-      }
-
-      if (!xmlText) return null;
-
-      const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
-      return Array.from(xmlDoc.getElementsByTagName("url")).map(node => {
-        const loc = node.getElementsByTagName("loc")[0]?.textContent || '';
-        return {
-          url: loc.trim(), title: '', image: node.getElementsByTagName("image:loc")[0]?.textContent || '',
-          postTime: node.getElementsByTagName("lastmod")[0]?.textContent ? formatSitemapTime(node.getElementsByTagName("lastmod")[0].textContent!) : '',
-          contentId: parseInt(loc.replace(/\/$/, '').split('/').pop() || '0')
-        };
-      }).filter(i => i.url && i.image).reverse();
-    } catch (e) { return null; }
-  }, [formatSitemapTime]);
+  }, [uploadedImage, imageUrl, title, wordRestrictions, playNotification, fontSize, dateXOffset, dateYOffset, dateFontSize, titleLetterSpacing, lineHeightFactor, imageXOffset, imageYOffset, titleXOffset, titleYOffset, layerOrder]);
 
   const fetchPostData = async () => {
     const trimmedUrl = postUrl.trim().replace(/\/$/, '');
@@ -687,7 +261,20 @@ const Home = () => {
         } else { toast.error("Post not found."); return; }
       }
       const censored = censorText(eTitle, wordRestrictions);
-      const { dataUrl, appliedHighlights } = await generatePhotoCardInternal(censored, eImage, false);
+      const settings: TypographySettings = {
+        fontSize,
+        dateXOffset,
+        dateYOffset,
+        dateFontSize,
+        titleLetterSpacing,
+        lineHeightFactor,
+        imageXOffset,
+        imageYOffset,
+        titleXOffset,
+        titleYOffset,
+        layerOrder
+      };
+      const { dataUrl, appliedHighlights } = await generatePhotoCardInternal(canvasRef.current!, censored, eImage, settings, imageCacheRef.current, false);
       const record: AutoRecord = { id: Math.random().toString(36).substr(2, 9), url: trimmedUrl, title: censored, imageUrl: eImage, previewUrl: dataUrl, timestamp: new Date().toISOString(), postTime, contentId: parseInt(contentId || '0'), highlightedIndices: appliedHighlights };
       await saveRecordDB(record);
       setAutoRecords(prev => sortRecords([record, ...prev]).slice(0, 50));
@@ -759,7 +346,8 @@ const Home = () => {
             }
 
             const censored = censorText(artTitle, wordRestrictions);
-            const { dataUrl, appliedHighlights } = await generatePhotoCardInternal(censored, artImage, automationMode === 'backup');
+            const settings = loadTypographySettings();
+            const { dataUrl, appliedHighlights } = await generatePhotoCardInternal(canvasRef.current!, censored, artImage, settings, imageCacheRef.current, automationMode === 'backup');
             const record: AutoRecord = {
               id: Math.random().toString(36).substr(2, 9),
               url: article.url,
@@ -796,7 +384,7 @@ const Home = () => {
       addLog(`Automation error: ${msg}`, "error");
       setAutomationError(msg || "Automation failed unexpectedly.");
     } finally { setIsAutoChecking(false); isAutoCheckingRef.current = false; }
-  }, [addLog, generatePhotoCardInternal, playNotification, automationFrequency, automationMode, wordRestrictions, scrapeLatestLinks, scrapeSitemapLinks]);
+  }, [addLog, playNotification, automationFrequency, automationMode, wordRestrictions]);
 
   const checkAndGenerateRef = useRef(checkAndGenerate);
   useEffect(() => { checkAndGenerateRef.current = checkAndGenerate; }, [checkAndGenerate]);
@@ -876,7 +464,20 @@ const Home = () => {
     if (!editingRecord) return;
     setIsSavingEdit(true);
     try {
-      const { dataUrl } = await generatePhotoCardInternal(editingRecord.title, editingRecord.imageUrl, false, tempHighlights);
+      const settings: TypographySettings = {
+        fontSize,
+        dateXOffset,
+        dateYOffset,
+        dateFontSize,
+        titleLetterSpacing,
+        lineHeightFactor,
+        imageXOffset,
+        imageYOffset,
+        titleXOffset,
+        titleYOffset,
+        layerOrder
+      };
+      const { dataUrl } = await generatePhotoCardInternal(canvasRef.current!, editingRecord.title, editingRecord.imageUrl, settings, imageCacheRef.current, false, tempHighlights);
       const updatedRecord = { ...editingRecord, previewUrl: dataUrl, highlightedIndices: tempHighlights };
       await saveRecordDB(updatedRecord);
       setAutoRecords(prev => prev.map(r => r.id === updatedRecord.id ? updatedRecord : r));
@@ -892,7 +493,20 @@ const Home = () => {
   const handleEditDownload = async () => {
     if (!editingRecord) return;
     try {
-      const { dataUrl } = await generatePhotoCardInternal(editingRecord.title, editingRecord.imageUrl, false, tempHighlights);
+      const settings: TypographySettings = {
+        fontSize,
+        dateXOffset,
+        dateYOffset,
+        dateFontSize,
+        titleLetterSpacing,
+        lineHeightFactor,
+        imageXOffset,
+        imageYOffset,
+        titleXOffset,
+        titleYOffset,
+        layerOrder
+      };
+      const { dataUrl } = await generatePhotoCardInternal(canvasRef.current!, editingRecord.title, editingRecord.imageUrl, settings, imageCacheRef.current, false, tempHighlights);
       const a = document.createElement('a');
       a.download = `${editingRecord.title}.png`;
       a.href = dataUrl;
@@ -905,7 +519,20 @@ const Home = () => {
   const handleEditShare = async () => {
     if (!editingRecord) return;
     try {
-      const { dataUrl } = await generatePhotoCardInternal(editingRecord.title, editingRecord.imageUrl, false, tempHighlights);
+      const settings: TypographySettings = {
+        fontSize,
+        dateXOffset,
+        dateYOffset,
+        dateFontSize,
+        titleLetterSpacing,
+        lineHeightFactor,
+        imageXOffset,
+        imageYOffset,
+        titleXOffset,
+        titleYOffset,
+        layerOrder
+      };
+      const { dataUrl } = await generatePhotoCardInternal(canvasRef.current!, editingRecord.title, editingRecord.imageUrl, settings, imageCacheRef.current, false, tempHighlights);
       const res = await fetch(dataUrl);
       const blob = await res.blob();
       const file = new File([blob], `${editingRecord.title}.png`, { type: 'image/png' });

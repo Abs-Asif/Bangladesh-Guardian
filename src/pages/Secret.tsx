@@ -9,6 +9,7 @@ import Home from "./Home";
 import Templates from "./Templates";
 import Ads from "./Ads";
 import Settings from "./Settings";
+import QuickDownload from "./QuickDownload";
 
 const Secret = () => {
   const [isAuthorized, setIsAuthorized] = useState(localStorage.getItem('bg_authorized') === 'true');
@@ -16,6 +17,10 @@ const Secret = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState<PageId>('home');
   const mainRef = useRef<HTMLElement>(null);
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const quickId = searchParams.get(''); // Handle ?=45310 where key is empty
+  const isQuickDownload = !!quickId && /^\d+$/.test(quickId);
 
   useEffect(() => {
     const updateTheme = () => {
@@ -59,6 +64,10 @@ const Secret = () => {
       setIsLoading(false);
     }
   };
+
+  if (isQuickDownload && quickId) {
+    return <QuickDownload contentId={quickId} />;
+  }
 
   if (!isAuthorized) {
     return (
