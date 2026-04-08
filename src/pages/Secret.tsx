@@ -9,6 +9,7 @@ import Home from "./Home";
 import Templates from "./Templates";
 import Ads from "./Ads";
 import Settings from "./Settings";
+import QuickDownload from "./QuickDownload";
 
 const Secret = () => {
   const [isAuthorized, setIsAuthorized] = useState(localStorage.getItem('bg_authorized') === 'true');
@@ -16,6 +17,9 @@ const Secret = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState<PageId>('home');
   const mainRef = useRef<HTMLElement>(null);
+
+  const path = window.location.pathname.replace(/^\/|\/$/g, '');
+  const isNumericPath = /^\d+$/.test(path);
 
   useEffect(() => {
     const updateTheme = () => {
@@ -59,6 +63,10 @@ const Secret = () => {
       setIsLoading(false);
     }
   };
+
+  if (isNumericPath) {
+    return <QuickDownload contentId={path} />;
+  }
 
   if (!isAuthorized) {
     return (

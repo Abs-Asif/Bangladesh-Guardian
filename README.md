@@ -15,6 +15,7 @@ The **Bangladesh Guardian Photocard Automation** is a specialized tool that stre
 - **Manual Entry:** Support for custom headlines and image uploads.
 - **Professional Design:** Standardized typography (Google Sans, Cambria) and flat design aesthetic.
 - **PWA & Offline:** Fully installable as a Progressive Web App with offline generation support.
+- **Quick Download API:** Instant photocard generation via numeric ID in the URL path.
 
 ---
 
@@ -158,7 +159,24 @@ Users can fine-tune the output in **Settings.tsx**:
 
 ---
 
-## ⚠️ 8. Troubleshooting
+## 🚀 8. Quick Download API
+
+The application supports a zero-UI, instant download feature designed for integration with other tools. By appending an article's numeric ID to the application's base URL, users can trigger an automated generation and download process.
+
+### **Usage:**
+Navigate to: `https://<your-app-domain>/<Article_ID>`
+Example: `https://bg-photocard.vercel.app/45310`
+
+### **Workflow:**
+1. **Detection:** The app identifies the numeric ID from the path.
+2. **Authorization Bypass:** This specific route does not require the access key.
+3. **Fetch & Render:** Automatically fetches the article metadata and renders the photocard using current settings.
+4. **Instant Download:** Triggers the browser download for the PNG file.
+5. **Auto-Exit:** The tab attempts to close or go back once the process is complete.
+
+---
+
+## ⚠️ 9. Troubleshooting
 
 - **CORS Errors:** The app automatically fallbacks to multiple CORS proxies (AllOrigins, Codetabs, CorsProxy.io).
 - **Slow Generation:** Ensure hardware acceleration is enabled in your browser for optimal HTML5 Canvas performance.

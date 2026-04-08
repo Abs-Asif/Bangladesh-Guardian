@@ -5,7 +5,7 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  appType: 'mpa',
+  appType: 'spa',
   base: "/",
   server: {
     host: "::",
@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => ({
           if (url === '/robots.txt') {
             res.writeHead(302, { Location: 'https://m.youtube.com/watch?v=dQw4w9WgXcQ' });
             res.end();
-          } else if (url === '/' || url === '/index.html' || url === '/404.html' || url.includes('.') || url.startsWith('/@') || url.startsWith('/src') || url.startsWith('/node_modules')) {
+          } else if (url === '/' || url === '/index.html' || url === '/404.html' || url.includes('.') || url.startsWith('/@') || url.startsWith('/src') || url.startsWith('/node_modules') || /^\/\d+$/.test(url)) {
             next();
           } else {
             req.url = '/404.html';
