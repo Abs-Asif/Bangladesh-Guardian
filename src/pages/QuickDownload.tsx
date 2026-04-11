@@ -34,7 +34,7 @@ const QuickDownload: React.FC<QuickDownloadProps> = ({ contentId }) => {
         }
 
         // 1. Fetch metadata
-        const response = await fetch("https://backoffice.bangladeshguardian.com/api-en/archive", {
+        const response = await fetch("http://103.209.42.203/api/archive", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ start_date: "", end_date: "", category_name: "", limit: 50, offset: 0 })
@@ -43,14 +43,14 @@ const QuickDownload: React.FC<QuickDownloadProps> = ({ contentId }) => {
         if (!response.ok) throw new Error("API Connection Failed");
 
         const data = await response.json();
-        const article = (data.archive_data || []).find((item: BGArchiveItem) => String(item.ContentID) === contentId);
+        const article = (data.data || []).find((item: BGArchiveItem) => String(item.ContentID) === contentId);
 
         let title = '', imageUrl = '', articleUrl = '';
 
         if (article) {
-          title = article.ContentHeading;
-          imageUrl = `https://backoffice.bangladeshguardian.com/media/imgAll/${article.ImageBgPath}`;
-          articleUrl = `https://www.bangladeshguardian.com/${article.Slug}/${article.ContentID}`;
+          title = article.DetailsHeading || article.ContentHeading || '';
+          imageUrl = `http://103.209.42.203/${article.ImageBgPath}`;
+          articleUrl = `https://www.bangladeshguardian.com/${article.ContentSlug || article.Slug}/${article.ContentID}`;
         } else {
           throw new Error("Article not found in recent archive.");
         }

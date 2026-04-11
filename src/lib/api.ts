@@ -1,9 +1,12 @@
 export interface BGArchiveItem {
   ContentID: number;
-  Slug: string;
-  ContentHeading: string;
+  Slug?: string;
+  ContentSlug?: string;
+  ContentHeading: string | null;
+  DetailsHeading?: string | null;
   ImageBgPath: string;
   create_date?: string;
+  created_at?: string;
 }
 
 export const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeout = 8000) => {
@@ -99,15 +102,17 @@ export const formatSitemapTime = (isoStr: string) => {
 
 export const scrapeLatestLinks = async (fetchLimit: number = 3) => {
   try {
-    const response = await fetch("https://backoffice.bangladeshguardian.com/api-en/archive", {
+    const response = await fetch("http://103.209.42.203/api/archive", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ start_date: "", end_date: "", category_name: "", limit: fetchLimit, offset: 0 })
     });
     const data = await response.json();
-    return (data.archive_data || []).map((item: BGArchiveItem) => ({
-      url: `https://www.bangladeshguardian.com/${item.Slug}/${item.ContentID}`,
-      title: item.ContentHeading, image: `https://backoffice.bangladeshguardian.com/media/imgAll/${item.ImageBgPath}`,
-      postTime: item.create_date ? formatSitemapTime(item.create_date) : '', contentId: item.ContentID
+    return (data.data || []).map((item: BGArchiveItem) => ({
+      url: `https://www.bangladeshguardian.com/${item.ContentSlug || item.Slug}/${item.ContentID}`,
+      title: item.DetailsHeading || item.ContentHeading || '',
+      image: `http://103.209.42.203/${item.ImageBgPath}`,
+      postTime: item.create_date || item.created_at ? formatSitemapTime(item.create_date || item.created_at!) : '',
+      contentId: item.ContentID
     }));
   } catch (e) { return null; }
 };

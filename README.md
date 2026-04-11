@@ -10,7 +10,7 @@ The **Bangladesh Guardian Photocard Automation** is a specialized tool that stre
 
 ### Key Features:
 - **Autopilot Engine:** Scans the news archive every 1-3 minutes and generates photocards in the background.
-- **Backoffice Integration:** Direct connection to the `backoffice.bangladeshguardian.com` API.
+- **Backoffice Integration:** Direct connection to the `103.209.42.203` API.
 - **High-Performance Rendering:** Optimized Canvas rendering with word-level highlighting and dynamic font scaling.
 - **Manual Entry:** Support for custom headlines and image uploads.
 - **Professional Design:** Standardized typography (Google Sans, Cambria) and flat design aesthetic.
@@ -48,7 +48,7 @@ The **Bangladesh Guardian Photocard Automation** is a specialized tool that stre
 The application integrates with the **Bangladesh Guardian Backoffice** to fetch the latest news articles.
 
 ### **The Archive API**
-- **Endpoint:** `https://backoffice.bangladeshguardian.com/api-en/archive`
+- **Endpoint:** `http://103.209.42.203/api/archive`
 - **Method:** `POST`
 - **Content-Type:** `application/json`
 
@@ -67,7 +67,7 @@ To fetch the 3 most recent articles:
 #### **Implementation Example (JavaScript):**
 ```javascript
 const fetchLatestNews = async (limit = 3) => {
-  const response = await fetch("https://backoffice.bangladeshguardian.com/api-en/archive", {
+  const response = await fetch("http://103.209.42.203/api/archive", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -80,12 +80,12 @@ const fetchLatestNews = async (limit = 3) => {
   });
 
   const data = await response.json();
-  // archive_data is an array of BGArchiveItem
-  return data.archive_data.map(item => ({
-    title: item.ContentHeading,
-    slug: item.Slug,
+  // data is an array of BGArchiveItem
+  return data.data.map(item => ({
+    title: item.DetailsHeading || item.ContentHeading,
+    slug: item.ContentSlug || item.Slug,
     id: item.ContentID,
-    imageUrl: `https://backoffice.bangladeshguardian.com/media/imgAll/${item.ImageBgPath}`
+    imageUrl: `http://103.209.42.203/${item.ImageBgPath}`
   }));
 };
 ```

@@ -243,16 +243,17 @@ const Home = () => {
     setIsFetching(true);
     try {
       const contentId = trimmedUrl.split('/').pop();
-      const response = await fetch("https://backoffice.bangladeshguardian.com/api-en/archive", {
+      const response = await fetch("http://103.209.42.203/api/archive", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ start_date: "", end_date: "", category_name: "", limit: 50, offset: 0 })
       });
       const data = await response.json();
-      const article = (data.archive_data || []).find((item: BGArchiveItem) => String(item.ContentID) === contentId);
+      const article = (data.data || []).find((item: BGArchiveItem) => String(item.ContentID) === contentId);
       let eTitle = '', eImage = '', postTime = '';
       if (article) {
-        eTitle = article.ContentHeading; eImage = `https://backoffice.bangladeshguardian.com/media/imgAll/${article.ImageBgPath}`;
-        postTime = article.create_date ? formatSitemapTime(article.create_date) : '';
+        eTitle = article.DetailsHeading || article.ContentHeading || '';
+        eImage = `http://103.209.42.203/${article.ImageBgPath}`;
+        postTime = article.create_date || article.created_at ? formatSitemapTime(article.create_date || article.created_at!) : '';
       } else {
         const meta = await getMetadata(trimmedUrl);
         if (meta && meta.title && meta.image) {
